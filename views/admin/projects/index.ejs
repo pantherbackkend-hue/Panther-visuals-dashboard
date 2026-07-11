@@ -1,0 +1,111 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Project management</p>
+    <h1>Projects</h1>
+    <p class="muted">Track all projects from creation to delivery.</p>
+  </div>
+  <a class="btn" href="/admin/projects/new">+ New Project</a>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric">
+    <p class="muted small">New</p>
+    <h2><%= counts.new %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Unassigned</p>
+    <h2><%= counts.unassigned %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Active</p>
+    <h2><%= counts.active %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Revision</p>
+    <h2><%= counts.revision %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Completed</p>
+    <h2><%= counts.completed %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Payment</p>
+    <h2><%= counts.payment %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Paid</p>
+    <h2><%= counts.paid %></h2>
+  </article>
+</section>
+
+<div class="card admin-panel admin-toolbar">
+  <form method="get" action="/admin/projects" class="admin-filter-bar">
+    <label>
+      <span class="sr-only">Search</span>
+      <input name="q" type="search" placeholder="Search by name, client, editor..." value="<%= search || "" %>" />
+    </label>
+    <label>
+      <span class="sr-only">Filter</span>
+      <select name="filter">
+        <option value="all" <%= filter === "all" ? "selected" : "" %>>All</option>
+        <option value="new" <%= filter === "new" ? "selected" : "" %>>New</option>
+        <option value="unassigned" <%= filter === "unassigned" ? "selected" : "" %>>Unassigned</option>
+        <option value="active" <%= filter === "active" ? "selected" : "" %>>Active</option>
+        <option value="revision" <%= filter === "revision" ? "selected" : "" %>>Revision</option>
+        <option value="completed" <%= filter === "completed" ? "selected" : "" %>>Completed</option>
+        <option value="payment" <%= filter === "payment" ? "selected" : "" %>>Awaiting Payment</option>
+        <option value="paid" <%= filter === "paid" ? "selected" : "" %>>Paid</option>
+        <option value="archived" <%= filter === "archived" ? "selected" : "" %>>Archived</option>
+      </select>
+    </label>
+    <button class="btn" type="submit">Apply</button>
+    <a class="btn btn--outline" href="/admin/projects">Reset</a>
+  </form>
+</div>
+
+<div class="card admin-panel">
+  <% if (!projects.length) { %>
+    <p class="muted">No projects match the current filter.</p>
+  <% } else { %>
+    <div style="overflow-x: auto;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Client</th>
+            <th>Editor</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Amount</th>
+            <th>Due</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% projects.forEach((project) => { %>
+            <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+            <tr style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
+              <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
+              <td><%= project.clientName %></td>
+              <td><%= project.assignedEditor?.name || '<span class="muted">Unassigned</span>' %></td>
+              <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></td>
+              <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
+              <td><%= formatMoney(project.paymentAmount) %></td>
+              <td style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
+                <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>
+                <%= overdue ? ' ⚠' : '' %>
+              </td>
+              <td><%= new Date(project.createdAt).toLocaleDateString("en-IN") %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

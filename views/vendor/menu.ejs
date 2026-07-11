@@ -1,0 +1,16 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<section class="hero hero--compact">
+  <h1>Manage assets</h1>
+  <p class="muted">Create items, edit details, and toggle availability for clients browsing your workspace.</p>
+</section>
+
+<%- include("../partials/menu-manager", {
+  shop,
+  menuItems,
+  createAction: "/editor/assets",
+  apiUrl: "/editor/assets",
+  toggleApiUrl: "/menu",
+}) %>
+
+<%- include("../partials/footer") %>

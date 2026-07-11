@@ -1,0 +1,19 @@
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true },
+    role: { type: String, enum: ["client", "editor", "admin", "owner"], default: "client" },
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: "Shop", default: null },
+    availability: { type: String, enum: ["available", "busy", "on_leave"], default: "available" },
+    isActive: { type: Boolean, default: true },
+    disabledAt: { type: Date, default: null },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
+  },
+  { timestamps: true }
+);
+
+export const User = mongoose.model("User", userSchema);

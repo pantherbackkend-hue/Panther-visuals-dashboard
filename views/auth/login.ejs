@@ -1,0 +1,27 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<div class="auth-page">
+  <div class="card auth-card">
+    <h2 class="auth-card__title">Log in</h2>
+    <form method="post" action="/login" class="form">
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" required autocomplete="email" />
+      </label>
+      <label>
+        <span>Password</span>
+        <div class="pw-field">
+          <input name="password" type="password" id="pw-login" required autocomplete="current-password" />
+          <button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePasswordVisibility('pw-login', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </label>
+      <button class="btn btn--full" type="submit">Log in</button>
+      <p class="muted" style="text-align:center;margin-top:0;"><a href="/forgot-password">Forgot Password?</a></p>
+    </form>
+    <p class="auth-card__footer">No account? <a href="/signup">Sign up</a></p>
+  </div>
+</div>
+
+<%- include("../partials/footer") %>

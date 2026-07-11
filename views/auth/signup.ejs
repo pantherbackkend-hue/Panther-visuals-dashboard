@@ -1,0 +1,37 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<div class="auth-page">
+  <div class="card auth-card">
+    <h2 class="auth-card__title">Create account</h2>
+    <form method="post" action="/signup" class="form">
+      <label>
+        <span>Name</span>
+        <input name="name" type="text" required />
+      </label>
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" required autocomplete="email" />
+      </label>
+      <label>
+        <span>Password</span>
+        <div class="pw-field">
+          <input name="password" type="password" id="pw-signup" required autocomplete="new-password" />
+          <button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePasswordVisibility('pw-signup', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </label>
+      <label>
+        <span>Role</span>
+        <select name="role">
+          <option value="client" selected>Client</option>
+          <option value="editor">Editor</option>
+        </select>
+      </label>
+      <button class="btn btn--full" type="submit">Sign up</button>
+    </form>
+    <p class="auth-card__footer">Already have an account? <a href="/login">Log in</a></p>
+  </div>
+</div>
+
+<%- include("../partials/footer") %>

@@ -1,0 +1,9 @@
+<nav class="admin-sidebar__nav" aria-label="Admin navigation">
+  <a class="admin-sidebar__link <%= activeSection === "dashboard" ? "is-active" : "" %>" href="/admin">Dashboard</a>
+  <a class="admin-sidebar__link <%= activeSection === "shops" ? "is-active" : "" %>" href="/admin/shops">Workspaces</a>
+  <a class="admin-sidebar__link <%= activeSection === "editors" ? "is-active" : "" %>" href="/admin/editors">Editors</a>
+  <a class="admin-sidebar__link <%= activeSection === "assets" ? "is-active" : "" %>" href="/admin/assets">Manage Assets</a>
+  <a class="admin-sidebar__link <%= activeSection === "projects" ? "is-active" : "" %>" href="/admin/projects">Projects</a>
+  <a class="admin-sidebar__link <%= activeSection === "clients" ? "is-active" : "" %>" href="/admin/clients">Clients</a>
+  <a class="admin-sidebar__link <%= activeSection === "analytics" ? "is-active" : "" %>" href="/admin/analytics">Analytics</a>
+</nav>

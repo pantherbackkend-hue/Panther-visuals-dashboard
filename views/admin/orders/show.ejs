@@ -1,0 +1,63 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Project details</p>
+    <h1>#<%= orderNumber(order) %></h1>
+    <p class="muted"><%= order.shop?.name || "Deleted workspace" %></p>
+  </div>
+  <a class="btn btn--outline" href="/admin/orders">Back to projects</a>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric">
+    <p class="muted small">Project Status</p>
+    <h2 class="h2"><%= formatOrderStatus(order.status) %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Payment Status</p>
+    <h2 class="h2"><%= paymentStatus %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Total</p>
+    <h2 class="h2"><%= formatMoney(order.total) %></h2>
+  </article>
+</section>
+
+<div class="card admin-panel">
+  <h2 class="h2">Project details</h2>
+  <div class="admin-detail-grid">
+    <div><span>Client</span><strong><%= order.customer?.name || "Client" %> (<%= order.customer?.email || "Unknown" %>)</strong></div>
+    <div><span>Workspace</span><strong><%= order.shop?.name || "Deleted workspace" %></strong></div>
+    <div><span>Editor</span><strong><%= order.shop?.vendor?.name || "Unassigned" %></strong></div>
+    <div><span>Transaction ID</span><strong class="mono"><%= order.transactionId || order.paymentNote || "Not available" %></strong></div>
+    <div><span>Refund status</span><strong><%= order.refundStatus %></strong></div>
+    <% if (order.adjustedAt) { %>
+      <div><span>Original Total</span><strong><%= formatMoney(order.originalTotal) %></strong></div>
+      <div><span>Refund Amount</span><strong><%= formatMoney(order.refundAmount) %></strong></div>
+      <div><span>Adjustment Reason</span><strong><%= order.adjustmentReason || "N/A" %></strong></div>
+    <% } %>
+    <div><span>Created</span><strong><%= new Date(order.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
+  </div>
+</div>
+
+<div class="card admin-panel">
+  <h2 class="h2">Items</h2>
+  <ul class="admin-item-list">
+    <% order.items.forEach((line) => { %>
+      <li class="<%= line.status === 'removed' ? 'item-removed' : '' %>">
+        <div>
+          <strong><%= line.name %></strong>
+          <% if (line.variantName) { %><div class="muted small">Variant: <%= line.variantName %></div><% } %>
+          <div class="muted small">Qty <%= line.quantity %> x <%= formatMoney(line.price) %></div>
+          <% if (line.status === "removed") { %><div class="muted small">(unavailable - removed)</div><% } %>
+        </div>
+        <strong><%= formatMoney(line.price * line.quantity) %></strong>
+      </li>
+    <% }) %>
+  </ul>
+</div>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

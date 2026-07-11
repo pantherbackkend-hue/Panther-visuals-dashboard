@@ -1,0 +1,73 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Project management</p>
+    <h1><%= mode === "create" ? "New Project" : "Edit Project" %></h1>
+  </div>
+  <a class="btn btn--outline" href="/admin/projects">Back to projects</a>
+</section>
+
+<div class="card admin-panel">
+  <form method="post" action="<%= mode === "create" ? "/admin/projects" : "/admin/projects/" + project._id + "/edit" %>" class="admin-form">
+    <div class="form-group">
+      <label for="clientName">Client Name *</label>
+      <input id="clientName" name="clientName" type="text" required value="<%= project?.clientName || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="projectName">Project Name *</label>
+      <input id="projectName" name="projectName" type="text" required value="<%= project?.projectName || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="assignedEditor">Assign Editor</label>
+      <select id="assignedEditor" name="assignedEditor">
+        <option value="">— Unassigned —</option>
+        <% editors.forEach((editor) => { %>
+          <option value="<%= editor._id %>" <%= project?.assignedEditor && String(project.assignedEditor._id || project.assignedEditor) === String(editor._id) ? "selected" : "" %>><%= editor.name %> (<%= editor.availability %>)</option>
+        <% }) %>
+      </select>
+      <p class="form-help">Editors on leave or fully occupied cannot be assigned.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="priority">Priority</label>
+      <select id="priority" name="priority">
+        <option value="low" <%= project?.priority === "low" ? "selected" : "" %>>Low</option>
+        <option value="medium" <%= (!project?.priority || project?.priority === "medium") ? "selected" : "" %>>Medium</option>
+        <option value="high" <%= project?.priority === "high" ? "selected" : "" %>>High</option>
+        <option value="urgent" <%= project?.priority === "urgent" ? "selected" : "" %>>Urgent</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="dueDate">Due Date</label>
+      <input id="dueDate" name="dueDate" type="date" value="<%= project?.dueDate ? new Date(project.dueDate).toISOString().split("T")[0] : "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="paymentAmount">Payment Amount (₹)</label>
+      <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.paymentAmount || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="driveLink">Drive Link</label>
+      <input id="driveLink" name="driveLink" type="url" placeholder="https://drive.google.com/..." value="<%= project?.driveLink || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="4"><%= project?.notes || "" %></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn" type="submit"><%= mode === "create" ? "Create Project" : "Update Project" %></button>
+      <a class="btn btn--outline" href="/admin/projects">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

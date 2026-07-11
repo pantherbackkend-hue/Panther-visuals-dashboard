@@ -1,0 +1,105 @@
+<%- include("../../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Project workspace</p>
+    <h1><%= project.projectName %></h1>
+    <p class="muted">
+      Client: <strong><%= project.clientName %></strong> &middot;
+      <span class="tag tag--<%= getBadgeColor(project.status) %>"><%= formatStatus(project.status) %></span>
+    </p>
+  </div>
+  <a class="btn btn--outline" href="/editor/projects">Back to projects</a>
+</section>
+
+<% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+<% if (overdue) { %>
+  <div class="overdue-warning" style="margin-bottom:16px">
+    <strong>Overdue</strong> &mdash; This project was due on <%= new Date(project.dueDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %>.
+  </div>
+<% } %>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></h2></article>
+  <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.paymentAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Due</p><h2 style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Revisions</p><h2><%= project.revisionCounter %> / 3</h2></article>
+</section>
+
+<div class="card admin-panel">
+  <h2 class="h2" style="margin-top:0">Actions</h2>
+  <% if (allowedTransitions.length === 0) { %>
+    <p class="muted">No actions available for this project.</p>
+  <% } else { %>
+    <div class="quick-actions">
+      <% allowedTransitions.forEach(function(status) { %>
+        <form method="post" action="/editor/projects/<%= project._id %>/transition" style="display:inline">
+          <input type="hidden" name="toStatus" value="<%= status %>" />
+          <input type="hidden" name="notes" value="" />
+          <button class="quick-action-btn <%= status === 'pending_assignment' ? 'quick-action-btn--danger' : '' %>" type="submit"><%= formatStatus(status) %></button>
+        </form>
+      <% }) %>
+    </div>
+    <details style="margin-top:12px">
+      <summary style="font-size:13px;color:var(--muted);cursor:pointer">Add notes with transition</summary>
+      <form method="post" action="/editor/projects/<%= project._id %>/transition" class="admin-form" style="max-width:100%;margin-top:8px">
+        <div class="form-group">
+          <select name="toStatus" required>
+            <option value="">— Select —</option>
+            <% allowedTransitions.forEach(function(status) { %>
+              <option value="<%= status %>"><%= formatStatus(status) %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <textarea name="notes" rows="2" placeholder="Notes about this update"></textarea>
+        </div>
+        <button class="btn" type="submit">Update Status</button>
+      </form>
+    </details>
+  <% } %>
+</div>
+
+<div class="card admin-panel">
+  <h2 class="h2" style="margin-top:0">Details</h2>
+  <div class="admin-detail-grid">
+    <div><span>Drive Link</span><strong><% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 60 ? project.driveLink.slice(0,60) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %></strong></div>
+    <div><span>Payment Amount</span><strong><%= formatMoney(project.paymentAmount) %></strong></div>
+    <div><span>Payment Status</span><strong>
+      <% if (project.status === "paid") { %><span class="tag tag--ok">Paid</span>
+      <% } else if (project.status === "waiting_for_payment") { %><span class="tag tag--pending">Awaiting Payment</span>
+      <% } else { %><span class="muted">N/A</span><% } %>
+    </strong></div>
+    <div><span>Created</span><strong><%= new Date(project.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
+    <% if (project.completedAt) { %><div><span>Completed</span><strong><%= new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div><% } %>
+    <% if (project.notes) { %><div style="grid-column:1/-1"><span>Notes</span><strong style="white-space:pre-wrap"><%= project.notes %></strong></div><% } %>
+  </div>
+</div>
+
+<div class="card admin-panel" id="timeline">
+  <h2 class="h2" style="margin-top:0">Activity Timeline</h2>
+  <% if (project.activityTimeline.length === 0) { %>
+    <p class="muted">No activity recorded yet.</p>
+  <% } else { %>
+    <div class="timeline">
+      <% project.activityTimeline.slice().reverse().forEach(function(entry) { %>
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <p class="timeline-action"><strong><%= entry.action %></strong></p>
+            <p class="timeline-meta">
+              by <%= entry.userName || "System" %>
+              <% if (entry.previousStatus && entry.newStatus) { %>
+                — <%= formatStatus(entry.previousStatus) %> → <%= formatStatus(entry.newStatus) %>
+              <% } %>
+            </p>
+            <% if (entry.notes) { %><p class="timeline-notes"><%= entry.notes %></p><% } %>
+            <p class="timeline-date muted small"><%= new Date(entry.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></p>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<%- include("../../partials/footer") %>

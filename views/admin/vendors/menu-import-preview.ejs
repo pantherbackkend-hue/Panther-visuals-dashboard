@@ -1,0 +1,477 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<%
+// ── compute stats ──────────────────────────────────────────────
+var nameCounts = {};
+items.forEach(function(it) {
+  var n = String(it.name || '').toLowerCase().trim();
+  nameCounts[n] = (nameCounts[n] || 0) + 1;
+});
+var stats = { total: items.length, ready: 0, review: 0, noprice: 0, duplicate: 0 };
+items.forEach(function(it) {
+  var hasPrice = Number(it.price) > 0;
+  var isDup = nameCounts[String(it.name || '').toLowerCase().trim()] > 1;
+  if (isDup) stats.duplicate++;
+  if (!hasPrice) stats.noprice++;
+  if (!hasPrice || isDup) stats.review++;
+  else stats.ready++;
+});
+
+function computeRowStatus(it) {
+  var hasPrice = Number(it.price) > 0;
+  var isDup = nameCounts[String(it.name || '').toLowerCase().trim()] > 1;
+  if (!hasPrice) return 'noprice';
+  if (isDup) return 'duplicate';
+  return 'ready';
+}
+items.forEach(function(it) {
+  it.rowStatus = computeRowStatus(it);
+});
+%>
+
+<style>
+.import-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.import-stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.import-stat__value {
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1.1;
+  color: var(--text);
+}
+.import-stat__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.import-stat--accent { border-left: 3px solid var(--primary); }
+.import-stat--success { border-left: 3px solid var(--green); }
+.import-stat--warn { border-left: 3px solid #f59e0b; }
+.import-stat--danger { border-left: 3px solid var(--danger); }
+
+.batch-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 700;
+}
+.batch-bar.is-visible { display: flex; }
+.batch-bar select { min-height: 34px; font-size: 13px; width: auto; min-width: 120px; }
+.batch-bar .btn { min-height: 34px; font-size: 12px; padding: 6px 12px; }
+
+.import-table tbody tr.row--review { background: #fffbeb; }
+.import-table tbody tr.row--review:hover { background: #fef3c7; }
+.import-table tbody tr.row--duplicate { background: #fff7ed; }
+.import-table tbody tr.row--duplicate:hover { background: #ffedd5; }
+.import-table tbody tr.row--noprice { background: #fef2f2; }
+.import-table tbody tr.row--noprice:hover { background: #fee2e2; }
+.import-table tbody tr.row--deleted { display: none; }
+
+.import-table input[type="text"]:hover,
+.import-table input[type="number"]:hover {
+  border-color: #ddd;
+  background: #fff;
+}
+.import-table input[type="text"]:focus,
+.import-table input[type="number"]:focus {
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+.import-table input[type="text"]::placeholder { color: #bbb; }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.status-badge--ready { background: var(--green-soft); color: #166534; }
+.status-badge--review { background: #fef9c3; color: #854d0e; }
+.status-badge--duplicate { background: #fff7ed; color: #c2410c; }
+.status-badge--noprice { background: var(--danger-soft); color: #991b1b; }
+
+.import-table input[type="checkbox"] {
+  width: 16px; height: 16px; margin: 0; cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.row-actions { display: flex; gap: 2px; }
+.row-actions button {
+  min-height: 26px; width: 26px; padding: 0;
+  border: 1px solid transparent; border-radius: 4px;
+  background: none; color: #bbb; cursor: pointer; font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.row-actions button:hover { border-color: #eee; color: var(--muted); }
+.row-actions .del-btn:hover { border-color: var(--danger-soft); color: var(--danger); background: var(--danger-soft); }
+
+.raw-panel { margin-top: 14px; }
+.raw-panel summary { font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted); padding: 8px 0; }
+.raw-panel pre {
+  background: #f9f6f2; border: 1px solid var(--border); border-radius: 6px;
+  padding: 14px; font-size: 12px; line-height: 1.5;
+  white-space: pre-wrap; word-wrap: break-word; max-height: 300px; overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .import-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .import-stats { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Asset import</p>
+    <% if (visionError) { %>
+      <h1>Extraction Failed</h1>
+      <p class="muted"><strong><%= fileName %></strong> could not be processed.</p>
+    <% } else if (items.length === 0) { %>
+      <h1>No Items Found</h1>
+      <p class="muted">No asset items were detected in <strong><%= fileName %></strong>.</p>
+    <% } else { %>
+      <h1>Review Extracted Items</h1>
+      <p class="muted" style="margin-bottom:0;">
+        <strong><%= itemCount %></strong> item(s) extracted from
+        <strong><%= fileName %></strong> via <strong><%= provider %></strong>.
+      </p>
+    <% } %>
+  </div>
+</section>
+
+<div class="card" style="border-left: 4px solid var(--primary); margin-bottom:14px;">
+  <div class="row row--split" style="margin:0;">
+    <div>
+      <p style="margin:0;font-size:0.85em;color:var(--muted);">
+        <%= vendor.name %> &middot; <%= vendor.email %> &middot; <%= shop.name %>
+      </p>
+    </div>
+    <a class="btn btn--small btn--outline" href="/admin/editors/<%= vendor._id %>/assets">&larr; Back to assets</a>
+  </div>
+</div>
+
+<% if (visionError) { %>
+  <div class="card" style="border-left: 4px solid #e63946;">
+    <h2 style="color:#e63946;">Extraction Failed</h2>
+    <p><%= visionError %></p>
+    <% if (rawText) { %>
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;font-weight:600;">Raw extracted text</summary>
+        <pre style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:16px;font-size:0.85em;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;max-height:400px;overflow-y:auto;margin-top:8px;"><%= rawText %></pre>
+      </details>
+    <% } %>
+    <a class="btn" href="/admin/editors/<%= vendor._id %>/assets/import" style="margin-top:16px;">Try again</a>
+  </div>
+<% } else if (items.length === 0) { %>
+  <div class="card" style="text-align:center;padding:48px 24px;">
+    <div style="font-size:48px;margin-bottom:16px;">&#128269;</div>
+    <h2 style="margin:0 0 8px;">No items found</h2>
+    <p class="muted" style="max-width:400px;margin:0 auto;">The uploaded file was processed but no items were detected.</p>
+    <% if (rawText) { %>
+      <details style="margin-top:16px;text-align:left;">
+        <summary style="cursor:pointer;font-weight:600;">Raw extracted text</summary>
+        <pre style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:16px;font-size:0.85em;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;max-height:400px;overflow-y:auto;margin-top:8px;"><%= rawText %></pre>
+      </details>
+    <% } %>
+    <a class="btn" href="/admin/editors/<%= vendor._id %>/assets/import" style="margin-top:16px;">Try again</a>
+  </div>
+<% } else { %>
+
+<form method="post" action="/admin/editors/<%= vendor._id %>/assets/import/confirm" id="import-form">
+<input type="hidden" name="importId" value="<%= importId %>" />
+
+<div class="import-stats">
+  <div class="import-stat import-stat--accent">
+    <span class="import-stat__value"><%= stats.total %></span>
+    <span class="import-stat__label">Total Items</span>
+  </div>
+  <div class="import-stat import-stat--success">
+    <span class="import-stat__value"><%= stats.ready %></span>
+    <span class="import-stat__label">Ready to Import</span>
+  </div>
+  <div class="import-stat import-stat--warn">
+    <span class="import-stat__value"><%= stats.review %></span>
+    <span class="import-stat__label">Need Review</span>
+  </div>
+  <div class="import-stat import-stat--danger">
+    <span class="import-stat__value"><%= stats.noprice %></span>
+    <span class="import-stat__label">Missing Price</span>
+  </div>
+  <div class="import-stat import-stat--warn">
+    <span class="import-stat__value"><%= stats.duplicate %></span>
+    <span class="import-stat__label">Duplicates</span>
+  </div>
+</div>
+
+<%- include("../../partials/menu-table", { mode: "vendor", items: items, stats: stats }) %>
+
+<div class="batch-bar" id="batch-bar">
+  <span id="batch-count">0</span> selected
+  <select id="batch-action">
+    <option value="">Batch action...</option>
+    <option value="delete">Delete selected</option>
+  </select>
+  <button class="btn btn--small btn--outline" type="button" id="batch-apply" style="min-height:34px;font-size:12px;">Apply</button>
+  <button class="btn btn--small btn--ghost" type="button" id="batch-clear" style="min-height:34px;font-size:12px;">Clear</button>
+</div>
+
+</form>
+
+<% if (rawText) { %>
+<div class="raw-panel card">
+  <details>
+    <summary>Raw extracted text (<%= rawText.length %> chars)</summary>
+    <pre><%= rawText %></pre>
+  </details>
+</div>
+<% } %>
+
+<div class="card" style="margin-top:10px;">
+  <p class="muted" style="margin:0;font-size:0.8em;">
+    Import ID: <code><%= importId %></code> &middot; File: <code><%= fileName %></code>
+  </p>
+</div>
+
+<% } %>
+
+<script>
+(function() {
+  var mt = window.__menuTable;
+  var searchEl = mt.searchEl;
+  var filterBtns = mt.filterBtns;
+
+  document.getElementById('import-form').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+      e.preventDefault();
+    }
+  });
+
+  function updateRowStatus(row) {
+    if (!row || row.classList.contains('row--deleted')) return;
+    var idx = row.getAttribute('data-index');
+    var name = (row.querySelector('input[name$="[name]"]') || {}).value || '';
+    var priceInput = row.querySelector('input[name$="[price]"]');
+    var hasPrice = priceInput ? parseFloat(priceInput.value) > 0 : false;
+    var isDup = false;
+    var allNames = [];
+    document.querySelectorAll('#import-table tbody tr').forEach(function(r) {
+      var n = (r.querySelector('input[name$="[name]"]') || {}).value || '';
+      if (n) allNames.push(n.toLowerCase().trim());
+    });
+    var nameLower = name.toLowerCase().trim();
+    if (nameLower) {
+      var count = allNames.filter(function(n) { return n === nameLower; }).length;
+      if (count > 1) isDup = true;
+    }
+    var status;
+    if (!hasPrice) status = 'noprice';
+    else if (isDup) status = 'duplicate';
+    else status = 'ready';
+    row.setAttribute('data-status', status);
+    var badge = row.querySelector('.status-badge');
+    if (badge) {
+      badge.className = 'status-badge status-badge--' + status;
+      var labels = { ready:'Ready', review:'Needs Review', duplicate:'Duplicate', noprice:'No Price' };
+      badge.textContent = labels[status] || status;
+    }
+    ['ready','review','duplicate','noprice'].forEach(function(c) {
+      row.classList.remove('row--' + c);
+    });
+    row.classList.add('row--' + status);
+    updateStats();
+  }
+
+  function reindexItems() {
+    var rows = document.querySelectorAll('#import-table tbody tr');
+    var newIdx = 0;
+    rows.forEach(function(row) {
+      if (row.classList.contains('row--deleted')) return;
+      row.setAttribute('data-index', newIdx);
+      var numCell = row.querySelector('td.cell--center');
+      if (numCell) numCell.textContent = newIdx + 1;
+      row.querySelectorAll('input').forEach(function(inp) {
+        var name = inp.getAttribute('name');
+        if (!name) return;
+        var newName = name.replace(/items\[\d+\]/, 'items[' + newIdx + ']');
+        inp.setAttribute('name', newName);
+      });
+      row.querySelectorAll('[data-index]').forEach(function(el) {
+        el.setAttribute('data-index', newIdx);
+      });
+      newIdx++;
+    });
+  }
+
+  document.querySelectorAll('.del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = btn.closest('tr');
+      row.classList.add('row--deleted');
+      row.querySelectorAll('input').forEach(function(el) {
+        el.removeAttribute('name');
+      });
+      reindexItems();
+      updateStats();
+    });
+  });
+
+  document.getElementById('select-all').addEventListener('change', function() {
+    var checked = this.checked;
+    document.querySelectorAll('.row-select').forEach(function(cb) {
+      var row = cb.closest('tr');
+      if (!row.classList.contains('row--deleted') && !row.classList.contains('is-hidden')) {
+        cb.checked = checked;
+      }
+    });
+    updateBatchBar();
+  });
+
+  document.querySelectorAll('.row-select').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      updateBatchBar();
+    });
+  });
+
+  function updateBatchBar() {
+    var selected = document.querySelectorAll('.row-select:checked').length;
+    var bar = document.getElementById('batch-bar');
+    var count = document.getElementById('batch-count');
+    if (count) count.textContent = selected;
+    if (bar) bar.classList.toggle('is-visible', selected > 0);
+  }
+
+  document.getElementById('batch-apply').addEventListener('click', function() {
+    var action = document.getElementById('batch-action').value;
+    if (!action) return;
+    var checked = document.querySelectorAll('.row-select:checked');
+    var rowsToDelete = [];
+    checked.forEach(function(cb) {
+      var row = cb.closest('tr');
+      if (action === 'delete') {
+        rowsToDelete.push(row);
+        return;
+      }
+    });
+    if (action === 'delete') {
+      rowsToDelete.forEach(function(row) {
+        row.classList.add('row--deleted');
+        row.querySelectorAll('input').forEach(function(el) { el.removeAttribute('name'); });
+      });
+      reindexItems();
+      updateStats();
+    } else {
+      updateStats();
+    }
+    document.querySelectorAll('.row-select').forEach(function(cb) { cb.checked = false; });
+    document.getElementById('select-all').checked = false;
+    updateBatchBar();
+  });
+
+  document.getElementById('batch-clear').addEventListener('click', function() {
+    document.querySelectorAll('.row-select').forEach(function(cb) { cb.checked = false; });
+    document.getElementById('select-all').checked = false;
+    updateBatchBar();
+  });
+
+  document.getElementById('discard-btn').addEventListener('click', function() {
+    var checked = document.querySelectorAll('.row-select:checked');
+    if (checked.length === 0) return;
+    if (!confirm('Discard ' + checked.length + ' selected item(s)? This cannot be undone.')) return;
+    checked.forEach(function(cb) {
+      var row = cb.closest('tr');
+      if (!row || row.classList.contains('row--deleted')) return;
+      row.classList.add('row--deleted');
+      row.querySelectorAll('input').forEach(function(el) { el.removeAttribute('name'); });
+    });
+    reindexItems();
+    updateStats();
+    document.querySelectorAll('.row-select').forEach(function(cb) { cb.checked = false; });
+    document.getElementById('select-all').checked = false;
+    updateBatchBar();
+  });
+
+  function updateStats() {
+    var total = 0, ready = 0, review = 0, noprice = 0, duplicate = 0;
+    document.querySelectorAll('#import-table tbody tr').forEach(function(row) {
+      if (row.classList.contains('row--deleted')) return;
+      total++;
+      var status = row.getAttribute('data-status');
+      if (status === 'ready') ready++;
+      else if (status === 'duplicate') duplicate++;
+      else if (status === 'noprice') noprice++;
+    });
+    review = noprice + duplicate;
+    var importCount = document.getElementById('import-count');
+    if (importCount) importCount.textContent = ready;
+    var allTab = document.querySelector('.filter-btn[data-filter="all"] .filter-btn--count');
+    if (allTab) allTab.textContent = total;
+    var readyTab = document.querySelector('.filter-btn[data-filter="ready"] .filter-btn--count');
+    if (readyTab) readyTab.textContent = ready;
+    var reviewBtn = document.getElementById('review-btn');
+    if (reviewBtn) reviewBtn.textContent = 'Review Issues (' + (review) + ')';
+  }
+
+  document.getElementById('review-btn').addEventListener('click', function() {
+    mt.reviewMode = !mt.reviewMode;
+    if (mt.reviewMode) {
+      var allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+      if (allBtn && !allBtn.classList.contains('is-active')) {
+        filterBtns.forEach(function(b) { b.classList.remove('is-active'); });
+        allBtn.classList.add('is-active');
+      }
+    }
+    mt.applyFilters();
+  });
+
+  function refreshAllStatuses() {
+    document.querySelectorAll('#import-table tbody tr').forEach(function(r) {
+      var n = (r.querySelector('input[name$="[name]"]') || {}).value || '';
+      r.setAttribute('data-name', n.toLowerCase());
+    });
+    document.querySelectorAll('#import-table tbody tr').forEach(function(r) {
+      updateRowStatus(r);
+    });
+  }
+
+  document.querySelectorAll('input[name$="[name]"]').forEach(function(inp) {
+    inp.addEventListener('input', refreshAllStatuses);
+  });
+
+  document.querySelectorAll('input[name$="[price]"]').forEach(function(inp) {
+    inp.addEventListener('input', function() {
+      var row = inp.closest('tr');
+      if (row) updateRowStatus(row);
+    });
+  });
+})();
+</script>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

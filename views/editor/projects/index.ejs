@@ -1,0 +1,72 @@
+<%- include("../../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">My workspace</p>
+    <h1>My Projects</h1>
+    <p class="muted">Projects assigned to you, sorted by priority.</p>
+  </div>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric">
+    <p class="muted small">Active</p>
+    <h2><%= projects.filter(p => ["assigned","accepted_by_editor","working"].includes(p.status)).length %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Revision</p>
+    <h2><%= projects.filter(p => p.status.startsWith("revision_")).length %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Completed</p>
+    <h2><%= projects.filter(p => p.status === "completed" || p.status === "paid").length %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Overdue</p>
+    <h2 style="color:<%= projects.filter(p => p.dueDate && new Date(p.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(p.status)).length > 0 ? 'var(--danger)' : 'inherit' %>">
+      <%= projects.filter(p => p.dueDate && new Date(p.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(p.status)).length %>
+    </h2>
+  </article>
+</section>
+
+<div class="card admin-panel">
+  <% if (!projects.length) { %>
+    <p class="muted">No projects assigned to you yet.</p>
+  <% } else { %>
+    <div style="overflow-x: auto;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Client</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Amount</th>
+            <th>Due</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% projects.forEach((project) => { %>
+            <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+            <tr style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
+              <td><a class="admin-link" href="/editor/projects/<%= project._id %>"><%= project.projectName %></a></td>
+              <td><%= project.clientName %></td>
+              <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></td>
+              <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
+              <td><%= formatMoney(project.paymentAmount) %></td>
+              <td style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
+                <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>
+              </td>
+              <td>
+                <a class="quick-action-btn" href="/editor/projects/<%= project._id %>">View</a>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include("../../partials/footer") %>

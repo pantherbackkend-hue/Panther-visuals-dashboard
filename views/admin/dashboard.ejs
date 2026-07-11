@@ -1,0 +1,177 @@
+<%- include("../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Operations</p>
+    <h1>Dashboard</h1>
+    <p class="muted">Live operational overview of projects, editors, and deadlines.</p>
+  </div>
+  <div class="admin-actions">
+    <a class="btn" href="/admin/projects/new">+ New Project</a>
+  </div>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Projects Today</p><h2><%= projectMetrics.projectsToday %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Pending Assignment</p><h2><%= projectMetrics.pendingAssignment %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Assigned</p><h2><%= projectMetrics.assigned %></h2></article>
+  <article class="card admin-metric"><p class="muted small">In Progress</p><h2><%= projectMetrics.working %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Under Revision</p><h2><%= projectMetrics.revision %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Completed</p><h2><%= projectMetrics.completed %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Waiting Payment</p><h2><%= projectMetrics.waitingPayment %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Payments Done</p><h2><%= projectMetrics.paid %></h2></article>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Editors Available</p><h2 style="color:var(--success)"><%= editorMetrics.available %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editors Busy</p><h2 style="color:var(--warning)"><%= editorMetrics.busy %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editors on Leave</p><h2 style="color:var(--danger)"><%= editorMetrics.onLeave %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Overdue Projects</p><h2 style="color:<%= overdueProjects > 0 ? 'var(--danger)' : 'inherit' %>"><%= overdueProjects %></h2></article>
+</section>
+
+<% if (overdueProjects > 0) { %>
+  <div class="overdue-warning">
+    <strong><%= overdueProjects %></strong> project(s) are past their due date.
+    <a href="/admin/projects?filter=active" style="color:inherit;text-decoration:underline;margin-left:auto">View active projects &rarr;</a>
+  </div>
+<% } %>
+
+<div class="admin-grid--two">
+  <div class="card admin-panel" style="margin:0">
+    <h2 class="h2" style="margin-top:0">Editor Workload</h2>
+    <div class="workload-grid">
+      <% editorWorkload.forEach(function(editor) { %>
+        <div class="card workload-card" style="<%= !editor.isActive ? 'opacity:0.4' : '' %>">
+          <p class="workload-card__name"><%= editor.name %></p>
+          <p class="workload-card__meta">
+            <span class="tag tag--<%= editor.availability === 'available' ? 'ok' : editor.availability === 'busy' ? 'warning' : 'danger' %>" style="font-size:10px"><%= editor.availability %></span>
+            <%= editor.activeCount %> active &middot; <%= editor.workingCount %> working
+          </p>
+          <div class="workload-bar">
+            <div class="workload-bar__fill" style="width:<%= Math.min(100, (editor.activeCount / 5) * 100) %>%"></div>
+          </div>
+          <% if (editor.upcomingDeadline) { %>
+            <p class="workload-card__deadline">Due <strong><%= new Date(editor.upcomingDeadline.dueDate).toLocaleDateString("en-IN") %></strong></p>
+          <% } %>
+          <% if (editor.pendingPayment > 0) { %>
+            <p class="workload-card__payment"><%= editor.pendingPayment %> pending payment</p>
+          <% } %>
+        </div>
+      <% }) %>
+      <% if (editorWorkload.length === 0) { %><p class="muted">No editors configured.</p><% } %>
+    </div>
+  </div>
+
+  <div class="card admin-panel" style="margin:0">
+    <h2 class="h2" style="margin-top:0">Upcoming Deadlines</h2>
+    <% if (!upcomingDeadlines.length) { %>
+      <p class="muted">No upcoming deadlines.</p>
+    <% } else { %>
+      <div class="deadline-list">
+        <% upcomingDeadlines.forEach(function(project) { %>
+          <% var due = new Date(project.dueDate); var daysRemaining = Math.ceil((due - new Date()) / (1000*60*60*24)); %>
+          <div class="deadline-item">
+            <div class="deadline-item__info">
+              <strong><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></strong>
+              <span class="muted"><%= project.clientName %></span>
+            </div>
+            <div class="deadline-item__meta">
+              <span class="priority-dot priority-dot--<%= project.priority %>"></span>
+              <span class="deadline-item__date <%= daysRemaining <= 1 ? 'deadline-item__date--urgent' : daysRemaining <= 3 ? 'deadline-item__date--soon' : '' %>"><%= due.toLocaleDateString("en-IN") %></span>
+              <span class="muted"><%= daysRemaining <= 0 ? 'Today' : daysRemaining === 1 ? '1 day' : daysRemaining + ' days' %></span>
+              <span class="muted"><%= project.assignedEditor?.name || "Unassigned" %></span>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="admin-grid--two">
+  <div class="card admin-panel" style="margin:0">
+    <h2 class="h2" style="margin-top:0">Recent Activity</h2>
+    <% if (!recentActivity.length) { %>
+      <p class="muted">No recent activity.</p>
+    <% } else { %>
+      <div class="timeline timeline--compact">
+        <% recentActivity.forEach(function(entry) { %>
+          <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+              <p class="timeline-action"><strong><%= entry.action %></strong> &mdash; <%= entry.projectName %></p>
+              <p class="timeline-meta"><%= entry.userName || "System" %> &middot; <span class="muted"><%= new Date(entry.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></span></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="card admin-panel" style="margin:0">
+    <h2 class="h2" style="margin-top:0">Recent Notifications</h2>
+    <% if (!recentNotifications.length) { %>
+      <p class="muted">No recent notifications.</p>
+    <% } else { %>
+      <div class="notif-mini-list">
+        <% recentNotifications.forEach(function(n) { %>
+          <div class="notif-mini-item <%= !n.read ? 'notif-mini-item--unread' : '' %>">
+            <div class="notif-mini-item__body">
+              <strong><%= n.title %></strong>
+              <p><%= n.message %></p>
+            </div>
+            <div class="notif-mini-item__meta">
+              <span class="muted small"><%= new Date(n.createdAt).toLocaleDateString("en-IN") %></span>
+              <% if (n.project) { %><a class="admin-link small" href="/admin/projects/<%= n.project._id %>">View</a><% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="card admin-panel">
+  <div class="row row--split" style="margin-bottom:16px">
+    <h2 class="h2" style="margin:0">Recent Projects</h2>
+    <a class="btn btn--outline btn--small" href="/admin/projects">View all</a>
+  </div>
+
+  <% if (!workflowProjects.length) { %>
+    <p class="muted">No projects yet.</p>
+  <% } else { %>
+    <div style="overflow-x:auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Client</th>
+            <th>Editor</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Amount</th>
+            <th>Due</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% workflowProjects.forEach(function(project) { %>
+            <% var isOverdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+            <tr style="<%= isOverdue ? 'background:var(--danger-soft)' : '' %>">
+              <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
+              <td><%= project.clientName %></td>
+              <td><%= project.assignedEditor?.name || '<span class="muted">Unassigned</span>' %></td>
+              <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></td>
+              <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
+              <td><%= formatMoney(project.paymentAmount) %></td>
+              <td style="<%= isOverdue ? 'color:var(--danger);font-weight:600' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include("./partials/layout-end") %>
+<%- include("../partials/footer") %>
