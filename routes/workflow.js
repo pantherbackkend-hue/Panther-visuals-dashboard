@@ -12,9 +12,7 @@ import {
   getAllowedTransitions,
   formatStatus,
   getTimelineAction,
-  getNotificationType,
   getDashboardCounts,
-  getPriorityWeight,
   updateEditorAvailability,
 } from "../utils/workflow.js";
 import {
@@ -26,8 +24,6 @@ import {
   broadcastDashboardUpdate,
   broadcastProjectCounts,
 } from "../utils/notifications.js";
-import { getIO } from "../socket/index.js";
-
 export const workflowRouter = express.Router();
 
 function toHexId(value) {
@@ -290,65 +286,71 @@ workflowRouter.post(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const { id } = req.params;
-    const { toStatus, notes } = req.body;
+    try {
+      const { id } = req.params;
+      const { toStatus, notes } = req.body;
 
-    if (!mongoose.isValidObjectId(id)) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
+      if (!mongoose.isValidObjectId(id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
+      }
 
-    const project = await Project.findById(id);
-    if (!project) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
+      const project = await Project.findById(id);
+      if (!project) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
+      }
 
-    if (!isValidStatus(toStatus)) {
-      req.flash("error", `Invalid status: ${toStatus}`);
+      if (!isValidStatus(toStatus)) {
+        req.flash("error", `Invalid status: ${toStatus}`);
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      if (!canTransition(project.status, toStatus)) {
+        req.flash("error", `Cannot transition from "${formatStatus(project.status)}" to "${formatStatus(toStatus)}".`);
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      if (toStatus === "assigned" && !project.assignedEditor) {
+        req.flash("error", "Assign an editor before marking as assigned.");
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      const fromStatus = project.status;
+      const action = getTimelineAction(fromStatus, toStatus);
+
+      if (toStatus === "completed") {
+        project.completedAt = new Date();
+      }
+
+      project.status = toStatus;
+      project.activityTimeline.push({
+        action,
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: fromStatus,
+        newStatus: toStatus,
+        notes: String(notes || "").trim(),
+      });
+
+      await project.save();
+
+      if (project.assignedEditor) {
+        await updateEditorAvailability(project.assignedEditor, User, Project);
+      }
+
+      await broadcastDashboardUpdate(project);
+
+      const allProjects = await Project.find().lean();
+      await broadcastProjectCounts(getDashboardCounts(allProjects));
+
+      req.flash("success", `Project moved to "${formatStatus(toStatus)}".`);
+      return res.redirect(`/admin/projects/${id}`);
+    } catch (err) {
+      console.error("Transition error:", err);
+      req.flash("error", "Something went wrong. Please try again.");
       return res.redirect(`/admin/projects/${id}`);
     }
-
-    if (!canTransition(project.status, toStatus)) {
-      req.flash("error", `Cannot transition from "${formatStatus(project.status)}" to "${formatStatus(toStatus)}".`);
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    if (toStatus === "assigned" && !project.assignedEditor) {
-      req.flash("error", "Assign an editor before marking as assigned.");
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    const fromStatus = project.status;
-    const action = getTimelineAction(fromStatus, toStatus);
-
-    if (toStatus === "completed") {
-      project.completedAt = new Date();
-    }
-
-    project.status = toStatus;
-    project.activityTimeline.push({
-      action,
-      user: req.user._id,
-      userName: req.user.name,
-      previousStatus: fromStatus,
-      newStatus: toStatus,
-      notes: String(notes || "").trim(),
-    });
-
-    await project.save();
-
-    if (project.assignedEditor) {
-      await updateEditorAvailability(project.assignedEditor, User, Project);
-    }
-
-    await broadcastDashboardUpdate(project);
-
-    const allProjects = await Project.find().lean();
-    await broadcastProjectCounts(getDashboardCounts(allProjects));
-
-    req.flash("success", `Project moved to "${formatStatus(toStatus)}".`);
-    return res.redirect(`/admin/projects/${id}`);
   },
 );
 
@@ -360,81 +362,87 @@ workflowRouter.post(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const { id } = req.params;
-    const { editorId } = req.body;
+    try {
+      const { id } = req.params;
+      const { editorId } = req.body;
 
-    if (!mongoose.isValidObjectId(id)) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
+      if (!mongoose.isValidObjectId(id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
+      }
 
-    const project = await Project.findById(id);
-    if (!project) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
+      const project = await Project.findById(id);
+      if (!project) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
+      }
 
-    if (project.status !== "pending_assignment") {
-      req.flash("error", "Editor can only be assigned to unassigned projects.");
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    if (!mongoose.isValidObjectId(editorId)) {
-      req.flash("error", "Invalid editor selection.");
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    const editor = await User.findOne({ _id: editorId, role: "editor", isActive: true });
-    if (!editor) {
-      req.flash("error", "Editor not found or inactive.");
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    if (editor.availability === "on_leave") {
-      const notif = await createNotification({
-        recipientRole: "admin",
-        project: project._id,
-        title: `Assignment blocked: "${project.projectName}"`,
-        message: `${editor.name} is on leave`,
-        type: "assignment_blocked",
-        actionUrl: `/admin/projects/${project._id}`,
-      });
-      req.flash("error", `${editor.name} is on leave. Project remains unassigned.`);
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    if (editor.availability === "busy") {
-      const activeCount = await Project.countDocuments({
-        assignedEditor: editor._id,
-        status: { $in: ["assigned", "ongoing"] },
-      });
-      if (activeCount >= 3) {
-        req.flash("error", `${editor.name} is fully occupied (${activeCount} active projects). Cannot assign.`);
+      if (project.status !== "pending_assignment") {
+        req.flash("error", "Editor can only be assigned to unassigned projects.");
         return res.redirect(`/admin/projects/${id}`);
       }
+
+      if (!mongoose.isValidObjectId(editorId)) {
+        req.flash("error", "Invalid editor selection.");
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      const editor = await User.findOne({ _id: editorId, role: "editor", isActive: true });
+      if (!editor) {
+        req.flash("error", "Editor not found or inactive.");
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      if (editor.availability === "on_leave") {
+        const notif = await createNotification({
+          recipientRole: "admin",
+          project: project._id,
+          title: `Assignment blocked: "${project.projectName}"`,
+          message: `${editor.name} is on leave`,
+          type: "assignment_blocked",
+          actionUrl: `/admin/projects/${project._id}`,
+        });
+        req.flash("error", `${editor.name} is on leave. Project remains unassigned.`);
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      if (editor.availability === "busy") {
+        const activeCount = await Project.countDocuments({
+          assignedEditor: editor._id,
+          status: { $in: ["assigned", "ongoing"] },
+        });
+        if (activeCount >= 3) {
+          req.flash("error", `${editor.name} is fully occupied (${activeCount} active projects). Cannot assign.`);
+          return res.redirect(`/admin/projects/${id}`);
+        }
+      }
+
+      const previousEditorId = project.assignedEditor;
+      const fromStatus = project.status;
+      project.assignedEditor = editor._id;
+      project.status = "assigned";
+
+      project.activityTimeline.push({
+        action: "Assigned",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: fromStatus,
+        newStatus: "assigned",
+        notes: `Assigned to ${editor.name}`,
+      });
+
+      await project.save();
+      await updateEditorAvailability(editor._id, User, Project);
+      await notifyProjectAssigned(project, editor);
+      await broadcastDashboardUpdate(project);
+
+      req.flash("success", `Project assigned to ${editor.name}.`);
+      return res.redirect(`/admin/projects/${id}`);
+    } catch (err) {
+      console.error("Assign error:", err);
+      req.flash("error", "Something went wrong. Please try again.");
+      return res.redirect(`/admin/projects/${id}`);
     }
-
-    const previousEditorId = project.assignedEditor;
-    const fromStatus = project.status;
-    project.assignedEditor = editor._id;
-    project.status = "assigned";
-
-    project.activityTimeline.push({
-      action: "Assigned",
-      user: req.user._id,
-      userName: req.user.name,
-      previousStatus: fromStatus,
-      newStatus: "assigned",
-      notes: `Assigned to ${editor.name}`,
-    });
-
-    await project.save();
-    await updateEditorAvailability(editor._id, User, Project);
-    await notifyProjectAssigned(project, editor);
-    await broadcastDashboardUpdate(project);
-
-    req.flash("success", `Project assigned to ${editor.name}.`);
-    return res.redirect(`/admin/projects/${id}`);
   },
 );
 
@@ -734,26 +742,32 @@ workflowRouter.post(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) {
-      req.flash("error", "Project not found.");
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
+      }
+
+      const project = await Project.findById(id);
+      if (!project) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
+      }
+
+      if (project.status !== "pending_assignment") {
+        req.flash("error", "Only unassigned projects can be deleted.");
+        return res.redirect(`/admin/projects/${id}`);
+      }
+
+      await Project.deleteOne({ _id: id });
+      req.flash("success", "Project deleted.");
+      return res.redirect("/admin/projects");
+    } catch (err) {
+      console.error("Delete error:", err);
+      req.flash("error", "Something went wrong. Please try again.");
       return res.redirect("/admin/projects");
     }
-
-    const project = await Project.findById(id);
-    if (!project) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
-
-    if (project.status !== "pending_assignment") {
-      req.flash("error", "Only unassigned projects can be deleted.");
-      return res.redirect(`/admin/projects/${id}`);
-    }
-
-    await Project.deleteOne({ _id: id });
-    req.flash("success", "Project deleted.");
-    return res.redirect("/admin/projects");
   },
 );
 
@@ -841,64 +855,70 @@ workflowRouter.post(
   requireAuth,
   requireEditor,
   async (req, res) => {
-    const { id } = req.params;
-    const { toStatus, notes } = req.body;
+    try {
+      const { id } = req.params;
+      const { toStatus, notes } = req.body;
 
-    if (!mongoose.isValidObjectId(id)) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/editor/projects");
-    }
+      if (!mongoose.isValidObjectId(id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/editor/projects");
+      }
 
-    const project = await Project.findById(id);
-    if (!project || String(project.assignedEditor) !== String(req.user._id)) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/editor/projects");
-    }
+      const project = await Project.findById(id);
+      if (!project || String(project.assignedEditor) !== String(req.user._id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/editor/projects");
+      }
 
-    if (!isValidStatus(toStatus)) {
-      req.flash("error", `Invalid status: ${toStatus}`);
+      if (!isValidStatus(toStatus)) {
+        req.flash("error", `Invalid status: ${toStatus}`);
+        return res.redirect(`/editor/projects/${id}`);
+      }
+
+      if (!canTransition(project.status, toStatus)) {
+        req.flash("error", `Cannot transition from "${formatStatus(project.status)}" to "${formatStatus(toStatus)}".`);
+        return res.redirect(`/editor/projects/${id}`);
+      }
+
+      const editorOnly = ["ongoing", "submitted"];
+      if (!editorOnly.includes(toStatus)) {
+        req.flash("error", "Editors cannot make this transition.");
+        return res.redirect(`/editor/projects/${id}`);
+      }
+
+      const fromStatus = project.status;
+      const action = getTimelineAction(fromStatus, toStatus);
+
+      project.status = toStatus;
+
+      project.activityTimeline.push({
+        action,
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: fromStatus,
+        newStatus: toStatus,
+        notes: String(notes || "").trim(),
+      });
+
+      await project.save();
+
+      if (project.assignedEditor) {
+        await updateEditorAvailability(project.assignedEditor, User, Project);
+      }
+
+      await broadcastDashboardUpdate(project);
+
+      if (toStatus === "ongoing") {
+        await notifyProjectAccepted(project, req.user);
+      }
+
+      req.flash("success", `Project moved to "${formatStatus(toStatus)}".`);
+      return res.redirect(`/editor/projects/${id}`);
+    } catch (err) {
+      console.error("Editor transition error:", err);
+      req.flash("error", "Something went wrong. Please try again.");
       return res.redirect(`/editor/projects/${id}`);
     }
-
-    if (!canTransition(project.status, toStatus)) {
-      req.flash("error", `Cannot transition from "${formatStatus(project.status)}" to "${formatStatus(toStatus)}".`);
-      return res.redirect(`/editor/projects/${id}`);
-    }
-
-    const editorOnly = ["ongoing", "submitted"];
-    if (!editorOnly.includes(toStatus)) {
-      req.flash("error", "Editors cannot make this transition.");
-      return res.redirect(`/editor/projects/${id}`);
-    }
-
-    const fromStatus = project.status;
-    const action = getTimelineAction(fromStatus, toStatus);
-
-    project.status = toStatus;
-
-    project.activityTimeline.push({
-      action,
-      user: req.user._id,
-      userName: req.user.name,
-      previousStatus: fromStatus,
-      newStatus: toStatus,
-      notes: String(notes || "").trim(),
-    });
-
-    await project.save();
-
-    if (project.assignedEditor) {
-      await updateEditorAvailability(project.assignedEditor, User, Project);
-    }
-
-    await broadcastDashboardUpdate(project);
-
-    if (toStatus === "ongoing") {
-      await notifyProjectAccepted(project, req.user);
-    }
-
-    req.flash("success", `Project moved to "${formatStatus(toStatus)}".`);
-    return res.redirect(`/editor/projects/${id}`);
   },
 );
 

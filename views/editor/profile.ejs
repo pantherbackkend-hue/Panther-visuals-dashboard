@@ -8,15 +8,15 @@
 </section>
 
 <div class="card" style="max-width:500px">
-  <form method="post" action="/editor/profile" class="admin-form" style="max-width:100%">
+  <form method="post" action="/editor/profile" class="admin-form full-width" id="profile-form">
     <div class="form-group">
       <label for="name">Display Name</label>
       <input type="text" id="name" name="name" value="<%= editor.name %>" required>
     </div>
     <div class="form-group">
       <label for="email">Email</label>
-      <input type="email" id="email" value="<%= editor.email %>" disabled style="background:var(--bg);color:var(--muted)">
-      <p class="muted small" style="margin:4px 0 0">Email cannot be changed.</p>
+      <input type="email" id="email" value="<%= editor.email %>" disabled class="full-width" style="background:var(--bg);color:var(--muted)">
+      <p class="muted small mt-0 mb-0" style="margin-top:4px">Email cannot be changed.</p>
     </div>
     <div class="form-group">
       <label for="upiId">UPI ID <span class="muted">(for payments)</span></label>
@@ -25,7 +25,49 @@
     <div class="form-actions">
       <button class="btn" type="submit">Save Changes</button>
     </div>
+    <div id="profile-error" class="alert-inline alert-inline--error"></div>
+    <div id="profile-success" class="alert-inline alert-inline--success"></div>
   </form>
 </div>
+<script>
+(function () {
+  var form = document.getElementById("profile-form");
+  if (!form) return;
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = form.querySelector("button[type=submit]");
+    var fd = new FormData(form);
+    var errEl = document.getElementById("profile-error");
+    var sucEl = document.getElementById("profile-success");
+    errEl.classList.remove("is-visible");
+    sucEl.classList.remove("is-visible");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    fetch("/editor/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: fd.get("name"), upiId: fd.get("upiId") }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.success) {
+          sucEl.textContent = "Profile updated.";
+          sucEl.classList.add("is-visible");
+        } else {
+          errEl.textContent = data.error || "Failed to update.";
+          errEl.classList.add("is-visible");
+        }
+        btn.disabled = false;
+        btn.textContent = "Save Changes";
+      })
+      .catch(function () {
+        errEl.textContent = "Network error.";
+        errEl.classList.add("is-visible");
+        btn.disabled = false;
+        btn.textContent = "Save Changes";
+      });
+  });
+})();
+</script>
 
 <%- include("../partials/footer") %>

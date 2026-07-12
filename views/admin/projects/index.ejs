@@ -54,33 +54,32 @@
   <% if (!projects.length) { %>
     <p class="muted">No projects match the current filter.</p>
   <% } else { %>
-    <div style="overflow-x: auto;">
-      <table class="table">
+    <div class="overflow-auto">
+      <table class="table" role="table">
         <thead>
           <tr>
-            <th>Project</th>
-            <th>Client</th>
-            <th>Editor</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Amount</th>
-            <th>Due</th>
-            <th>Created</th>
+            <th scope="col">Project</th>
+            <th scope="col">Client</th>
+            <th scope="col">Editor</th>
+            <th scope="col">Priority</th>
+            <th scope="col">Status</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Due</th>
+            <th scope="col">Created</th>
           </tr>
         </thead>
         <tbody>
           <% projects.forEach((project) => { %>
             <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && project.status !== "completed"; %>
-            <tr style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
+            <tr class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
               <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
               <td><%= project.clientName %></td>
               <td><%= project.assignedEditor?.name || '<span class="muted">Unassigned</span>' %></td>
-              <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></td>
+              <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></td>
               <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
               <td><%= formatMoney(project.paymentAmount) %></td>
-              <td style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
+              <td class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
                 <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>
-                <%= overdue ? ' ⚠' : '' %>
               </td>
               <td><%= new Date(project.createdAt).toLocaleDateString("en-IN") %></td>
             </tr>

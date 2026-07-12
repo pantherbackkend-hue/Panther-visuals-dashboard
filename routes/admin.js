@@ -535,40 +535,52 @@ adminRouter.post("/shops/:id/edit", handleShopImageUpload((req) => `/admin/shops
 });
 
 adminRouter.post("/shops/:id/toggle", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
-  const shop = await Shop.findById(id);
-  if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
+    const shop = await Shop.findById(id);
+    if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
-  shop.isActive = !shop.isActive;
-  shop.disabledAt = shop.isActive ? null : new Date();
-  if (!shop.isActive) shop.isOpen = false;
-  await shop.save();
+    shop.isActive = !shop.isActive;
+    shop.disabledAt = shop.isActive ? null : new Date();
+    if (!shop.isActive) shop.isOpen = false;
+    await shop.save();
 
-  req.flash("success", shop.isActive ? "Workspace enabled." : "Workspace disabled.");
-  return res.redirect("/admin/shops");
+    req.flash("success", shop.isActive ? "Workspace enabled." : "Workspace disabled.");
+    return res.redirect("/admin/shops");
+  } catch (err) {
+    console.error("Shop toggle error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/shops");
+  }
 });
 
 adminRouter.post("/shops/:id/delete", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
-  const shop = await Shop.findById(id);
-  if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
+    const shop = await Shop.findById(id);
+    if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
-  if (shop.vendor) {
-    const vendor = await User.findById(shop.vendor);
-    if (vendor && toHexId(vendor.shop) === toHexId(shop._id)) {
-      vendor.shop = null;
-      await vendor.save();
+    if (shop.vendor) {
+      const vendor = await User.findById(shop.vendor);
+      if (vendor && toHexId(vendor.shop) === toHexId(shop._id)) {
+        vendor.shop = null;
+        await vendor.save();
+      }
     }
+
+    await Shop.deleteOne({ _id: shop._id });
+
+    req.flash("success", "Workspace deleted.");
+    return res.redirect("/admin/shops");
+  } catch (err) {
+    console.error("Shop delete error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/shops");
   }
-
-  await Shop.deleteOne({ _id: shop._id });
-
-  req.flash("success", "Workspace deleted.");
-  return res.redirect("/admin/shops");
 });
 
 
@@ -720,31 +732,43 @@ adminRouter.post("/editors/:id/edit", async (req, res) => {
 });
 
 adminRouter.post("/editors/:id/toggle", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
 
-  const editor = await User.findOne({ _id: id, role: "editor" });
-  if (!editor) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
+    const editor = await User.findOne({ _id: id, role: "editor" });
+    if (!editor) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
 
-  editor.isActive = !editor.isActive;
-  editor.disabledAt = editor.isActive ? null : new Date();
-  await editor.save();
+    editor.isActive = !editor.isActive;
+    editor.disabledAt = editor.isActive ? null : new Date();
+    await editor.save();
 
-  req.flash("success", editor.isActive ? "Editor enabled." : "Editor disabled.");
-  return res.redirect("/admin/editors");
+    req.flash("success", editor.isActive ? "Editor enabled." : "Editor disabled.");
+    return res.redirect("/admin/editors");
+  } catch (err) {
+    console.error("Editor toggle error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/editors");
+  }
 });
 
 adminRouter.post("/editors/:id/delete", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
 
-  const editor = await User.findOne({ _id: id, role: "editor" });
-  if (!editor) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
+    const editor = await User.findOne({ _id: id, role: "editor" });
+    if (!editor) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
 
-  if (editor.shop) await syncVendorShopLink({ vendorId: editor._id, shopId: null });
-  await User.deleteOne({ _id: editor._id });
+    if (editor.shop) await syncVendorShopLink({ vendorId: editor._id, shopId: null });
+    await User.deleteOne({ _id: editor._id });
 
-  req.flash("success", "Editor deleted.");
-  return res.redirect("/admin/editors");
+    req.flash("success", "Editor deleted.");
+    return res.redirect("/admin/editors");
+  } catch (err) {
+    console.error("Editor delete error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/editors");
+  }
 });
 

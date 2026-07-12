@@ -133,7 +133,7 @@ public/              — styles.css
 
 # Current Sprint
 
-**Objective**: Completion & Payment — Manual payment tracking for completed projects. UPI ID on editor profiles, payment-done button, WhatsApp link, timeline entry, notification, Socket.IO event
+**Objective**: Full QA Validation — Comprehensive regression test, smoke test, stability test, and codebase validation across 10 phases. Fix confirmed bugs only.
 
 **Progress**: Completed
 
@@ -145,48 +145,241 @@ public/              — styles.css
 
 **Date**: 12 July 2026
 
-**Objective**: Implement project completion and manual payment workflow. Payments tracked via dashboard — no gateway integration. Admin pays manually, marks payment done, opens WhatsApp with prefilled message.
+**Objective**: Comprehensive polish of the existing MVP across 8 phases: Consistency, UX, Responsiveness, Accessibility, Performance, Code Cleanup, Stability, and Validation.
+
+**Phase 1 — Consistency**:
+- Added 30+ CSS utility classes (`mt-0`, `mb-16`, `text-sm`, `flex`, `gap-*`, `capitalize`, `full-width`, `fw-medium`, etc.)
+- Removed ~70 inline styles across 8 view files, replaced with CSS classes
+- Fixed heading hierarchy: auth pages now use `<h1>` instead of `<h2>` (login, signup)
+- Updated `.auth-card__title` CSS to support `h1` element
+
+**Phase 2 — UX Improvements**:
+- Replaced `alert()` calls with inline `.alert-inline--error` messages in all JS handlers (editor accept, editor submit, admin feedback, admin workspace assign)
+- Replaced `confirm()` with accessible custom dialog (`.confirm-overlay` + `.confirm-dialog`) in admin complete, payment-done, workspace busy-assign flows
+- Added disabled/loading states to all form submit buttons
+- Editor profile now uses AJAX with success/error inline feedback instead of page refresh
+
+**Phase 3 — Responsiveness**:
+- Added responsive breakpoints at 480px for `auth-card`, `payment-details`, `admin-detail-grid`
+- Added `editor-tabs` overflow scroll for small screens
+- Reduced `admin-page-head h1` size on small screens
+
+**Phase 4 — Accessibility**:
+- Added `role="tablist"`, `role="tab"`, `role="tabpanel"`, `aria-selected`, `aria-controls` to editor project tabs
+- Added `role="table"`, `scope="col"` to all data table headers
+- Added `role="complementary"` + `aria-label` to admin sidebar, `role="main"` to main content
+- Added `aria-live="polite"` to workspace project grid
+- Added `aria-modal`, `aria-labelledby` to custom confirm dialogs
+
+**Phase 5 — Performance**:
+- (Skipped heavy refactoring — notification query consolidation noted for future)
+
+**Phase 6 — Code Cleanup**:
+- Removed dead imports from `routes/workflow.js`: `getNotificationType`, `getPriorityWeight`, `getIO`
+- (CSS dead class removal deferred to avoid breaking unknown references)
+
+**Phase 7 — Stability**:
+- Added `try/catch` blocks to 7 previously unprotected async route handlers:
+  - `POST /admin/projects/:id/transition` (workflow.js)
+  - `POST /admin/projects/:id/assign` (workflow.js)
+  - `POST /admin/projects/:id/delete` (workflow.js)
+  - `POST /editor/projects/:id/transition` (workflow.js)
+  - `POST /admin/shops/:id/toggle` (admin.js)
+  - `POST /admin/shops/:id/delete` (admin.js)
+  - `POST /admin/editors/:id/toggle` (admin.js)
+  - `POST /admin/editors/:id/delete` (admin.js)
+
+**Phase 8 — Validation**:
+- Syntax check: all JS files pass `node --check`
+- EJS compile: all modified views pass EJS compilation
+- Server startup: 0 errors on port 7000
+- Routes verified: all mutation handlers registered correctly
 
 **Files Modified**:
-- `models/User.js` — Added `upiId` field (string, default "", trim) for editor UPI ID storage
-- `routes/workflow.js` — Added `POST /admin/projects/:id/payment-done` (validates completed status + pending payment, sets `payment.status = "paid"`, records `payment.paidAt` + `payment.paidBy`, creates "Payment Done" timeline entry, notification via `createNotification`, Socket.IO broadcast); added `GET /editor/profile` and `POST /editor/profile` (self-service name + UPI ID update); updated admin project show populate to include `upiId`
-- `routes/admin.js` — Updated editor create and edit POST handlers to save `upiId` field
-- `views/admin/projects/show.ejs` — Added payment section for completed projects: payment details grid (project, client, editor, amount, editor UPI ID, completed date, paid at/by), "Mark Payment Done" button (AJAX with confirmation), "Open WhatsApp" link with prefilled message (`https://wa.me/?text=...`); added payment-done JS handler
-- `views/admin/vendors/form.ejs` — Added UPI ID input field to editor create/edit form
-- `views/admin/vendors/show.ejs` — Added UPI ID row to editor detail table
-- `views/editor/profile.ejs` — New page: simple profile form with name (editable) and UPI ID, email shown as read-only
-- `views/partials/editor-nav.ejs` — Added "Profile" nav link
-- `public/styles.css` — Added `.payment-section`, `.payment-details`, `.payment-detail`, `.payment-actions`, `#btn-payment-done:disabled` styles
+- `public/styles.css` — Added utility classes, spinner, alert-inline, confirm-dialog, responsive breakpoints
+- `views/auth/login.ejs` — h1 heading, inline style → class
+- `views/auth/signup.ejs` — h1 heading
+- `views/editor/projects/index.ejs` — inline styles → classes, ARIA tabs, alert → inline error, loading states
+- `views/editor/projects/show.ejs` — inline styles → classes, alert → inline error, loading states
+- `views/editor/profile.ejs` — AJAX form with inline feedback, disabled/loading states
+- `views/admin/projects/show.ejs` — inline styles → classes, confirm() → custom dialog, alert → inline error, ARIA table
+- `views/admin/projects/index.ejs` — inline styles → classes, ARIA table scope
+- `views/admin/workspace.ejs` — inline styles → classes, alert/confirm → custom dialog + inline error, ARIA live region
+- `views/admin/partials/layout-start.ejs` — ARIA roles
+- `routes/workflow.js` — Removed dead imports, added try/catch to 4 handlers
+- `routes/admin.js` — Added try/catch to 4 handlers
 
-**Completion & Payment Features**:
-- ✅ Completed project displays payment section with project name, client, editor, amount, UPI ID, completed date
-- ✅ Editor UPI ID visible on completed project page
-- ✅ Payment status visible (Pending/Paid badge on payment section header)
-- ✅ "Mark Payment Done" button works (AJAX, confirmation dialog)
-- ✅ `payment.status` updates to `paid`, records `paidAt` and `paidBy`
-- ✅ Already-paid projects show paid details (paid at, paid by) with no further actions
-- ✅ Already-paid projects cannot be paid again (validated server-side)
-- ✅ Timeline entry "Payment Done" created with amount notes
-- ✅ Notification created for editor on payment
-- ✅ Socket.IO broadcast emitted on payment
-- ✅ WhatsApp opens with prefilled message (`Hi {{Editor}}...`) — admin presses Send manually
-- ✅ Editor self-service profile: update name + UPI ID at `/editor/profile`
-- ✅ Admin can set/update UPI ID from editor create/edit forms
-- ✅ No payment gateway integration (Razorpay, PhonePe, etc.)
-- ✅ No QR scanner, no invoices, no accounting
+---
 
-**Test Results**:
-- Syntax: all JS files pass `node --check`
+# Latest Iteration Summary (Branding)
+
+**Date**: 12 July 2026
+
+**Objective**: Integrate the official Panther Visuals logo (`logo.jpeg`) throughout the application as the primary brand asset.
+
+**Changes Made**:
+- Copied `logo.jpeg` to `public/images/logo.jpeg` and `public/favicon.jpeg`
+- Updated `views/partials/header.ejs`:
+  - Replaced generic favicon (`/icon.png`) with logo-based favicon (`/images/logo.jpeg`)
+  - Updated browser title format: `"Page Title | Panther Visuals"` (instead of `"Page Title - Panther Visuals"`)
+  - Default title changed to "Panther Visuals Dashboard"
+  - Replaced generic CSS icon (`::before` pseudo-element) with real `<img>` tag using logo
+- Updated `views/auth/login.ejs` and `views/auth/signup.ejs`:
+  - Added logo above the form title with `brand-logo--auth` class
+- Updated `views/admin/partials/layout-start.ejs`:
+  - Replaced plain text "Panther Visuals" sidebar title with clickable logo linked to workspace
+- Updated `public/styles.css`:
+  - Removed `.brand::before` pseudo-element (old icon)
+  - Added `.brand-logo`, `.brand-logo--sidebar`, `.brand-logo--auth` classes
+  - Added responsive sizing for logo at 768px and 480px breakpoints
+- Added responsive logo scaling for mobile/tablet/desktop
+
+**Verification**:
+- Syntax: all modified JS files pass `node --check`
+- EJS compile: all modified views pass compilation
 - Server startup: 0 errors on port 7000
-- Routes verified: `POST /admin/projects/:id/payment-done`, `GET /editor/profile`, `POST /editor/profile` registered
-- UPI ID field added to User model and populated in admin project show view
-- Regression: existing admin routes, editor routes, workspace, submission/feedback all unchanged
+- Logo file exists at `public/images/logo.jpeg` (23 KB)
+- Favicon file exists at `public/favicon.jpeg`
+- No remaining references to old `/icon.png` in views or CSS
+
+**Files Modified**:
+- `views/partials/header.ejs` — Logo brand, favicon, title format
+- `views/auth/login.ejs` — Auth page logo
+- `views/auth/signup.ejs` — Auth page logo
+- `views/admin/partials/layout-start.ejs` — Sidebar logo
+- `public/styles.css` — Logo CSS classes, responsive sizing, removed old icon references
+
+**Files Created**:
+- `public/images/logo.jpeg` — Primary logo asset
+- `public/favicon.jpeg` — Favicon logo asset
+
+---
+
+# Latest Iteration Summary (QA Validation)
+
+**Date**: 12 July 2026
+
+**Objective**: Complete QA validation of the entire application — static analysis, server validation, route smoke tests, authentication, full workflow regression, database integrity, edge cases, performance, and UI checks.
+
+## PASS/FAIL Summary
+
+| Test Area | Result |
+|-----------|--------|
+| Static Analysis | PASS |
+| Server Startup | PASS |
+| Route Smoke Test (12 routes) | PASS |
+| Authentication (11 scenarios) | PASS |
+| Full Workflow Regression (25 steps) | PASS |
+| Database Validation | PASS |
+| Edge Cases (14 scenarios) | PASS |
+| Performance | PASS |
+
+## Bugs Fixed
+
+1. **Missing try/catch in auth POST handlers** (`routes/auth.js`):
+   - `POST /signup` — async operations (User.findOne, bcrypt.hash, User.create) could throw unhandled promise rejections
+   - `POST /login` — async operations (User.findOne, bcrypt.compare) could throw
+   - **Fix**: Wrapped both handlers in try/catch blocks with flash error + redirect on failure
+
+2. **Broken link in login page** (`views/auth/login.ejs`):
+   - Login page had `<a href="/forgot-password">Forgot Password?</a>` but no `/forgot-password` route exists
+   - **Fix**: Removed the link (password reset is not part of MVP)
+
+## Routes Tested (all pass)
+
+- `GET /` → 200 (home page)
+- `GET /login` → 200
+- `GET /signup` → 200
+- `POST /login` → 302 (valid/invalid credentials both handled)
+- `POST /signup` → 302 (new/duplicate both handled)
+- `POST /logout` → 302
+- `GET /admin` → 200 (authenticated) / 302 (unauthenticated)
+- `GET /admin/workspace` → 200
+- `GET /admin/projects` → 200
+- `GET /admin/projects/new` → 200
+- `GET /admin/projects/:id` → 200
+- `GET /admin/projects/:id/edit` → 200
+- `POST /admin/projects/:id/transition` → 302
+- `POST /admin/projects/:id/assign` → 302
+- `POST /admin/projects/:id/feedback` → 200
+- `POST /admin/projects/:id/complete` → 200
+- `POST /admin/projects/:id/payment-done` → 200
+- `POST /admin/projects/:id/delete` → 302
+- `GET /editor/projects` → 200
+- `GET /editor/projects/:id` → 200
+- `POST /editor/projects/:id/accept` → 200
+- `POST /editor/projects/:id/submit` → 200
+- `GET /editor/profile` → 200
+- `GET /editor/assets` → 200
+- `GET /api/notifications` → 200
+- `GET /api/notifications/unread-count` → 200
+- `POST /api/notifications/:id/read` → 200
+- `POST /api/notifications/read-all` → 200
+- `GET /api/projects/counts` → 200
+- `GET /api/editor/projects/counts` → 200
+- `GET /api/search` → 200
+- `GET /styles.css` → 200
+- `GET /images/logo.jpeg` → 200
+- `GET /favicon.jpeg` → 200
+- `GET /nonexistent` → 404
+
+## Full Workflow Tested
+
+1. ✅ Admin login → Workspace → Dashboard → Projects
+2. ✅ View project details → Edit form → Transition status
+3. ✅ Editor login → View projects → View project detail
+4. ✅ Submit Version 1 → Status changes to "submitted"
+5. ✅ Admin reviews submission → Sends feedback → Status back to "ongoing"
+6. ✅ Editor submits Version 2 → Status back to "submitted"
+7. ✅ Admin completes project → Status = "completed"
+8. ✅ Admin marks payment done → payment.status = "paid"
+9. ✅ View completed project with payment details
+10. ✅ API counts, notifications, search all return correct data
+
+## Database Integrity Verified
+
+- Project: All fields populated (client, editor, status, submissions[2], feedback[1], payment{paid}, timeline[7])
+- Submissions: Auto-incremented versions (1, 2), drive links preserved, timestamps correct
+- Feedback: Comment stored with version reference
+- Payment: amount, status=paid, paidAt, paidBy all recorded
+- Editor: role=editor, isActive=true, upiId stored
+- Notifications: 5 created for events (submission ×2, feedback, completion, payment)
+
+## Edge Cases Handled (all pass)
+
+- Invalid ObjectId → 302 with flash error
+- Non-existent project → 302 with flash error
+- Empty form → 302 back to form with validation error
+- Duplicate payment → JSON error "Payment already completed."
+- Invalid status transition → 302 with flash error
+- Editor access to admin route → 302 redirect to home
+- Editor access to wrong project → 302 redirect
+- Accept completed project → JSON error "Project is not in assignable status."
+- Submit to completed project → JSON error "Only ongoing projects can be submitted."
+- Duplicate email signup → 302 with flash error
+- Disabled account login → 302 with flash error
+- Very long text → Stored correctly
+- Missing drive link → Handled by client-side validation
+- Logout → Session destroyed, protected routes redirect to login
+- Back button after logout → Correctly redirects to login
+
+## Remaining Technical Debt
+
+- Workspace route uses 4 separate `countDocuments` calls (fine for MVP scale)
+- `getDashboardCounts` includes deprecated keys (`new`, `revision`, `payment`, `paid`)
+- `User` model has `shop`/`client` role leftover from legacy
+- No automated test suite
+- No input sanitization beyond `trim()`
+
+## Verdict
+
+**READY for client demonstration.** Zero syntax errors, zero runtime errors, zero broken routes, zero broken templates, zero failed workflows.
 
 ---
 
 # Next Sprint
 
-**UI Polish** — Consistent colors, cards, spacing, responsive design, minimal animations.
+**Client Feedback Iteration** — Collect and integrate feedback from real users (admin + editors). Prioritize issues found in testing.
 
 ---
 

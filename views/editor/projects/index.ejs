@@ -7,13 +7,13 @@
   </div>
 </section>
 
-<div class="editor-tabs">
-  <button type="button" class="editor-tab<%= currentTab === 'assigned' ? ' is-active' : '' %>" data-tab="assigned">My Projects <span class="editor-tab-count"><%= assigned.length %></span></button>
-  <button type="button" class="editor-tab<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab="ongoing">Ongoing <span class="editor-tab-count"><%= ongoing.length %></span></button>
-  <button type="button" class="editor-tab<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab="completed">Completed <span class="editor-tab-count"><%= completed.length %></span></button>
+<div class="editor-tabs" role="tablist" aria-label="Project tabs">
+  <button type="button" class="editor-tab<%= currentTab === 'assigned' ? ' is-active' : '' %>" data-tab="assigned" role="tab" aria-selected="<%= currentTab === 'assigned' ? 'true' : 'false' %>" aria-controls="tab-panel-assigned">My Projects <span class="editor-tab-count"><%= assigned.length %></span></button>
+  <button type="button" class="editor-tab<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab="ongoing" role="tab" aria-selected="<%= currentTab === 'ongoing' ? 'true' : 'false' %>" aria-controls="tab-panel-ongoing">Ongoing <span class="editor-tab-count"><%= ongoing.length %></span></button>
+  <button type="button" class="editor-tab<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab="completed" role="tab" aria-selected="<%= currentTab === 'completed' ? 'true' : 'false' %>" aria-controls="tab-panel-completed">Completed <span class="editor-tab-count"><%= completed.length %></span></button>
 </div>
 
-<div class="editor-tab-content<%= currentTab === 'assigned' ? ' is-active' : '' %>" data-tab-panel="assigned">
+<div class="editor-tab-content<%= currentTab === 'assigned' ? ' is-active' : '' %>" data-tab-panel="assigned" id="tab-panel-assigned" role="tabpanel" aria-label="My Projects">
   <% if (assigned.length === 0) { %>
     <div class="card admin-panel"><p class="muted">No new projects assigned to you.</p></div>
   <% } else { %>
@@ -26,7 +26,7 @@
           </div>
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
-            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span style="text-transform:capitalize"><%= p.priority %></span></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
           </div>
@@ -40,7 +40,7 @@
   <% } %>
 </div>
 
-<div class="editor-tab-content<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab-panel="ongoing">
+<div class="editor-tab-content<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab-panel="ongoing" id="tab-panel-ongoing" role="tabpanel" aria-label="Ongoing">
   <% if (ongoing.length === 0) { %>
     <div class="card admin-panel"><p class="muted">No ongoing projects.</p></div>
   <% } else { %>
@@ -53,13 +53,13 @@
           </div>
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
-            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span style="text-transform:capitalize"><%= p.priority %></span></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
           </div>
           <div class="project-card__actions">
-            <% if (p.status === "ongoing") { %><span class="quick-action-btn" style="cursor:default;border-color:var(--primary);color:var(--primary)">In Progress</span><% } %>
-            <% if (p.status === "submitted") { %><span class="quick-action-btn" style="cursor:default;border-color:var(--success);color:var(--success)">Under Review</span><% } %>
+            <% if (p.status === "ongoing") { %><span class="quick-action-btn cursor-pointer" style="border-color:var(--primary);color:var(--primary)">In Progress</span><% } %>
+            <% if (p.status === "submitted") { %><span class="quick-action-btn cursor-pointer" style="border-color:var(--success);color:var(--success)">Under Review</span><% } %>
             <a class="quick-action-btn" href="/editor/projects/<%= p._id %>">View</a>
           </div>
         </article>
@@ -68,7 +68,7 @@
   <% } %>
 </div>
 
-<div class="editor-tab-content<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab-panel="completed">
+<div class="editor-tab-content<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab-panel="completed" id="tab-panel-completed" role="tabpanel" aria-label="Completed">
   <% if (completed.length === 0) { %>
     <div class="card admin-panel"><p class="muted">No completed projects.</p></div>
   <% } else { %>
@@ -81,7 +81,7 @@
           </div>
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
-            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span style="text-transform:capitalize"><%= p.priority %></span></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
           </div>
@@ -97,22 +97,21 @@
 
 <script>
   (function () {
-    // Tab switching
     var tabs = document.querySelectorAll(".editor-tab");
     var panels = document.querySelectorAll(".editor-tab-content");
     tabs.forEach(function (tab) {
       tab.addEventListener("click", function () {
         var target = tab.getAttribute("data-tab");
-        tabs.forEach(function (t) { t.classList.remove("is-active"); });
+        tabs.forEach(function (t) { t.classList.remove("is-active"); t.setAttribute("aria-selected", "false"); });
         panels.forEach(function (p) { p.classList.remove("is-active"); });
         tab.classList.add("is-active");
+        tab.setAttribute("aria-selected", "true");
         var panel = document.querySelector('[data-tab-panel="' + target + '"]');
         if (panel) panel.classList.add("is-active");
         history.replaceState(null, "", "?tab=" + target);
       });
     });
 
-    // Accept project (AJAX)
     var acceptBtns = document.querySelectorAll(".btn-accept");
     acceptBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -128,7 +127,6 @@
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.success) {
-              // Remove card from assigned tab
               var card = btn.closest(".project-card");
               if (card) {
                 card.style.opacity = "0";
@@ -136,21 +134,35 @@
                 card.style.transition = "all 0.2s";
                 setTimeout(function () { card.remove(); }, 200);
               }
-              // Reload on next tab switch or after a short delay
               setTimeout(function () { location.reload(); }, 500);
             } else {
-              alert(data.error || "Failed to accept project.");
+              showInlineError(btn, data.error || "Failed to accept project.");
               btn.disabled = false;
               btn.textContent = "Accept Project";
             }
           })
           .catch(function () {
-            alert("Network error. Try again.");
+            showInlineError(btn, "Network error. Try again.");
             btn.disabled = false;
             btn.textContent = "Accept Project";
           });
       });
     });
+
+    function showInlineError(el, msg) {
+      var existing = el.parentNode.querySelector(".alert-inline");
+      if (!existing) {
+        existing = document.createElement("div");
+        existing.className = "alert-inline alert-inline--error is-visible";
+        el.parentNode.insertBefore(existing, el.nextSibling);
+      } else {
+        existing.classList.add("is-visible");
+        existing.classList.remove("alert-inline--success");
+        existing.classList.add("alert-inline--error");
+      }
+      existing.textContent = msg;
+      setTimeout(function () { existing.classList.remove("is-visible"); }, 4000);
+    }
   })();
 </script>
 

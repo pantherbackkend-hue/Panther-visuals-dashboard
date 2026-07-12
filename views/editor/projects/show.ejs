@@ -14,22 +14,22 @@
 
 <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && project.status !== "completed"; %>
 <% if (overdue) { %>
-  <div class="overdue-warning" style="margin-bottom:16px">
+  <div class="overdue-warning mb-16">
     <strong>Overdue</strong> &mdash; This project was due on <%= new Date(project.dueDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %>.
   </div>
 <% } %>
 
 <section class="admin-metrics">
-  <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></h2></article>
+  <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></h2></article>
   <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.payment?.amount || 0) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Due</p><h2 style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Due</p><h2 class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Versions</p><h2><%= project.submissions?.length || 0 %></h2></article>
 </section>
 
 <% if (project.status === "ongoing") { %>
   <div class="card admin-panel">
-    <h2 class="h2" style="margin-top:0">Submit Work</h2>
-    <form class="admin-form" id="submit-form" style="max-width:100%">
+    <h2 class="h2 mt-0">Submit Work</h2>
+    <form class="admin-form full-width" id="submit-form">
       <div class="form-group">
         <label for="driveLink">Drive Link <span class="required">*</span></label>
         <input type="url" id="driveLink" name="driveLink" placeholder="https://drive.google.com/..." required />
@@ -45,7 +45,7 @@
 
 <% if (project.submissions && project.submissions.length > 0) { %>
   <div class="card admin-panel">
-    <h2 class="h2" style="margin-top:0">Submission History</h2>
+    <h2 class="h2 mt-0">Submission History</h2>
     <div class="submission-list">
       <% project.submissions.slice().reverse().forEach(function(s) { %>
         <div class="submission-item">
@@ -68,7 +68,7 @@
 
 <% if (project.feedback && project.feedback.length > 0) { %>
   <div class="card admin-panel">
-    <h2 class="h2" style="margin-top:0">Feedback History</h2>
+    <h2 class="h2 mt-0">Feedback History</h2>
     <div class="feedback-list">
       <% project.feedback.slice().reverse().forEach(function(f) { %>
         <div class="feedback-item">
@@ -87,7 +87,7 @@
 <% } %>
 
 <div class="card admin-panel">
-  <h2 class="h2" style="margin-top:0">Details</h2>
+    <h2 class="h2 mt-0">Details</h2>
   <div class="admin-detail-grid">
     <div><span>Drive Link</span><strong><% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 60 ? project.driveLink.slice(0,60) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %></strong></div>
     <% if (project.client?.email) { %><div><span>Client Email</span><strong><%= project.client.email %></strong></div><% } %>
@@ -100,12 +100,12 @@
     </strong></div>
     <div><span>Created</span><strong><%= new Date(project.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
     <% if (project.completedAt) { %><div><span>Completed</span><strong><%= new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div><% } %>
-    <% if (project.notes) { %><div style="grid-column:1/-1"><span>Notes</span><strong style="white-space:pre-wrap"><%= project.notes %></strong></div><% } %>
+    <% if (project.notes) { %><div class="overflow-auto" style="grid-column:1/-1"><span>Notes</span><strong style="white-space:pre-wrap"><%= project.notes %></strong></div><% } %>
   </div>
 </div>
 
 <div class="card admin-panel" id="timeline">
-  <h2 class="h2" style="margin-top:0">Activity Timeline</h2>
+    <h2 class="h2 mt-0">Activity Timeline</h2>
   <% if (project.activityTimeline.length === 0) { %>
     <p class="muted">No activity recorded yet.</p>
   <% } else { %>
@@ -142,7 +142,7 @@
       var description = form.querySelector("[name=description]").value.trim();
 
       if (!driveLink) {
-        alert("Drive link is required.");
+        showFormError(form, "Drive link is required.");
         return;
       }
 
@@ -159,17 +159,32 @@
           if (data.success) {
             location.reload();
           } else {
-            alert(data.error || "Failed to submit.");
+            showFormError(form, data.error || "Failed to submit.");
             btn.disabled = false;
             btn.textContent = "Submit Version <%= (project.submissions?.length || 0) + 1 %>";
           }
         })
         .catch(function () {
-          alert("Network error.");
+          showFormError(form, "Network error.");
           btn.disabled = false;
           btn.textContent = "Submit Version <%= (project.submissions?.length || 0) + 1 %>";
         });
     });
+
+    function showFormError(form, msg) {
+      var existing = form.querySelector(".alert-inline");
+      if (!existing) {
+        existing = document.createElement("div");
+        existing.className = "alert-inline alert-inline--error is-visible";
+        form.insertBefore(existing, form.querySelector("button"));
+      } else {
+        existing.classList.add("is-visible");
+        existing.classList.remove("alert-inline--success");
+        existing.classList.add("alert-inline--error");
+      }
+      existing.textContent = msg;
+      setTimeout(function () { existing.classList.remove("is-visible"); }, 4000);
+    }
   })();
 </script>
 

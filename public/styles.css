@@ -86,12 +86,24 @@ input[type="file"] { padding: 9px 12px; cursor: pointer; }
   letter-spacing: -0.02em;
 }
 
-.brand::before {
-  content: "";
-  width: 28px;
+.brand-logo {
   height: 28px;
-  border-radius: 6px;
-  background: var(--primary) url("/icon.png") center / 18px 18px no-repeat;
+  width: auto;
+  border-radius: 4px;
+}
+
+.brand-logo--sidebar {
+  height: 24px;
+  width: auto;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.brand-logo--auth {
+  height: 40px;
+  width: auto;
+  display: block;
+  margin: 0 auto 12px;
 }
 
 .nav {
@@ -1052,7 +1064,7 @@ fieldset.fieldset legend {
 @media (max-width: 768px) {
   .container { padding: 0 12px; }
   .brand { font-size: 18px; }
-  .brand::before { width: 24px; height: 24px; background-size: 14px; }
+  .brand-logo { height: 24px; }
   .hero--home { min-height: auto; padding: 32px 0; background: none; }
   .hero h1 { font-size: 36px; }
   .hero p { font-size: 16px; }
@@ -1081,6 +1093,8 @@ fieldset.fieldset legend {
 
 @media (max-width: 480px) {
   .brand { font-size: 17px; }
+  .brand-logo { height: 22px; }
+  .brand-logo--auth { height: 32px; }
   .hero h1 { font-size: 30px; }
   .btn { width: 100%; }
   .hero__actions .btn { width: 100%; }
@@ -1385,7 +1399,7 @@ fieldset.fieldset legend {
   padding: 32px;
 }
 
-.auth-card__title {
+.auth-card h1, .auth-card__title {
   margin: 0 0 24px;
   font-size: 20px;
   font-weight: 700;
@@ -1623,3 +1637,68 @@ fieldset.fieldset legend {
 }
 
 #btn-payment-done:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Utility Classes ── */
+
+.mt-0 { margin-top: 0; }
+.mb-0 { margin-bottom: 0; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+.mr-8 { margin-right: 8px; }
+.ml-8 { margin-left: 8px; }
+.capitalize { text-transform: capitalize; }
+.text-sm { font-size: 13px; }
+.text-xs { font-size: 12px; }
+.text-center { text-align: center; }
+.fw-medium { font-weight: 500; }
+.fw-semibold { font-weight: 600; }
+.full-width { width: 100%; }
+.overflow-auto { overflow: auto; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.flex-wrap { flex-wrap: wrap; }
+.p-0 { padding: 0; }
+.p-16 { padding: 16px; }
+.pb-0 { padding-bottom: 0; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.word-break-all { word-break: break-all; }
+.cursor-pointer { cursor: pointer; }
+.btn:disabled, button:disabled, .btn--loading { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
+.form-inline { display: flex; align-items: center; gap: 8px; }
+
+/* ── Loading Spinner ── */
+
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+.spinner--sm { width: 12px; height: 12px; border-width: 1.5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Inline Alert (Phase 2) ── */
+
+.alert-inline { display: none; padding: 8px 12px; margin: 8px 0; border-radius: var(--radius-sm); font-size: 13px; }
+.alert-inline.is-visible { display: block; }
+.alert-inline--error { background: var(--danger-soft); border: 1px solid #FECACA; color: #991B1B; }
+.alert-inline--success { background: var(--success-soft); border: 1px solid #BBF7D0; color: #166534; }
+
+/* ── Custom Confirm Dialog (Phase 2) ── */
+
+.confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: center; justify-content: center; padding: 16px; }
+.confirm-overlay.is-visible { display: flex; }
+.confirm-dialog { background: var(--card); border-radius: var(--radius); padding: 24px; max-width: 400px; width: 100%; box-shadow: var(--shadow-md); }
+.confirm-dialog p { margin: 0 0 20px; font-size: 15px; line-height: 1.5; }
+.confirm-dialog__actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Responsive: Phase 3 additions ── */
+
+@media (max-width: 480px) {
+  .auth-card { padding: 24px 16px; }
+  .payment-details { grid-template-columns: 1fr; }
+  .admin-detail-grid { grid-template-columns: 1fr; }
+  .editor-tabs { overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .admin-page-head h1 { font-size: 20px; }
+}
