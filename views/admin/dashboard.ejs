@@ -17,7 +17,7 @@
   <article class="card admin-metric"><p class="muted small">Pending Assignment</p><h2><%= projectMetrics.pendingAssignment %></h2></article>
   <article class="card admin-metric"><p class="muted small">Assigned</p><h2><%= projectMetrics.assigned %></h2></article>
   <article class="card admin-metric"><p class="muted small">In Progress</p><h2><%= projectMetrics.working %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Under Revision</p><h2><%= projectMetrics.revision %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Under Review</p><h2><%= projectMetrics.revision %></h2></article>
   <article class="card admin-metric"><p class="muted small">Completed</p><h2><%= projectMetrics.completed %></h2></article>
   <article class="card admin-metric"><p class="muted small">Waiting Payment</p><h2><%= projectMetrics.waitingPayment %></h2></article>
   <article class="card admin-metric"><p class="muted small">Payments Done</p><h2><%= projectMetrics.paid %></h2></article>
@@ -156,7 +156,7 @@
         </thead>
         <tbody>
           <% workflowProjects.forEach(function(project) { %>
-            <% var isOverdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+            <% var isOverdue = project.dueDate && new Date(project.dueDate) < new Date() && project.status !== "completed"; %>
             <tr style="<%= isOverdue ? 'background:var(--danger-soft)' : '' %>">
               <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
               <td><%= project.clientName %></td>

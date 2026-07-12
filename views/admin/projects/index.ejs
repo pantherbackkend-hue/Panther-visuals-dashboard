@@ -12,10 +12,6 @@
 
 <section class="admin-metrics">
   <article class="card admin-metric">
-    <p class="muted small">New</p>
-    <h2><%= counts.new %></h2>
-  </article>
-  <article class="card admin-metric">
     <p class="muted small">Unassigned</p>
     <h2><%= counts.unassigned %></h2>
   </article>
@@ -24,20 +20,12 @@
     <h2><%= counts.active %></h2>
   </article>
   <article class="card admin-metric">
-    <p class="muted small">Revision</p>
-    <h2><%= counts.revision %></h2>
+    <p class="muted small">Under Review</p>
+    <h2><%= counts.review %></h2>
   </article>
   <article class="card admin-metric">
     <p class="muted small">Completed</p>
     <h2><%= counts.completed %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Payment</p>
-    <h2><%= counts.payment %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Paid</p>
-    <h2><%= counts.paid %></h2>
   </article>
 </section>
 
@@ -51,14 +39,10 @@
       <span class="sr-only">Filter</span>
       <select name="filter">
         <option value="all" <%= filter === "all" ? "selected" : "" %>>All</option>
-        <option value="new" <%= filter === "new" ? "selected" : "" %>>New</option>
         <option value="unassigned" <%= filter === "unassigned" ? "selected" : "" %>>Unassigned</option>
         <option value="active" <%= filter === "active" ? "selected" : "" %>>Active</option>
-        <option value="revision" <%= filter === "revision" ? "selected" : "" %>>Revision</option>
+        <option value="review" <%= filter === "review" ? "selected" : "" %>>Under Review</option>
         <option value="completed" <%= filter === "completed" ? "selected" : "" %>>Completed</option>
-        <option value="payment" <%= filter === "payment" ? "selected" : "" %>>Awaiting Payment</option>
-        <option value="paid" <%= filter === "paid" ? "selected" : "" %>>Paid</option>
-        <option value="archived" <%= filter === "archived" ? "selected" : "" %>>Archived</option>
       </select>
     </label>
     <button class="btn" type="submit">Apply</button>
@@ -86,7 +70,7 @@
         </thead>
         <tbody>
           <% projects.forEach((project) => { %>
-            <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+            <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && project.status !== "completed"; %>
             <tr style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
               <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
               <td><%= project.clientName %></td>

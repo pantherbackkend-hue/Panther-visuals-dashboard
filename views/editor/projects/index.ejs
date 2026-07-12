@@ -4,69 +4,154 @@
   <div>
     <p class="eyebrow">My workspace</p>
     <h1>My Projects</h1>
-    <p class="muted">Projects assigned to you, sorted by priority.</p>
   </div>
 </section>
 
-<section class="admin-metrics">
-  <article class="card admin-metric">
-    <p class="muted small">Active</p>
-    <h2><%= projects.filter(p => ["assigned","accepted_by_editor","working"].includes(p.status)).length %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Revision</p>
-    <h2><%= projects.filter(p => p.status === "revision").length %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Completed</p>
-    <h2><%= projects.filter(p => p.status === "completed" || p.status === "paid").length %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Overdue</p>
-    <h2 style="color:<%= projects.filter(p => p.dueDate && new Date(p.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(p.status)).length > 0 ? 'var(--danger)' : 'inherit' %>">
-      <%= projects.filter(p => p.dueDate && new Date(p.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(p.status)).length %>
-    </h2>
-  </article>
-</section>
+<div class="editor-tabs">
+  <button type="button" class="editor-tab<%= currentTab === 'assigned' ? ' is-active' : '' %>" data-tab="assigned">My Projects <span class="editor-tab-count"><%= assigned.length %></span></button>
+  <button type="button" class="editor-tab<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab="ongoing">Ongoing <span class="editor-tab-count"><%= ongoing.length %></span></button>
+  <button type="button" class="editor-tab<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab="completed">Completed <span class="editor-tab-count"><%= completed.length %></span></button>
+</div>
 
-<div class="card admin-panel">
-  <% if (!projects.length) { %>
-    <p class="muted">No projects assigned to you yet.</p>
+<div class="editor-tab-content<%= currentTab === 'assigned' ? ' is-active' : '' %>" data-tab-panel="assigned">
+  <% if (assigned.length === 0) { %>
+    <div class="card admin-panel"><p class="muted">No new projects assigned to you.</p></div>
   <% } else { %>
-    <div style="overflow-x: auto;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Project</th>
-            <th>Client</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Amount</th>
-            <th>Due</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% projects.forEach((project) => { %>
-            <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
-            <tr style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
-              <td><a class="admin-link" href="/editor/projects/<%= project._id %>"><%= project.projectName %></a></td>
-              <td><%= project.clientName %></td>
-              <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></td>
-              <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
-              <td><%= formatMoney(project.paymentAmount) %></td>
-              <td style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
-                <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>
-              </td>
-              <td>
-                <a class="quick-action-btn" href="/editor/projects/<%= project._id %>">View</a>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
+    <div class="editor-cards">
+      <% assigned.forEach(function(p) { %>
+        <article class="card project-card" data-project-id="<%= p._id %>">
+          <div class="project-card__head">
+            <h3 class="project-card__name"><a href="/editor/projects/<%= p._id %>"><%= p.projectName %></a></h3>
+            <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
+          </div>
+          <div class="project-card__meta">
+            <span><strong>Client:</strong> <%= p.clientName %></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span style="text-transform:capitalize"><%= p.priority %></span></span>
+            <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
+            <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
+          </div>
+          <div class="project-card__actions">
+            <button class="quick-action-btn btn-accept" data-id="<%= p._id %>">Accept Project</button>
+            <a class="quick-action-btn" href="/editor/projects/<%= p._id %>">View Details</a>
+          </div>
+        </article>
+      <% }) %>
     </div>
   <% } %>
 </div>
+
+<div class="editor-tab-content<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab-panel="ongoing">
+  <% if (ongoing.length === 0) { %>
+    <div class="card admin-panel"><p class="muted">No ongoing projects.</p></div>
+  <% } else { %>
+    <div class="editor-cards">
+      <% ongoing.forEach(function(p) { %>
+        <article class="card project-card">
+          <div class="project-card__head">
+            <h3 class="project-card__name"><a href="/editor/projects/<%= p._id %>"><%= p.projectName %></a></h3>
+            <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
+          </div>
+          <div class="project-card__meta">
+            <span><strong>Client:</strong> <%= p.clientName %></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span style="text-transform:capitalize"><%= p.priority %></span></span>
+            <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
+            <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
+          </div>
+          <div class="project-card__actions">
+            <% if (p.status === "ongoing") { %><span class="quick-action-btn" style="cursor:default;border-color:var(--primary);color:var(--primary)">In Progress</span><% } %>
+            <% if (p.status === "submitted") { %><span class="quick-action-btn" style="cursor:default;border-color:var(--success);color:var(--success)">Under Review</span><% } %>
+            <a class="quick-action-btn" href="/editor/projects/<%= p._id %>">View</a>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<div class="editor-tab-content<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab-panel="completed">
+  <% if (completed.length === 0) { %>
+    <div class="card admin-panel"><p class="muted">No completed projects.</p></div>
+  <% } else { %>
+    <div class="editor-cards">
+      <% completed.forEach(function(p) { %>
+        <article class="card project-card">
+          <div class="project-card__head">
+            <h3 class="project-card__name"><a href="/editor/projects/<%= p._id %>"><%= p.projectName %></a></h3>
+            <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
+          </div>
+          <div class="project-card__meta">
+            <span><strong>Client:</strong> <%= p.clientName %></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span style="text-transform:capitalize"><%= p.priority %></span></span>
+            <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
+            <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
+          </div>
+          <div class="project-card__actions">
+            <% if (p.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span><% } else { %><span class="tag tag--pending">Awaiting Payment</span><% } %>
+            <a class="quick-action-btn" href="/editor/projects/<%= p._id %>">View</a>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+  (function () {
+    // Tab switching
+    var tabs = document.querySelectorAll(".editor-tab");
+    var panels = document.querySelectorAll(".editor-tab-content");
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var target = tab.getAttribute("data-tab");
+        tabs.forEach(function (t) { t.classList.remove("is-active"); });
+        panels.forEach(function (p) { p.classList.remove("is-active"); });
+        tab.classList.add("is-active");
+        var panel = document.querySelector('[data-tab-panel="' + target + '"]');
+        if (panel) panel.classList.add("is-active");
+        history.replaceState(null, "", "?tab=" + target);
+      });
+    });
+
+    // Accept project (AJAX)
+    var acceptBtns = document.querySelectorAll(".btn-accept");
+    acceptBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-id");
+        if (!id) return;
+        btn.disabled = true;
+        btn.textContent = "Accepting...";
+
+        fetch("/editor/projects/" + id + "/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.success) {
+              // Remove card from assigned tab
+              var card = btn.closest(".project-card");
+              if (card) {
+                card.style.opacity = "0";
+                card.style.transform = "scale(0.95)";
+                card.style.transition = "all 0.2s";
+                setTimeout(function () { card.remove(); }, 200);
+              }
+              // Reload on next tab switch or after a short delay
+              setTimeout(function () { location.reload(); }, 500);
+            } else {
+              alert(data.error || "Failed to accept project.");
+              btn.disabled = false;
+              btn.textContent = "Accept Project";
+            }
+          })
+          .catch(function () {
+            alert("Network error. Try again.");
+            btn.disabled = false;
+            btn.textContent = "Accept Project";
+          });
+      });
+    });
+  })();
+</script>
 
 <%- include("../../partials/footer") %>

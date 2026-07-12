@@ -90,8 +90,7 @@ adminRouter.get("/", async (req, res) => {
     pendingAssignmentCount,
     assignedCount,
     workingCount,
-    waitingReviewCount,
-    revisionCount,
+    submittedCount,
     completedProjectCount,
     waitingPaymentCount,
     paidCount,
@@ -113,12 +112,11 @@ adminRouter.get("/", async (req, res) => {
     Project.countDocuments({ createdAt: { $gte: istStart } }),
     Project.countDocuments({ status: "pending_assignment" }),
     Project.countDocuments({ status: "assigned" }),
-    Project.countDocuments({ status: { $in: ["accepted_by_editor", "working"] } }),
-    Project.countDocuments({ status: { $in: ["completed", "waiting_for_payment"] } }),
-    Project.countDocuments({ status: "revision" }),
+    Project.countDocuments({ status: "ongoing" }),
+    Project.countDocuments({ status: "submitted" }),
     Project.countDocuments({ status: "completed" }),
-    Project.countDocuments({ status: "waiting_for_payment" }),
-    Project.countDocuments({ status: "paid" }),
+    Project.countDocuments({ status: "completed", "payment.status": "pending" }),
+    Project.countDocuments({ status: "completed", "payment.status": "paid" }),
     User.countDocuments({ role: "editor", availability: "available", isActive: true }),
     User.countDocuments({ role: "editor", availability: "busy", isActive: true }),
     User.countDocuments({ role: "editor", availability: "on_leave", isActive: true }),
@@ -147,7 +145,7 @@ adminRouter.get("/", async (req, res) => {
     ]),
     Project.find({
       dueDate: { $gte: now, $ne: null },
-      status: { $nin: ["completed", "paid", "archived", "waiting_for_payment"] },
+      status: { $nin: ["completed"] },
     })
       .select("projectName clientName dueDate priority assignedEditor")
       .populate("assignedEditor", "name")
@@ -160,11 +158,13 @@ adminRouter.get("/", async (req, res) => {
 
   const overdueProjects = await Project.countDocuments({
     dueDate: { $lt: now, $ne: null },
-    status: { $nin: ["completed", "paid", "archived", "waiting_for_payment"] },
+    status: { $nin: ["completed"] },
   });
 
   const workflowProjects = allProjects.map((p) => ({
     ...p,
+    clientName: p.client?.name || p.clientName || "",
+    paymentAmount: p.payment?.amount || 0,
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
   }));
@@ -173,23 +173,24 @@ adminRouter.get("/", async (req, res) => {
     editors.map(async (e) => {
       const activeCount = await Project.countDocuments({
         assignedEditor: e._id,
-        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+        status: { $in: ["assigned", "ongoing"] },
       });
       const workingCount = await Project.countDocuments({
         assignedEditor: e._id,
-        status: { $in: ["accepted_by_editor", "working"] },
+        status: "ongoing",
       });
       const upcomingDeadline = await Project.findOne({
         assignedEditor: e._id,
         dueDate: { $gte: now, $ne: null },
-        status: { $nin: ["completed", "paid", "archived", "waiting_for_payment"] },
+        status: { $nin: ["completed"] },
       })
         .select("dueDate projectName")
         .sort({ dueDate: 1 })
         .lean();
       const pendingPayment = await Project.countDocuments({
         assignedEditor: e._id,
-        status: "waiting_for_payment",
+        status: "completed",
+        "payment.status": "pending",
       });
       return {
         name: e.name,
@@ -221,8 +222,8 @@ adminRouter.get("/", async (req, res) => {
       pendingAssignment: pendingAssignmentCount,
       assigned: assignedCount,
       working: workingCount,
-      waitingReview: waitingReviewCount,
-      revision: revisionCount,
+      waitingReview: submittedCount,
+      revision: submittedCount,
       completed: completedProjectCount,
       waitingPayment: waitingPaymentCount,
       paid: paidCount,
@@ -252,17 +253,17 @@ adminRouter.get("/workspace", async (req, res) => {
     working,
     review,
     completedToday,
-    unassignedProjects,
+    allProjects,
     editors,
     recentActivity,
   ] = await Promise.all([
     Project.countDocuments({ status: "pending_assignment" }),
-    Project.countDocuments({ status: { $in: ["accepted_by_editor", "working"] } }),
-    Project.countDocuments({ status: "revision" }),
+    Project.countDocuments({ status: "ongoing" }),
+    Project.countDocuments({ status: "submitted" }),
     Project.countDocuments({ status: "completed", completedAt: { $gte: istStart } }),
-    Project.find({ status: { $in: ["new_project", "pending_assignment"] } })
-      .select("clientName projectName")
-      .sort({ createdAt: -1 })
+    Project.find()
+      .populate("assignedEditor", "name email availability")
+      .sort({ priority: -1, createdAt: -1 })
       .lean(),
     User.find({ role: "editor", isActive: true })
       .select("name email availability")
@@ -285,21 +286,30 @@ adminRouter.get("/workspace", async (req, res) => {
     ]),
   ]);
 
-  const editorsWithCounts = await Promise.all(
-    editors.map(async (e) => {
-      const activeCount = await Project.countDocuments({
-        assignedEditor: e._id,
-        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
-      });
-      return { ...e, activeCount };
-    }),
-  );
+  const projects = allProjects.map((p) => ({
+    ...p,
+    clientName: p.client?.name || p.clientName || "",
+    latestVersion: p.submissions && p.submissions.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
+    statusLabel: formatStatus(p.status),
+    badgeColor: getBadgeColor(p.status),
+  }));
+
+  const activeCounts = await Project.aggregate([
+    { $match: { status: { $in: ["assigned", "ongoing"] }, assignedEditor: { $ne: null } } },
+    { $group: { _id: "$assignedEditor", count: { $sum: 1 } } },
+  ]);
+  const countMap = {};
+  for (const c of activeCounts) { countMap[String(c._id)] = c.count; }
+  const editorsWithCounts = editors.map((e) => ({
+    ...e,
+    activeCount: countMap[String(e._id)] || 0,
+  }));
 
   res.render("admin/workspace", {
     pageTitle: "Workspace",
     activeSection: "workspace",
     metrics: { pendingAssignment, working, review, completedToday },
-    unassignedProjects,
+    projects,
     editors: editorsWithCounts,
     recentActivity,
   });
@@ -321,7 +331,7 @@ adminRouter.post("/workspace/assign", async (req, res) => {
       return res.status(404).json({ success: false, error: "Project not found." });
     }
 
-    if (!["new_project", "pending_assignment"].includes(project.status)) {
+    if (project.status !== "pending_assignment") {
       return res.status(400).json({ success: false, error: "Project is already assigned." });
     }
 
@@ -337,7 +347,7 @@ adminRouter.post("/workspace/assign", async (req, res) => {
     if (editor.availability === "busy") {
       const activeCount = await Project.countDocuments({
         assignedEditor: editor._id,
-        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+        status: { $in: ["assigned", "ongoing"] },
       });
       if (activeCount >= 3) {
         return res.status(400).json({ success: false, error: `${editor.name} is fully occupied (${activeCount} active projects).` });
@@ -346,14 +356,14 @@ adminRouter.post("/workspace/assign", async (req, res) => {
 
     const fromStatus = project.status;
     project.assignedEditor = editor._id;
-    project.status = "pending_assignment";
+    project.status = "assigned";
 
     if (assetLink && typeof assetLink === "string" && assetLink.trim()) {
       try { new URL(assetLink); project.driveLink = assetLink.trim(); } catch { /* ignore invalid URL */ }
     }
 
     if (price && !isNaN(Number(price))) {
-      project.paymentAmount = Number(price);
+      project.payment.amount = Number(price);
     }
 
     project.activityTimeline.push({
@@ -361,7 +371,7 @@ adminRouter.post("/workspace/assign", async (req, res) => {
       user: req.user._id,
       userName: req.user.name,
       previousStatus: fromStatus,
-      newStatus: "pending_assignment",
+      newStatus: "assigned",
       notes: String(notes || "").trim(),
     });
 
@@ -607,8 +617,10 @@ adminRouter.post("/editors", async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) { req.flash("error", "That email already exists."); return res.redirect("/admin/editors/new"); }
 
+    const upiId = normalizeQuery(req.body?.upiId);
+
     const passwordHash = await bcrypt.hash(password, 10);
-    const editor = await User.create({ name, email, passwordHash, role: "editor", isActive: true });
+    const editor = await User.create({ name, email, passwordHash, role: "editor", isActive: true, upiId });
 
     if (assignedShopId) {
       await syncVendorShopLink({ vendorId: editor._id, shopId: assignedShopId });
@@ -680,8 +692,11 @@ adminRouter.post("/editors/:id/edit", async (req, res) => {
     const conflict = await User.findOne({ email, _id: { $ne: editor._id } });
     if (conflict) { req.flash("error", "That email already exists."); return res.redirect(`/admin/editors/${id}/edit`); }
 
+    const upiId = normalizeQuery(req.body?.upiId);
+
     editor.name = name;
     editor.email = email;
+    editor.upiId = upiId;
     if (password) editor.passwordHash = await bcrypt.hash(password, 10);
 
     if (activeState === "0") { editor.isActive = false; editor.disabledAt = new Date(); }

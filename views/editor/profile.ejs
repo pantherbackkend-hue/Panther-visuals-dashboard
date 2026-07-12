@@ -1,0 +1,31 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Account</p>
+    <h1>My Profile</h1>
+  </div>
+</section>
+
+<div class="card" style="max-width:500px">
+  <form method="post" action="/editor/profile" class="admin-form" style="max-width:100%">
+    <div class="form-group">
+      <label for="name">Display Name</label>
+      <input type="text" id="name" name="name" value="<%= editor.name %>" required>
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" value="<%= editor.email %>" disabled style="background:var(--bg);color:var(--muted)">
+      <p class="muted small" style="margin:4px 0 0">Email cannot be changed.</p>
+    </div>
+    <div class="form-group">
+      <label for="upiId">UPI ID <span class="muted">(for payments)</span></label>
+      <input type="text" id="upiId" name="upiId" value="<%= editor.upiId || '' %>" placeholder="editor@upi">
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit">Save Changes</button>
+    </div>
+  </form>
+</div>
+
+<%- include("../partials/footer") %>

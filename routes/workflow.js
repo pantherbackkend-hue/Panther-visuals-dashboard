@@ -22,7 +22,7 @@ import {
   notifyProjectCreated,
   notifyProjectAssigned,
   notifyProjectAccepted,
-  notifyProjectRejected,
+  notifyFeedbackAdded,
   broadcastDashboardUpdate,
   broadcastProjectCounts,
 } from "../utils/notifications.js";
@@ -66,6 +66,8 @@ workflowRouter.post(
     try {
       const {
         clientName,
+        clientEmail,
+        clientPhone,
         projectName,
         assignedEditor,
         driveLink,
@@ -102,7 +104,7 @@ workflowRouter.post(
         if (editor.availability === "busy") {
           const activeCount = await Project.countDocuments({
             assignedEditor: editor._id,
-            status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+            status: { $in: ["assigned", "ongoing"] },
           });
           if (activeCount >= 3) {
             req.flash("error", "Editor is fully occupied. Cannot assign more projects.");
@@ -111,18 +113,20 @@ workflowRouter.post(
         }
       }
 
-      const status = assignedEditor ? "pending_assignment" : "new_project";
-
       const project = await Project.create({
-        clientName: clientName.trim(),
+        client: {
+          name: clientName.trim(),
+          email: String(clientEmail || "").trim(),
+          phone: String(clientPhone || "").trim(),
+        },
         projectName: projectName.trim(),
         assignedEditor: assignedEditor || null,
         driveLink: String(driveLink || "").trim(),
         priority: priority || "medium",
         dueDate: dueDate || null,
         notes: String(notes || "").trim(),
-        paymentAmount: Number(paymentAmount) || 0,
-        status,
+        payment: { amount: Number(paymentAmount) || 0 },
+        status: "pending_assignment",
         createdBy: req.user._id,
       });
 
@@ -131,19 +135,22 @@ workflowRouter.post(
         user: req.user._id,
         userName: req.user.name,
         previousStatus: "",
-        newStatus: status,
+        newStatus: "pending_assignment",
         notes: `Project created by ${req.user.name}`,
       });
 
       if (assignedEditor) {
         const editor = await User.findById(assignedEditor);
 
+        project.assignedEditor = editor._id;
+        project.status = "assigned";
+
         project.activityTimeline.push({
           action: "Assigned",
           user: req.user._id,
           userName: req.user.name,
-          previousStatus: "new_project",
-          newStatus: "pending_assignment",
+          previousStatus: "pending_assignment",
+          newStatus: "assigned",
           notes: `Assigned to ${editor.name}`,
         });
 
@@ -180,14 +187,10 @@ workflowRouter.get(
     const search = String(req.query.q || "").trim().toLowerCase();
 
     const match = {};
-    if (filter === "new") match.status = "new_project";
-    else if (filter === "unassigned") match.status = "pending_assignment";
-    else if (filter === "active") match.status = { $in: ["assigned", "accepted_by_editor", "working"] };
-    else if (filter === "revision") match.status = "revision";
+    if (filter === "unassigned") match.status = "pending_assignment";
+    else if (filter === "active") match.status = { $in: ["assigned", "ongoing"] };
+    else if (filter === "review") match.status = "submitted";
     else if (filter === "completed") match.status = "completed";
-    else if (filter === "payment") match.status = "waiting_for_payment";
-    else if (filter === "paid") match.status = "paid";
-    else if (filter === "archived") match.status = "archived";
 
     const projects = await Project.find(match)
       .populate("assignedEditor", "name email")
@@ -212,6 +215,8 @@ workflowRouter.get(
 
     const formatted = filtered.map((p) => ({
       ...p,
+      clientName: p.client?.name || p.clientName || "",
+      paymentAmount: p.payment?.amount || 0,
       statusLabel: formatStatus(p.status),
       badgeColor: getBadgeColor(p.status),
     }));
@@ -244,7 +249,7 @@ workflowRouter.get(
     }
 
     const project = await Project.findById(id)
-      .populate("assignedEditor", "name email availability")
+      .populate("assignedEditor", "name email availability upiId")
       .populate("createdBy", "name")
       .lean();
 
@@ -317,25 +322,8 @@ workflowRouter.post(
     const fromStatus = project.status;
     const action = getTimelineAction(fromStatus, toStatus);
 
-    if (toStatus === "completed" || toStatus === "archived") {
+    if (toStatus === "completed") {
       project.completedAt = new Date();
-    }
-
-    if (toStatus === "revision") {
-      const revNum = project.revisionCounter + 1;
-      project.revisionCounter = revNum;
-      project.revisionHistory.push({
-        revisionNumber: revNum,
-        requestedBy: req.user._id,
-        notes: String(notes || "").trim(),
-      });
-    }
-
-    if (toStatus === "completed" && fromStatus === "revision") {
-      const entry = project.revisionHistory[project.revisionHistory.length - 1];
-      if (entry && !entry.completedAt) {
-        entry.completedAt = new Date();
-      }
     }
 
     project.status = toStatus;
@@ -386,7 +374,7 @@ workflowRouter.post(
       return res.redirect("/admin/projects");
     }
 
-    if (!["new_project", "pending_assignment"].includes(project.status)) {
+    if (project.status !== "pending_assignment") {
       req.flash("error", "Editor can only be assigned to unassigned projects.");
       return res.redirect(`/admin/projects/${id}`);
     }
@@ -418,7 +406,7 @@ workflowRouter.post(
     if (editor.availability === "busy") {
       const activeCount = await Project.countDocuments({
         assignedEditor: editor._id,
-        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+        status: { $in: ["assigned", "ongoing"] },
       });
       if (activeCount >= 3) {
         req.flash("error", `${editor.name} is fully occupied (${activeCount} active projects). Cannot assign.`);
@@ -427,19 +415,16 @@ workflowRouter.post(
     }
 
     const previousEditorId = project.assignedEditor;
-    project.assignedEditor = editor._id;
-
     const fromStatus = project.status;
-    if (fromStatus === "new_project" || fromStatus === "pending_assignment") {
-      project.status = "pending_assignment";
-    }
+    project.assignedEditor = editor._id;
+    project.status = "assigned";
 
     project.activityTimeline.push({
       action: "Assigned",
       user: req.user._id,
       userName: req.user.name,
       previousStatus: fromStatus,
-      newStatus: project.status,
+      newStatus: "assigned",
       notes: `Assigned to ${editor.name}`,
     });
 
@@ -450,6 +435,188 @@ workflowRouter.post(
 
     req.flash("success", `Project assigned to ${editor.name}.`);
     return res.redirect(`/admin/projects/${id}`);
+  },
+);
+
+// --- Admin: Send feedback (submitted → ongoing) ---
+
+workflowRouter.post(
+  "/admin/projects/:id/feedback",
+  requireDb,
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ error: "Invalid project id." });
+      }
+
+      const project = await Project.findById(id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found." });
+      }
+
+      if (project.status !== "submitted") {
+        return res.status(400).json({ error: "Only submitted projects can receive feedback." });
+      }
+
+      const { comment, driveLink } = req.body;
+      const latestSubmission = project.submissions?.length > 0
+        ? project.submissions[project.submissions.length - 1]
+        : null;
+
+      const feedbackEntry = {
+        versionRef: latestSubmission ? latestSubmission.version : null,
+        comment: String(comment || "").trim(),
+        driveLink: String(driveLink || "").trim(),
+        createdBy: req.user._id,
+        createdAt: new Date(),
+      };
+
+      project.feedback.push(feedbackEntry);
+
+      const fromStatus = project.status;
+      project.status = "ongoing";
+      project.activityTimeline.push({
+        action: "Feedback Added",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: fromStatus,
+        newStatus: "ongoing",
+        notes: comment ? `V${feedbackEntry.versionRef}: ${comment}` : `Feedback provided for version ${feedbackEntry.versionRef}`,
+      });
+
+      await project.save();
+      await broadcastDashboardUpdate(project);
+      await notifyFeedbackAdded(project, feedbackEntry, req.user);
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Feedback error:", err);
+      res.status(500).json({ error: err.message || "Failed to send feedback." });
+    }
+  },
+);
+
+// --- Admin: Complete project (submitted → completed) ---
+
+workflowRouter.post(
+  "/admin/projects/:id/complete",
+  requireDb,
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ error: "Invalid project id." });
+      }
+
+      const project = await Project.findById(id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found." });
+      }
+
+      if (project.status !== "submitted") {
+        return res.status(400).json({ error: "Only submitted projects can be completed." });
+      }
+
+      const fromStatus = project.status;
+      project.status = "completed";
+      project.completedAt = new Date();
+
+      project.activityTimeline.push({
+        action: "Completed",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: fromStatus,
+        newStatus: "completed",
+        notes: "Project completed",
+      });
+
+      await project.save();
+
+      if (project.assignedEditor) {
+        await updateEditorAvailability(project.assignedEditor, User, Project);
+      }
+
+      await broadcastDashboardUpdate(project);
+
+      await createNotification({
+        recipientRole: "editor",
+        project: project._id,
+        title: `Project completed: "${project.projectName}"`,
+        message: "Your project has been marked as complete.",
+        type: "completed",
+        actionUrl: `/editor/projects/${project._id}`,
+      });
+
+      res.json({ success: true, projectId: project._id });
+    } catch (err) {
+      console.error("Complete error:", err);
+      res.status(500).json({ error: err.message || "Failed to complete project." });
+    }
+  },
+);
+
+// --- Admin: Mark payment done (completed projects only) ---
+
+workflowRouter.post(
+  "/admin/projects/:id/payment-done",
+  requireDb,
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ error: "Invalid project id." });
+      }
+
+      const project = await Project.findById(id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found." });
+      }
+
+      if (project.status !== "completed") {
+        return res.status(400).json({ error: "Only completed projects can receive payment." });
+      }
+
+      if (project.payment.status === "paid") {
+        return res.status(400).json({ error: "Payment already completed." });
+      }
+
+      project.payment.status = "paid";
+      project.payment.paidAt = new Date();
+      project.payment.paidBy = req.user._id;
+
+      project.activityTimeline.push({
+        action: "Payment Done",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: project.status,
+        newStatus: project.status,
+        notes: `Payment of ₹${project.payment.amount} marked as paid`,
+      });
+
+      await project.save();
+      await broadcastDashboardUpdate(project);
+
+      await createNotification({
+        recipientRole: "editor",
+        project: project._id,
+        title: `Payment completed: "${project.projectName}"`,
+        message: `Payment of ₹${project.payment.amount} has been processed.`,
+        type: "payment_done",
+        actionUrl: `/editor/projects/${project._id}`,
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Payment done error:", err);
+      res.status(500).json({ error: err.message || "Failed to mark payment as done." });
+    }
   },
 );
 
@@ -511,6 +678,8 @@ workflowRouter.post(
 
     const {
       clientName,
+      clientEmail,
+      clientPhone,
       projectName,
       driveLink,
       priority,
@@ -528,13 +697,17 @@ workflowRouter.post(
       return res.redirect(`/admin/projects/${id}/edit`);
     }
 
-    project.clientName = clientName.trim();
+    project.client = {
+      name: clientName.trim(),
+      email: String(clientEmail || "").trim(),
+      phone: String(clientPhone || "").trim(),
+    };
     project.projectName = projectName.trim();
     project.driveLink = String(driveLink || "").trim();
     project.priority = priority || "medium";
     project.dueDate = dueDate || null;
     project.notes = String(notes || "").trim();
-    project.paymentAmount = Number(paymentAmount) || 0;
+    project.payment.amount = Number(paymentAmount) || 0;
 
     project.activityTimeline.push({
       action: "Updated",
@@ -573,8 +746,8 @@ workflowRouter.post(
       return res.redirect("/admin/projects");
     }
 
-    if (project.status !== "archived" && project.status !== "new_project") {
-      req.flash("error", "Only archived or new projects can be deleted.");
+    if (project.status !== "pending_assignment") {
+      req.flash("error", "Only unassigned projects can be deleted.");
       return res.redirect(`/admin/projects/${id}`);
     }
 
@@ -600,14 +773,23 @@ workflowRouter.get(
 
     const formatted = projects.map((p) => ({
       ...p,
+      clientName: p.client?.name || p.clientName || "",
+      paymentAmount: p.payment?.amount || 0,
       statusLabel: formatStatus(p.status),
       badgeColor: getBadgeColor(p.status),
     }));
 
+    const assignedProjects = formatted.filter((p) => p.status === "assigned");
+    const ongoingProjects = formatted.filter((p) => p.status === "ongoing" || p.status === "submitted");
+    const completedProjects = formatted.filter((p) => p.status === "completed");
+
     res.render("editor/projects/index", {
       pageTitle: "My Projects",
       activeSection: "projects",
-      projects: formatted,
+      currentTab: req.query.tab || "assigned",
+      assigned: assignedProjects,
+      ongoing: ongoingProjects,
+      completed: completedProjects,
       formatStatus,
       formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
     });
@@ -683,8 +865,8 @@ workflowRouter.post(
       return res.redirect(`/editor/projects/${id}`);
     }
 
-    const editorOnly = ["accepted_by_editor", "working", "pending_assignment"];
-    if (toStatus === "pending_assignment" && !editorOnly.includes(toStatus)) {
+    const editorOnly = ["ongoing", "submitted"];
+    if (!editorOnly.includes(toStatus)) {
       req.flash("error", "Editors cannot make this transition.");
       return res.redirect(`/editor/projects/${id}`);
     }
@@ -693,10 +875,6 @@ workflowRouter.post(
     const action = getTimelineAction(fromStatus, toStatus);
 
     project.status = toStatus;
-
-    if (toStatus === "pending_assignment") {
-      project.assignedEditor = null;
-    }
 
     project.activityTimeline.push({
       action,
@@ -715,14 +893,195 @@ workflowRouter.post(
 
     await broadcastDashboardUpdate(project);
 
-    if (toStatus === "accepted_by_editor") {
+    if (toStatus === "ongoing") {
       await notifyProjectAccepted(project, req.user);
-    } else if (toStatus === "pending_assignment") {
-      await notifyProjectRejected(project, req.user);
     }
 
     req.flash("success", `Project moved to "${formatStatus(toStatus)}".`);
     return res.redirect(`/editor/projects/${id}`);
+  },
+);
+
+// --- Editor: Accept project (assigned → ongoing) ---
+
+workflowRouter.post(
+  "/editor/projects/:id/accept",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ error: "Invalid project id." });
+      }
+
+      const project = await Project.findById(id);
+      if (!project || String(project.assignedEditor) !== String(req.user._id)) {
+        return res.status(404).json({ error: "Project not found." });
+      }
+
+      if (project.status !== "assigned") {
+        return res.status(400).json({ error: "Project is not in assignable status." });
+      }
+
+      project.status = "ongoing";
+      project.activityTimeline.push({
+        action: "Accepted",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: "assigned",
+        newStatus: "ongoing",
+        notes: "Project accepted by editor",
+      });
+
+      await project.save();
+      await updateEditorAvailability(project.assignedEditor, User, Project);
+      await broadcastDashboardUpdate(project);
+      await notifyProjectAccepted(project, req.user);
+
+      res.json({ success: true, project: { _id: project._id, status: project.status } });
+    } catch (err) {
+      console.error("Accept error:", err);
+      res.status(500).json({ error: err.message || "Failed to accept project." });
+    }
+  },
+);
+
+// --- Editor: Submit project (ongoing → submitted, with versioned submission) ---
+
+workflowRouter.post(
+  "/editor/projects/:id/submit",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ error: "Invalid project id." });
+      }
+
+      const project = await Project.findById(id);
+      if (!project || String(project.assignedEditor) !== String(req.user._id)) {
+        return res.status(404).json({ error: "Project not found." });
+      }
+
+      if (project.status !== "ongoing") {
+        return res.status(400).json({ error: "Only ongoing projects can be submitted." });
+      }
+
+      const { driveLink, description } = req.body;
+      if (!driveLink || !String(driveLink).trim()) {
+        return res.status(400).json({ error: "Drive link is required for submission." });
+      }
+
+      const version = (project.submissions?.length || 0) + 1;
+
+      project.submissions.push({
+        version,
+        driveLink: String(driveLink).trim(),
+        description: String(description || "").trim(),
+        submittedBy: req.user._id,
+        submittedAt: new Date(),
+      });
+
+      const fromStatus = project.status;
+      project.status = "submitted";
+      project.activityTimeline.push({
+        action: "Submission Uploaded",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: fromStatus,
+        newStatus: "submitted",
+        notes: `Version ${version}`,
+      });
+
+      await project.save();
+      await broadcastDashboardUpdate(project);
+
+      await createNotification({
+        recipientRole: "admin",
+        project: project._id,
+        title: `Submission received: "${project.projectName}"`,
+        message: `Version ${version} submitted by ${req.user.name}`,
+        type: "submitted",
+        actionUrl: `/admin/projects/${project._id}`,
+      });
+
+      res.json({ success: true, project: { _id: project._id, status: project.status, version } });
+    } catch (err) {
+      console.error("Submit error:", err);
+      res.status(500).json({ error: err.message || "Failed to submit project." });
+    }
+  },
+);
+
+// --- Editor: My Assets ---
+
+workflowRouter.get(
+  "/editor/assets",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    const editorId = req.user._id;
+
+    const projects = await Project.find({ assignedEditor: editorId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.render("editor/assets", {
+      pageTitle: "My Assets",
+      activeSection: "assets",
+      projects,
+      formatStatus,
+    });
+  },
+);
+
+// --- Editor: Profile (self-service UPI update) ---
+
+workflowRouter.get(
+  "/editor/profile",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    const editor = await User.findById(req.user._id).lean();
+
+    res.render("editor/profile", {
+      pageTitle: "My Profile",
+      activeSection: "profile",
+      editor,
+    });
+  },
+);
+
+workflowRouter.post(
+  "/editor/profile",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    try {
+      const { name, upiId } = req.body;
+      const editor = await User.findById(req.user._id);
+
+      if (name && String(name).trim()) {
+        editor.name = String(name).trim();
+      }
+      editor.upiId = String(upiId || "").trim();
+
+      await editor.save();
+
+      req.flash("success", "Profile updated.");
+      return res.redirect("/editor/profile");
+    } catch (err) {
+      console.error("Profile update error:", err);
+      req.flash("error", err.message || "Failed to update profile.");
+      return res.redirect("/editor/profile");
+    }
   },
 );
 
@@ -878,7 +1237,7 @@ workflowRouter.get(
       Project.find({
         $or: [
           { projectName: { $regex: q, $options: "i" } },
-          { clientName: { $regex: q, $options: "i" } },
+          { "client.name": { $regex: q, $options: "i" } },
           { notes: { $regex: q, $options: "i" } },
         ],
       })
@@ -902,7 +1261,7 @@ workflowRouter.get(
       projects: projects.map((p) => ({
         _id: p._id,
         projectName: p.projectName,
-        clientName: p.clientName,
+        clientName: p.client?.name || p.clientName || "",
         status: p.status,
         statusLabel: formatStatus(p.status),
         badgeColor: getBadgeColor(p.status),

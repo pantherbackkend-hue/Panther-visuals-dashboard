@@ -1,85 +1,50 @@
 const STATUSES = [
-  "new_project",
   "pending_assignment",
   "assigned",
-  "accepted_by_editor",
-  "working",
-  "revision",
+  "ongoing",
+  "submitted",
   "completed",
-  "waiting_for_payment",
-  "paid",
-  "archived",
 ];
 
 const TRANSITIONS = {
-  new_project: ["pending_assignment"],
-  pending_assignment: ["assigned", "archived"],
-  assigned: ["accepted_by_editor", "pending_assignment"],
-  accepted_by_editor: ["working", "pending_assignment"],
-  working: ["revision", "completed"],
-  revision: ["working", "completed"],
-  completed: ["waiting_for_payment", "archived"],
-  waiting_for_payment: ["paid"],
-  paid: ["archived"],
-  archived: [],
+  pending_assignment: ["assigned"],
+  assigned: ["ongoing", "pending_assignment"],
+  ongoing: ["submitted"],
+  submitted: ["ongoing", "completed"],
+  completed: [],
 };
 
 const BADGE_COLORS = {
-  new_project: "muted",
   pending_assignment: "pending",
   assigned: "info",
-  accepted_by_editor: "info",
-  working: "warning",
-  revision: "danger",
+  ongoing: "warning",
+  submitted: "ok",
   completed: "ok",
-  waiting_for_payment: "pending",
-  paid: "ok",
-  archived: "muted",
 };
 
 const DASHBOARD_GROUPS = {
-  new_project: "new",
   pending_assignment: "unassigned",
   assigned: "active",
-  accepted_by_editor: "active",
-  working: "active",
-  revision: "revision",
+  ongoing: "active",
+  submitted: "review",
   completed: "completed",
-  waiting_for_payment: "payment",
-  paid: "paid",
-  archived: "archived",
 };
 
 const TIMELINE_ACTIONS = {
-  new_project: "Project Created",
-  pending_assignment: null,
+  pending_assignment: "Project Created",
   assigned: "Assigned",
-  accepted_by_editor: "Accepted",
-  pending_assignment__from_assigned: "Rejected",
-  pending_assignment__from_accepted: "Rejected",
-  working: "Working",
-  revision: "Revision Requested",
-  revision__from_working: "Submitted",
-  completed__from_working: "Approved",
-  completed__from_revision: "Approved",
-  waiting_for_payment: "Approved",
-  paid: "Paid",
-  archived: "Archived",
+  ongoing: "Accepted",
+  submitted: "Submission Uploaded",
+  ongoing__from_submitted: "Feedback Added",
+  completed: "Completed",
 };
 
 const NOTIFICATION_TYPES = {
-  new_project: "project_created",
   assigned: "project_assigned",
-  accepted_by_editor: "project_accepted",
-  pending_assignment__from_assigned: "project_rejected",
-  pending_assignment__from_accepted: "project_rejected",
-  working: "working",
-  revision: "revision_requested",
-  revision__from_working: "submitted",
-  completed: "approved",
-  waiting_for_payment: "approved",
-  paid: "paid",
-  archived: "archived",
+  ongoing: "project_accepted",
+  submitted: "submitted",
+  ongoing__from_submitted: "feedback_added",
+  completed: "completed",
 };
 
 export function isValidStatus(status) {
@@ -119,16 +84,11 @@ export function getNotificationType(fromStatus, toStatus) {
 
 export function formatStatus(status) {
   const labels = {
-    new_project: "New Project",
     pending_assignment: "Pending Assignment",
     assigned: "Assigned",
-    accepted_by_editor: "Accepted by Editor",
-    working: "Working",
-    revision: "Revision",
+    ongoing: "Ongoing",
+    submitted: "Submitted",
     completed: "Completed",
-    waiting_for_payment: "Waiting for Payment",
-    paid: "Paid",
-    archived: "Archived",
   };
   return labels[status] || status;
 }
@@ -138,11 +98,11 @@ export function getDashboardCounts(projects) {
     new: 0,
     unassigned: 0,
     active: 0,
+    review: 0,
     revision: 0,
     completed: 0,
     payment: 0,
     paid: 0,
-    archived: 0,
     total: projects.length,
   };
   for (const p of projects) {
@@ -161,7 +121,7 @@ export async function updateEditorAvailability(editorId, UserModel, ProjectModel
   if (!editorId || !UserModel || !ProjectModel) return;
   const activeCount = await ProjectModel.countDocuments({
     assignedEditor: editorId,
-    status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+    status: { $in: ["assigned", "ongoing"] },
   });
 
   const editor = await UserModel.findById(editorId);

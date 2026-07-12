@@ -59,7 +59,7 @@ export async function notifyProjectCreated(project, adminUser) {
     recipientRole: "admin",
     project: project._id,
     title: `Project "${project.projectName}" created`,
-    message: `Client: ${project.clientName}`,
+    message: `Client: ${project.client?.name || project.clientName}`,
     type: "project_created",
     actionUrl: `/admin/projects/${project._id}`,
   });
@@ -71,7 +71,7 @@ export async function notifyProjectAssigned(project, editor) {
     recipientRole: "editor",
     project: project._id,
     title: `New project assigned: "${project.projectName}"`,
-    message: `Client: ${project.clientName} | Priority: ${project.priority}`,
+    message: `Client: ${project.client?.name || project.clientName} | Priority: ${project.priority}`,
     type: "project_assigned",
     actionUrl: `/editor/projects/${project._id}`,
   });
@@ -88,14 +88,14 @@ export async function notifyProjectAccepted(project, editor) {
   });
 }
 
-export async function notifyProjectRejected(project, editor) {
+export async function notifyFeedbackAdded(project, feedback, adminUser) {
   return createNotification({
-    recipientRole: "admin",
+    recipientRole: "editor",
     project: project._id,
-    title: `Project "${project.projectName}" rejected`,
-    message: `Editor ${editor.name} declined the project`,
-    type: "project_rejected",
-    actionUrl: `/admin/projects/${project._id}`,
+    title: `Feedback received: "${project.projectName}"`,
+    message: feedback.comment ? `V${feedback.versionRef}: ${feedback.comment}` : `Admin provided feedback for version ${feedback.versionRef}`,
+    type: "feedback_added",
+    actionUrl: `/editor/projects/${project._id}`,
   });
 }
 

@@ -1,5 +1,9 @@
 <% if (currentUser && currentUser.role === "editor") { %>
   <nav class="editor-nav" aria-label="Editor">
-    <a class="nav__link" href="/editor/projects">Projects</a>
+    <a class="nav__link" href="/editor/projects" data-tab="projects">My Projects</a>
+    <a class="nav__link" href="/editor/projects?tab=ongoing" data-tab="ongoing">Ongoing</a>
+    <a class="nav__link" href="/editor/projects?tab=completed" data-tab="completed">Completed</a>
+    <a class="nav__link" href="/editor/assets">My Assets</a>
+    <a class="nav__link" href="/editor/profile">Profile</a>
   </nav>
 <% } %>

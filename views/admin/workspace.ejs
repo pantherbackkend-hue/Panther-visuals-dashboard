@@ -3,67 +3,139 @@
 
 <section class="admin-page-head">
   <div>
-    <p class="eyebrow">Jr Admin</p>
+    <p class="eyebrow">Operations Center</p>
     <h1>Workspace</h1>
-    <p class="muted">Assign projects to editors and track daily progress.</p>
+    <p class="muted">Monitor and manage all projects in one place.</p>
+  </div>
+  <div class="admin-actions">
+    <a class="btn" href="/admin/projects/new">+ New Project</a>
   </div>
 </section>
 
-<section class="admin-metrics">
-  <article class="card admin-metric"><p class="muted small">Pending Assignment</p><h2><%= metrics.pendingAssignment %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Working</p><h2><%= metrics.working %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Review</p><h2><%= metrics.review %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Completed Today</p><h2><%= metrics.completedToday %></h2></article>
+<section class="admin-metrics" id="summaryCards">
+  <article class="card admin-metric" data-status="pending_assignment" onclick="filterByStatus('pending_assignment')" style="cursor:pointer">
+    <p class="muted small">Pending Assignment</p>
+    <h2><%= metrics.pendingAssignment %></h2>
+  </article>
+  <article class="card admin-metric" data-status="assigned" onclick="filterByStatus('assigned')" style="cursor:pointer">
+    <p class="muted small">Assigned</p>
+    <h2><%= metrics.assigned || projects.filter(p => p.status === 'assigned').length %></h2>
+  </article>
+  <article class="card admin-metric" data-status="submitted" onclick="filterByStatus('submitted')" style="cursor:pointer">
+    <p class="muted small">Submitted</p>
+    <h2><%= metrics.review %></h2>
+  </article>
+  <article class="card admin-metric" data-status="completed" onclick="filterByStatus('completed')" style="cursor:pointer">
+    <p class="muted small">Completed</p>
+    <h2><%= metrics.completedToday %><span class="muted small"> today</span></h2>
+  </article>
 </section>
 
-<div class="card admin-panel">
-  <h2 class="h2" style="margin-top:0">Quick Assign</h2>
-  <form id="assignForm" class="admin-form" style="max-width:none">
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px">
-      <div class="form-group" style="margin:0">
-        <label for="projectId">Project</label>
-        <select id="projectId" name="projectId" required>
-          <option value="">— Select Project —</option>
-          <% unassignedProjects.forEach(function(p) { %>
-            <option value="<%= p._id %>"><%= p.clientName %> — <%= p.projectName %></option>
-          <% }) %>
-        </select>
-        <% if (unassignedProjects.length === 0) { %>
-          <p class="form-help" style="color:var(--success)">All projects are assigned!</p>
-        <% } %>
-      </div>
-      <div class="form-group" style="margin:0">
-        <label for="editorId">Editor</label>
-        <select id="editorId" name="editorId" required>
-          <option value="">— Select Editor —</option>
-          <% editors.forEach(function(e) { %>
-            <option value="<%= e._id %>" data-availability="<%= e.availability %>" data-active="<%= e.activeCount %>">
-              <%= e.name %> (<%= e.availability %><%= e.activeCount > 0 ? ', ' + e.activeCount + ' active' : '' %>)
-            </option>
-          <% }) %>
-        </select>
-        <% if (editors.length === 0) { %>
-          <p class="form-help" style="color:var(--danger)">No editors configured.</p>
-        <% } %>
-      </div>
-      <div class="form-group" style="margin:0">
-        <label for="assetLink">Asset Link</label>
-        <input type="url" id="assetLink" name="assetLink" placeholder="https://drive.google.com/..." />
-      </div>
-      <div class="form-group" style="margin:0">
-        <label for="price">Price (₹)</label>
-        <input type="number" id="price" name="price" min="0" step="0.01" placeholder="0.00" />
-      </div>
-    </div>
-    <div class="form-group" style="margin-top:12px">
-      <label for="notes">Notes</label>
-      <textarea id="notes" name="notes" rows="2" placeholder="Optional instructions..."></textarea>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn" id="assignBtn">Assign</button>
-    </div>
-  </form>
+<div class="card admin-panel admin-toolbar">
+  <div class="admin-filter-bar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+    <label style="flex:1;min-width:180px">
+      <span class="sr-only">Search</span>
+      <input id="searchInput" type="search" placeholder="Search by name, client, editor..." oninput="applyFilters()" />
+    </label>
+    <label>
+      <span class="sr-only">Status</span>
+      <select id="statusFilter" onchange="applyFilters()">
+        <option value="all">All Statuses</option>
+        <option value="pending_assignment">Pending Assignment</option>
+        <option value="assigned">Assigned</option>
+        <option value="ongoing">Ongoing</option>
+        <option value="submitted">Submitted</option>
+        <option value="completed">Completed</option>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Priority</span>
+      <select id="priorityFilter" onchange="applyFilters()">
+        <option value="all">All Priorities</option>
+        <option value="urgent">Urgent</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Editor</span>
+      <select id="editorFilter" onchange="applyFilters()">
+        <option value="all">All Editors</option>
+        <% editors.forEach(function(e) { %>
+          <option value="<%= e._id %>"><%= e.name %></option>
+        <% }) %>
+        <option value="unassigned">Unassigned</option>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Sort</span>
+      <select id="sortFilter" onchange="applyFilters()">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+        <option value="due_asc">Due Date (Earliest)</option>
+        <option value="due_desc">Due Date (Latest)</option>
+      </select>
+    </label>
+  </div>
 </div>
+
+<div id="projectGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px">
+<% projects.forEach(function(project) { %>
+  <div class="card project-card" data-status="<%= project.status %>" data-priority="<%= project.priority %>" data-editor="<%= project.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(project.createdAt).toISOString() %>" data-due="<%= project.dueDate ? new Date(project.dueDate).toISOString() : '' %>" data-search="<%= (project.projectName + ' ' + (project.clientName || '') + ' ' + (project.assignedEditor?.name || '')).toLowerCase() %>" style="border-left:4px solid;border-left-color:<%= project.badgeColor === 'pending' ? 'var(--warning)' : project.badgeColor === 'info' ? 'var(--primary)' : project.badgeColor === 'warning' ? 'var(--warning)' : project.badgeColor === 'ok' ? 'var(--success)' : 'var(--muted)' %>;display:flex;flex-direction:column;gap:8px;position:relative">
+    <div style="display:flex;justify-content:space-between;align-items:start">
+      <div>
+        <a href="/admin/projects/<%= project._id %>" class="admin-link" style="font-weight:600;font-size:15px"><%= project.projectName %></a>
+        <p style="margin:2px 0 0;font-size:13px;color:var(--muted)"><%= project.clientName %></p>
+      </div>
+      <span class="tag tag--<%= project.badgeColor %>" style="font-size:11px;white-space:nowrap"><%= project.statusLabel %></span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)">
+      <span><strong>Editor:</strong> <%= project.assignedEditor?.name || '<span style="color:var(--warning)">Unassigned</span>' %></span>
+      <span><strong>Priority:</strong> <span class="priority-dot priority-dot--<%= project.priority %>"></span> <span style="text-transform:capitalize"><%= project.priority %></span></span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)">
+      <% if (project.dueDate) { %>
+        <span><strong>Due:</strong> <%= new Date(project.dueDate).toLocaleDateString("en-IN") %></span>
+      <% } %>
+      <% if (project.latestVersion) { %>
+        <span><strong>Latest:</strong> V<%= project.latestVersion %></span>
+      <% } %>
+      <span><strong>Updated:</strong> <%= new Date(project.updatedAt).toLocaleDateString("en-IN") %></span>
+    </div>
+
+    <% if (project.status === "pending_assignment") { %>
+      <div style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">
+        <form class="inline-assign-form" style="display:flex;gap:6px">
+          <input type="hidden" name="projectId" value="<%= project._id %>" />
+          <select name="editorId" required style="flex:1;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card)">
+            <option value="">Assign Editor</option>
+            <% editors.forEach(function(e) { %>
+              <option value="<%= e._id %>" <%= e.availability === 'on_leave' ? 'disabled' : '' %> data-availability="<%= e.availability %>" data-active="<%= e.activeCount %>">
+                <%= e.name %> (<%= e.availability %><%= e.activeCount > 0 ? ', ' + e.activeCount + ' active' : '' %>)
+              </option>
+            <% }) %>
+          </select>
+          <button type="submit" class="btn btn--small" style="white-space:nowrap">Assign</button>
+        </form>
+      </div>
+    <% } else if (project.assignedEditor) { %>
+      <div style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border);font-size:13px">
+        <a href="/admin/projects/<%= project._id %>" class="btn btn--outline btn--small">Open Project &rarr;</a>
+      </div>
+    <% } %>
+  </div>
+<% }) %>
+</div>
+
+<% if (projects.length === 0) { %>
+<div class="card admin-panel" style="text-align:center;padding:48px 20px">
+  <p class="muted" style="font-size:16px">No projects yet.</p>
+  <a class="btn" href="/admin/projects/new" style="margin-top:12px">Create Your First Project</a>
+</div>
+<% } %>
 
 <div class="card admin-panel">
   <div class="row row--split" style="margin-bottom:16px">
@@ -87,57 +159,92 @@
 </div>
 
 <script>
-document.getElementById('assignForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const btn = document.getElementById('assignBtn');
-  btn.disabled = true;
-  btn.textContent = 'Assigning...';
+let activeFilterStatus = null;
 
-  const formData = new FormData(this);
-  const data = Object.fromEntries(formData.entries());
+function filterByStatus(status) {
+  activeFilterStatus = activeFilterStatus === status ? null : status;
+  document.getElementById('statusFilter').value = activeFilterStatus || 'all';
+  applyFilters();
+  // Highlight active card
+  document.querySelectorAll('#summaryCards .admin-metric').forEach(function(el) {
+    el.style.opacity = el.dataset.status === activeFilterStatus ? '1' : '';
+    el.style.boxShadow = el.dataset.status === activeFilterStatus ? '0 0 0 2px var(--primary)' : '';
+  });
+}
 
-  const projectSelect = document.getElementById('projectId');
-  const editorSelect = document.getElementById('editorId');
-  const selectedEditor = editorSelect.options[editorSelect.selectedIndex];
+function applyFilters() {
+  var search = document.getElementById('searchInput').value.toLowerCase().trim();
+  var status = document.getElementById('statusFilter').value;
+  var priority = document.getElementById('priorityFilter').value;
+  var editor = document.getElementById('editorFilter').value;
+  var sort = document.getElementById('sortFilter').value;
 
-  if (selectedEditor && selectedEditor.dataset.availability === 'on_leave') {
-    alert('Cannot assign: Editor is on leave.');
-    btn.disabled = false;
-    btn.textContent = 'Assign';
-    return;
-  }
+  var cards = document.querySelectorAll('.project-card');
+  var visible = [];
 
-  if (selectedEditor && selectedEditor.dataset.availability === 'busy' && parseInt(selectedEditor.dataset.active) >= 3) {
-    if (!confirm('Editor is fully occupied. Assign anyway?')) {
-      btn.disabled = false;
-      btn.textContent = 'Assign';
-      return;
-    }
-  }
+  cards.forEach(function(card) {
+    var match = true;
 
-  try {
-    const res = await fetch('/admin/workspace/assign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+    if (search && !card.dataset.search.includes(search)) match = false;
+    if (status !== 'all' && card.dataset.status !== status) match = false;
+    if (priority !== 'all' && card.dataset.priority !== priority) match = false;
+    if (editor !== 'all' && card.dataset.editor !== editor) match = false;
+
+    card.style.display = match ? '' : 'none';
+    if (match) visible.push(card);
+  });
+
+  // Sort visible cards
+  if (visible.length > 1) {
+    var container = document.getElementById('projectGrid');
+    visible.sort(function(a, b) {
+      if (sort === 'oldest') return new Date(a.dataset.created) - new Date(b.dataset.created);
+      if (sort === 'due_asc') {
+        if (!a.dataset.due) return 1;
+        if (!b.dataset.due) return -1;
+        return new Date(a.dataset.due) - new Date(b.dataset.due);
+      }
+      if (sort === 'due_desc') {
+        if (!a.dataset.due) return 1;
+        if (!b.dataset.due) return -1;
+        return new Date(b.dataset.due) - new Date(a.dataset.due);
+      }
+      // newest first (default)
+      return new Date(b.dataset.created) - new Date(a.dataset.created);
     });
-    const result = await res.json();
-    if (result.success) {
-      const projectName = projectSelect.options[projectSelect.selectedIndex].text;
-      projectSelect.selectedIndex = 0;
-      document.getElementById('assetLink').value = '';
-      document.getElementById('price').value = '';
-      document.getElementById('notes').value = '';
-      window.location.reload();
-    } else {
-      alert(result.error || 'Assignment failed.');
-    }
-  } catch (err) {
-    alert('Network error. Please try again.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Assign';
+    visible.forEach(function(card) { container.appendChild(card); });
   }
+}
+
+// Inline assign forms
+document.querySelectorAll('.inline-assign-form').forEach(function(form) {
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = this.querySelector('button[type="submit"]');
+    var select = this.querySelector('select[name="editorId"]');
+    var selected = select.options[select.selectedIndex];
+
+    if (!select.value) { alert('Please select an editor.'); return; }
+    if (selected.dataset.availability === 'on_leave') { alert('Cannot assign: Editor is on leave.'); return; }
+    if (selected.dataset.availability === 'busy' && parseInt(selected.dataset.active) >= 3) {
+      if (!confirm('Editor is fully occupied. Assign anyway?')) return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      var res = await fetch('/admin/workspace/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: this.querySelector('input[name="projectId"]').value, editorId: select.value }),
+      });
+      var result = await res.json();
+      if (result.success) { window.location.reload(); }
+      else { alert(result.error || 'Assignment failed.'); }
+    } catch (err) { alert('Network error.'); }
+    finally { btn.disabled = false; btn.textContent = 'Assign'; }
+  });
 });
 </script>
 

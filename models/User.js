@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ["client", "editor", "admin", "owner"], default: "client" },
     shop: { type: mongoose.Schema.Types.ObjectId, ref: "Shop", default: null },
+    upiId: { type: String, default: "", trim: true },
     availability: { type: String, enum: ["available", "busy", "on_leave"], default: "available" },
     isActive: { type: Boolean, default: true },
     disabledAt: { type: Date, default: null },

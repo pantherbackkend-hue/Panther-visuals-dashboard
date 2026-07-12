@@ -1,0 +1,65 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Reference library</p>
+    <h1>My Assets</h1>
+    <p class="muted">Original drive links and reference files for your projects.</p>
+  </div>
+</section>
+
+<% if (projects.length === 0) { %>
+  <div class="card admin-panel"><p class="muted">No projects assigned to you yet.</p></div>
+<% } else { %>
+  <div class="editor-cards">
+    <% projects.forEach(function(p) { %>
+      <article class="card project-card">
+        <div class="project-card__head">
+          <h3 class="project-card__name"><%= p.projectName %></h3>
+          <span class="tag tag--<%= (function(s){var c={pending_assignment:"pending",assigned:"info",ongoing:"warning",submitted:"ok",completed:"ok"};return c[s]||"muted"})(p.status) %>"><%= (function(s){var l={pending_assignment:"Pending Assignment",assigned:"Assigned",ongoing:"Ongoing",submitted:"Submitted",completed:"Completed"};return l[s]||s})(p.status) %></span>
+        </div>
+        <% if (p.driveLink) { %>
+          <div class="project-card__meta" style="margin-bottom:0">
+            <span><strong>Original Drive Link:</strong></span>
+          </div>
+          <div class="asset-link-row">
+            <a href="<%= p.driveLink %>" target="_blank" rel="noopener" class="asset-link"><%= p.driveLink.length > 70 ? p.driveLink.slice(0, 70) + "..." : p.driveLink %></a>
+            <button class="quick-action-btn btn-copy-asset" data-link="<%= p.driveLink %>">Copy</button>
+          </div>
+        <% } else { %>
+          <p class="muted" style="margin:0">No drive link provided.</p>
+        <% } %>
+      </article>
+    <% }) %>
+  </div>
+<% } %>
+
+<script>
+  (function () {
+    var copyBtns = document.querySelectorAll(".btn-copy-asset");
+    copyBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var link = btn.getAttribute("data-link");
+        if (!link) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function () {
+            btn.textContent = "Copied!";
+            setTimeout(function () { btn.textContent = "Copy"; }, 2000);
+          });
+        } else {
+          // Fallback
+          var ta = document.createElement("textarea");
+          ta.value = link;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand("copy"); btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Copy"; }, 2000); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+      });
+    });
+  })();
+</script>
+
+<%- include("../partials/footer") %>

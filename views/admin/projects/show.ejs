@@ -6,7 +6,7 @@
     <p class="eyebrow">Project workspace</p>
     <h1><%= project.projectName %></h1>
     <p class="muted">
-      Client: <strong><%= project.clientName %></strong> &middot;
+      Client: <strong><%= project.client?.name || project.clientName || "" %></strong> &middot;
       <span class="tag tag--<%= getBadgeColor(project.status) %>"><%= formatStatus(project.status) %></span>
     </p>
   </div>
@@ -16,7 +16,7 @@
   </div>
 </section>
 
-<% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && !["completed","paid","archived","waiting_for_payment"].includes(project.status); %>
+<% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && project.status !== "completed"; %>
 <% if (overdue) { %>
   <div class="overdue-warning" style="margin-bottom:16px">
     <strong>Overdue</strong> &mdash; This project was due on <%= new Date(project.dueDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %>.
@@ -24,16 +24,16 @@
 <% } %>
 
 <section class="admin-metrics">
-  <article class="card admin-metric"><p class="muted small">Client</p><h2><%= project.clientName %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Client</p><h2><%= project.client?.name || project.clientName || "" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Editor</p><h2><%= project.assignedEditor?.name || "Unassigned" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></h2></article>
-  <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.paymentAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.payment?.amount || 0) %></h2></article>
   <article class="card admin-metric"><p class="muted small">Due</p><h2 style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Revisions</p><h2><%= project.revisionCounter %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Versions</p><h2><%= project.submissions?.length || 0 %></h2></article>
 </section>
 
 <div class="admin-grid--two">
-  <% if (!project.assignedEditor && ["new_project","pending_assignment"].includes(project.status)) { %>
+  <% if (!project.assignedEditor && project.status === "pending_assignment") { %>
   <div class="card" style="margin:0">
     <h2 class="h2" style="margin-top:0">Assign Editor</h2>
     <form method="post" action="/admin/projects/<%= project._id %>/assign" class="admin-form" style="max-width:100%">
@@ -82,19 +82,67 @@
   </div>
 </div>
 
+<% if (project.submissions && project.submissions.length > 0) { %>
+  <% var latestSub = project.submissions[project.submissions.length - 1]; %>
+  <div class="card admin-panel latest-submission">
+    <div class="latest-submission__badge">Latest Submission</div>
+    <div class="latest-submission__head">
+      <strong>Version <%= latestSub.version %></strong>
+      <span class="tag tag--ok">Submitted</span>
+    </div>
+    <div class="latest-submission__meta">
+      <span class="muted small">Submitted: <%= new Date(latestSub.submittedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+    </div>
+    <div class="latest-submission__body">
+      <p><strong>Drive Link:</strong> <a href="<%= latestSub.driveLink %>" target="_blank" rel="noopener"><%= latestSub.driveLink %></a></p>
+      <% if (latestSub.description) { %><p><strong>Description:</strong> <%= latestSub.description %></p><% } %>
+      <% if (latestSub.submittedBy) { %><p class="muted"><strong>Submitted By:</strong> Editor</p><% } %>
+    </div>
+  </div>
+<% } %>
+
+<% if (project.status === "submitted") { %>
+  <div class="admin-grid--two">
+    <div class="card admin-panel" style="margin:0">
+      <h2 class="h2" style="margin-top:0">Feedback</h2>
+      <p class="muted" style="font-size:13px">Provide feedback to the editor. This will move the project back to Ongoing.</p>
+      <form class="admin-form" id="feedback-form" style="max-width:100%">
+        <div class="form-group">
+          <label for="feedbackComment">Feedback</label>
+          <textarea id="feedbackComment" name="comment" rows="3" placeholder="What changes are needed?"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="feedbackLink">Reference Drive Link <span class="muted">(optional)</span></label>
+          <input type="url" id="feedbackLink" name="driveLink" placeholder="https://drive.google.com/..." />
+        </div>
+        <button class="btn" type="submit">Send Feedback</button>
+      </form>
+    </div>
+    <div class="card" style="margin:0;display:flex;flex-direction:column">
+      <h2 class="h2" style="margin-top:0">Complete Project</h2>
+      <p class="muted" style="font-size:13px">Mark this project as complete. The editor will be notified.</p>
+      <div style="margin-top:auto">
+        <button class="btn btn--ok" id="btn-complete" style="width:100%">Complete Project</button>
+      </div>
+    </div>
+  </div>
+<% } %>
+
 <div class="card admin-panel">
   <h2 class="h2" style="margin-top:0">Overview</h2>
   <div class="admin-detail-grid">
     <div><span>Drive Link</span><strong><% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 60 ? project.driveLink.slice(0,60) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %></strong></div>
+    <% if (project.client?.email) { %><div><span>Client Email</span><strong><%= project.client.email %></strong></div><% } %>
+    <% if (project.client?.phone) { %><div><span>Client Phone</span><strong><%= project.client.phone %></strong></div><% } %>
     <div><span>Created by</span><strong><%= project.createdBy?.name || "System" %></strong></div>
     <div><span>Created</span><strong><%= new Date(project.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
     <% if (project.completedAt) { %>
       <div><span>Completed</span><strong><%= new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
     <% } %>
-    <div><span>Payment Amount</span><strong><%= formatMoney(project.paymentAmount) %></strong></div>
+    <div><span>Payment Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
     <div><span>Payment Status</span><strong>
-      <% if (project.status === "paid") { %><span class="tag tag--ok">Paid</span>
-      <% } else if (project.status === "waiting_for_payment") { %><span class="tag tag--pending">Awaiting Payment</span>
+      <% if (project.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span>
+      <% } else if (project.payment?.status === "pending" && project.status === "completed") { %><span class="tag tag--pending">Awaiting Payment</span>
       <% } else { %><span class="muted">N/A</span><% } %>
     </strong></div>
     <% if (project.notes) { %>
@@ -103,22 +151,77 @@
   </div>
 </div>
 
-<% if (project.revisionHistory.length > 0) { %>
+<% if (project.status === "completed") { %>
+<% var editorUpi = project.assignedEditor?.upiId || ""; %>
+<% var editorName = project.assignedEditor?.name || "Editor"; %>
+<% var clientName = project.client?.name || project.clientName || ""; %>
+<% var waMsg = encodeURIComponent("Hi " + editorName + "%0A%0APayment has been completed.%0A%0AProject: " + project.projectName + "%0AClient: " + clientName + "%0AAmount: ₹" + (project.payment?.amount || 0) + "%0A%0AThank you."); %>
+<% var waUrl = "https://wa.me/?text=" + waMsg; %>
+<div class="card admin-panel payment-section">
+  <h2 class="h2" style="margin-top:0">Payment <span class="tag tag--<%= project.payment?.status === 'paid' ? 'ok' : 'pending' %>" style="margin-left:8px"><%= project.payment?.status === 'paid' ? 'Paid' : 'Pending' %></span></h2>
+  <div class="payment-details">
+    <div class="payment-detail"><span>Project</span><strong><%= project.projectName %></strong></div>
+    <div class="payment-detail"><span>Client</span><strong><%= clientName %></strong></div>
+    <div class="payment-detail"><span>Editor</span><strong><%= editorName %></strong></div>
+    <div class="payment-detail"><span>Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
+    <div class="payment-detail"><span>Editor UPI ID</span><strong><%= editorUpi || '<span class="muted">Not set</span>' %></strong></div>
+    <div class="payment-detail"><span>Completed</span><strong><%= project.completedAt ? new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
+    <% if (project.payment?.status === "paid") { %>
+      <div class="payment-detail"><span>Paid At</span><strong><%= project.payment.paidAt ? new Date(project.payment.paidAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
+      <div class="payment-detail"><span>Paid By</span><strong><%= project.payment.paidBy?.name || "Admin" %></strong></div>
+    <% } %>
+  </div>
+  <% if (project.payment?.status !== "paid") { %>
+    <div class="payment-actions">
+      <button class="btn btn--ok" id="btn-payment-done">Mark Payment Done</button>
+      <% if (editorUpi) { %>
+        <a class="btn btn--outline" href="<%= waUrl %>" target="_blank" rel="noopener">Open WhatsApp</a>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+<% } %>
+
+<% if (project.submissions && project.submissions.length > 0) { %>
 <div class="card admin-panel">
-  <h2 class="h2" style="margin-top:0">Revision History</h2>
+  <h2 class="h2" style="margin-top:0">Submissions</h2>
   <div style="overflow-x:auto">
     <table class="table">
       <thead>
-        <tr><th>#</th><th>Requested By</th><th>Notes</th><th>Status</th><th>Date</th></tr>
+        <tr><th>Version</th><th>Drive Link</th><th>Description</th><th>Submitted By</th><th>Date</th></tr>
       </thead>
       <tbody>
-        <% project.revisionHistory.forEach(function(rev) { %>
+        <% project.submissions.slice().reverse().forEach(function(sub) { %>
           <tr>
-            <td><%= rev.revisionNumber %></td>
-            <td><%= rev.requestedBy?.name || "Admin" %></td>
-            <td><%= rev.notes || "—" %></td>
-            <td><span class="tag tag--<%= rev.completedAt ? "ok" : "pending" %>"><%= rev.completedAt ? "Done" : "Open" %></span></td>
-            <td><%= new Date(rev.createdAt).toLocaleDateString("en-IN") %></td>
+            <td>V<%= sub.version %></td>
+            <td><% if (sub.driveLink) { %><a href="<%= sub.driveLink %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
+            <td><%= sub.description || "—" %></td>
+            <td><%= sub.submittedBy?.name || "Editor" %></td>
+            <td><%= new Date(sub.submittedAt).toLocaleDateString("en-IN") %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
+<% if (project.feedback && project.feedback.length > 0) { %>
+<div class="card admin-panel">
+  <h2 class="h2" style="margin-top:0">Feedback History</h2>
+  <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr><th>Version Ref</th><th>Comment</th><th>Drive Link</th><th>Created By</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        <% project.feedback.slice().reverse().forEach(function(fb) { %>
+          <tr>
+            <td><%= fb.versionRef ? "V" + fb.versionRef : "—" %></td>
+            <td><%= fb.comment || "—" %></td>
+            <td><% if (fb.driveLink) { %><a href="<%= fb.driveLink %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
+            <td><%= fb.createdBy?.name || "Admin" %></td>
+            <td><%= new Date(fb.createdAt).toLocaleDateString("en-IN") %></td>
           </tr>
         <% }) %>
       </tbody>
@@ -173,6 +276,102 @@
     </div>
   <% } %>
 </div>
+
+<script>
+(function () {
+  var feedbackForm = document.getElementById("feedback-form");
+  if (feedbackForm) {
+    feedbackForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var btn = feedbackForm.querySelector("button[type=submit]");
+      var comment = feedbackForm.querySelector("[name=comment]").value.trim();
+      var driveLink = feedbackForm.querySelector("[name=driveLink]").value.trim();
+
+      btn.disabled = true;
+      btn.textContent = "Sending...";
+
+      fetch("/admin/projects/<%= project._id %>/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: comment, driveLink: driveLink }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert(data.error || "Failed to send feedback.");
+            btn.disabled = false;
+            btn.textContent = "Send Feedback";
+          }
+        })
+        .catch(function () {
+          alert("Network error.");
+          btn.disabled = false;
+          btn.textContent = "Send Feedback";
+        });
+    });
+  }
+
+  var completeBtn = document.getElementById("btn-complete");
+  if (completeBtn) {
+    completeBtn.addEventListener("click", function () {
+      if (!confirm("Mark this project as complete?")) return;
+      completeBtn.disabled = true;
+      completeBtn.textContent = "Completing...";
+
+      fetch("/admin/projects/<%= project._id %>/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert(data.error || "Failed to complete project.");
+            completeBtn.disabled = false;
+            completeBtn.textContent = "Complete Project";
+          }
+        })
+        .catch(function () {
+          alert("Network error.");
+          completeBtn.disabled = false;
+          completeBtn.textContent = "Complete Project";
+        });
+    });
+  }
+
+  var paymentBtn = document.getElementById("btn-payment-done");
+  if (paymentBtn) {
+    paymentBtn.addEventListener("click", function () {
+      if (!confirm("Mark payment as done? This cannot be undone.")) return;
+      paymentBtn.disabled = true;
+      paymentBtn.textContent = "Processing...";
+
+      fetch("/admin/projects/<%= project._id %>/payment-done", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert(data.error || "Failed to mark payment.");
+            paymentBtn.disabled = false;
+            paymentBtn.textContent = "Mark Payment Done";
+          }
+        })
+        .catch(function () {
+          alert("Network error.");
+          paymentBtn.disabled = false;
+          paymentBtn.textContent = "Mark Payment Done";
+        });
+    });
+  }
+})();
+</script>
 
 <%- include("../partials/layout-end") %>
 <%- include("../../partials/footer") %>

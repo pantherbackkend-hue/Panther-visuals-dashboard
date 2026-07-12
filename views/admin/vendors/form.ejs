@@ -21,6 +21,10 @@
       <input type="password" id="password" name="password" <%= mode === 'create' ? 'required' : '' %>>
     </div>
     <div class="form-group">
+      <label for="upiId">UPI ID <span class="muted">(for payments)</span></label>
+      <input type="text" id="upiId" name="upiId" value="<%= vendor?.upiId || '' %>" placeholder="editor@upi">
+    </div>
+    <div class="form-group">
       <label for="shop">Assigned Workspace</label>
       <select id="shop" name="shop">
         <option value="">-- None --</option>

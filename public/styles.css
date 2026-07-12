@@ -199,6 +199,17 @@ a:focus-visible {
   font-size: 13px;
 }
 
+.btn--ok {
+  background: var(--success);
+  border-color: var(--success);
+  color: #ffffff;
+}
+
+.btn--ok:hover {
+  background: #16A34A;
+  border-color: #16A34A;
+}
+
 .btn--wide { width: 100%; }
 
 /* ── Hero / Homepage ── */
@@ -1391,3 +1402,224 @@ fieldset.fieldset legend {
 }
 
 .btn--full { width: 100%; justify-content: center; }
+
+/* ── Editor Tabs ── */
+
+.editor-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 2px solid var(--border);
+}
+
+.editor-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.editor-tab:hover { color: var(--text); }
+
+.editor-tab.is-active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.editor-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--border);
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.editor-tab.is-active .editor-tab-count {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.editor-tab-content { display: none; margin-top: 20px; }
+.editor-tab-content.is-active { display: block; }
+
+.editor-cards {
+  display: grid;
+  gap: 16px;
+}
+
+.project-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.project-card__name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.project-card__name a { color: var(--text); }
+.project-card__name a:hover { color: var(--primary); }
+
+.project-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.project-card__meta strong { color: var(--text); }
+
+.project-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-accept {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.btn-accept:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; text-decoration: none; }
+
+.btn-accept:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Latest Submission ── */
+
+.latest-submission {
+  border: 2px solid var(--primary);
+  position: relative;
+  padding-top: 32px;
+}
+
+.latest-submission__badge {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 0 0 var(--radius-sm) 0;
+}
+
+.latest-submission__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.latest-submission__meta { margin-bottom: 8px; }
+
+.latest-submission__body p {
+  margin: 4px 0;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+#btn-complete:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Submission List ── */
+
+.submission-list, .feedback-list {
+  display: grid;
+  gap: 16px;
+}
+
+.submission-item, .feedback-item {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.submission-item__head, .feedback-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.submission-item__meta { margin-bottom: 8px; }
+
+.submission-item__body p, .feedback-item__body p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.submission-item__body a, .feedback-item__body a {
+  word-break: break-all;
+}
+
+/* ── Asset Link Row ── */
+
+.asset-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.asset-link {
+  flex: 1;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+/* ── Payment Section ── */
+
+.payment-section { margin-top: 0; }
+
+.payment-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.payment-detail span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.payment-detail strong {
+  display: block;
+  font-size: 14px;
+}
+
+.payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+#btn-payment-done:disabled { opacity: 0.6; cursor: not-allowed; }

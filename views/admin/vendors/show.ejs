@@ -24,6 +24,7 @@
     <table class="table table--details">
       <tr><td>Status</td><td><span class="tag tag--<%= vendor.isActive === false ? 'danger' : 'ok' %>"><%= vendor.isActive === false ? "Disabled" : "Active" %></span></td></tr>
       <tr><td>Role</td><td><%= vendor.role %></td></tr>
+      <tr><td>UPI ID</td><td><%= vendor.upiId || '<span class="muted">Not set</span>' %></td></tr>
       <tr><td>Joined</td><td><%= vendor.createdAt?.toLocaleDateString?.() || "" %></td></tr>
     </table>
   </div>

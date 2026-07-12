@@ -1,5 +1,36 @@
 import mongoose from "mongoose";
 
+const clientSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  email: { type: String, default: "", trim: true },
+  phone: { type: String, default: "", trim: true },
+  notes: { type: String, default: "" },
+}, { _id: false });
+
+const submissionSchema = new mongoose.Schema({
+  version: { type: Number, required: true },
+  driveLink: { type: String, default: "" },
+  description: { type: String, default: "" },
+  submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  submittedAt: { type: Date, default: Date.now },
+}, { _id: true });
+
+const feedbackSchema = new mongoose.Schema({
+  versionRef: { type: Number, default: null },
+  comment: { type: String, default: "" },
+  driveLink: { type: String, default: "" },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  createdAt: { type: Date, default: Date.now },
+}, { _id: true });
+
+const paymentSchema = new mongoose.Schema({
+  amount: { type: Number, default: 0, min: 0 },
+  status: { type: String, enum: ["pending", "paid"], default: "pending" },
+  paidAt: { type: Date, default: null },
+  paidBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  upiId: { type: String, default: "" },
+}, { _id: false });
+
 const timelineEntrySchema = new mongoose.Schema(
   {
     action: {
@@ -8,14 +39,10 @@ const timelineEntrySchema = new mongoose.Schema(
         "Project Created",
         "Assigned",
         "Accepted",
-        "Rejected",
-        "Working",
-        "Submitted",
-        "Revision Requested",
-        "Revision Completed",
-        "Approved",
-        "Paid",
-        "Archived",
+        "Submission Uploaded",
+        "Feedback Added",
+        "Completed",
+        "Payment Done",
         "Updated",
       ],
       required: true,
@@ -29,19 +56,9 @@ const timelineEntrySchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-const revisionEntrySchema = new mongoose.Schema(
-  {
-    revisionNumber: { type: Number, required: true },
-    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    notes: { type: String, default: "" },
-    completedAt: { type: Date },
-  },
-  { timestamps: true },
-);
-
 const projectSchema = new mongoose.Schema(
   {
-    clientName: { type: String, required: true, trim: true },
+    client: { type: clientSchema, default: () => ({ name: "" }) },
     projectName: { type: String, required: true, trim: true },
     assignedEditor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     driveLink: { type: String, default: "" },
@@ -52,26 +69,21 @@ const projectSchema = new mongoose.Schema(
     },
     dueDate: { type: Date, default: null },
     notes: { type: String, default: "" },
-    paymentAmount: { type: Number, default: 0, min: 0 },
     status: {
       type: String,
       enum: [
-        "new_project",
         "pending_assignment",
         "assigned",
-        "accepted_by_editor",
-        "working",
-        "revision",
+        "ongoing",
+        "submitted",
         "completed",
-        "waiting_for_payment",
-        "paid",
-        "archived",
       ],
-      default: "new_project",
+      default: "pending_assignment",
     },
-    revisionCounter: { type: Number, default: 0 },
+    submissions: { type: [submissionSchema], default: [] },
+    feedback: { type: [feedbackSchema], default: [] },
+    payment: { type: paymentSchema, default: () => ({}) },
     activityTimeline: { type: [timelineEntrySchema], default: [] },
-    revisionHistory: { type: [revisionEntrySchema], default: [] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     completedAt: { type: Date, default: null },
   },
