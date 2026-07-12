@@ -115,6 +115,10 @@
           <label for="feedbackLink">Reference Drive Link <span class="muted">(optional)</span></label>
           <input type="url" id="feedbackLink" name="driveLink" placeholder="https://drive.google.com/..." />
         </div>
+        <div class="form-group">
+          <label for="feedbackTimestamp">Timestamp <span class="muted">(optional)</span></label>
+          <input type="text" id="feedbackTimestamp" name="timestamp" placeholder="e.g. 00:42, 01:22, 02:14-02:38" />
+        </div>
         <button class="btn" type="submit">Send Feedback</button>
       </form>
     </div>
@@ -212,7 +216,7 @@
   <div style="overflow-x:auto">
     <table class="table" role="table">
       <thead>
-        <tr><th scope="col">Version Ref</th><th scope="col">Comment</th><th scope="col">Drive Link</th><th scope="col">Created By</th><th scope="col">Date</th></tr>
+        <tr><th scope="col">Version Ref</th><th scope="col">Comment</th><th scope="col">Drive Link</th><th scope="col">Timestamp</th><th scope="col">Created By</th><th scope="col">Date</th></tr>
       </thead>
       <tbody>
         <% project.feedback.slice().reverse().forEach(function(fb) { %>
@@ -220,6 +224,7 @@
             <td><%= fb.versionRef ? "V" + fb.versionRef : "—" %></td>
             <td><%= fb.comment || "—" %></td>
             <td><% if (fb.driveLink) { %><a href="<%= fb.driveLink %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
+            <td><%= fb.timestamp || "—" %></td>
             <td><%= fb.createdBy?.name || "Admin" %></td>
             <td><%= new Date(fb.createdAt).toLocaleDateString("en-IN") %></td>
           </tr>
@@ -345,6 +350,7 @@
       var btn = feedbackForm.querySelector("button[type=submit]");
       var comment = feedbackForm.querySelector("[name=comment]").value.trim();
       var driveLink = feedbackForm.querySelector("[name=driveLink]").value.trim();
+      var timestamp = feedbackForm.querySelector("[name=timestamp]").value.trim();
 
       btn.disabled = true;
       btn.textContent = "Sending...";
@@ -352,7 +358,7 @@
       fetch("/admin/projects/<%= project._id %>/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment: comment, driveLink: driveLink }),
+        body: JSON.stringify({ comment: comment, driveLink: driveLink, timestamp: timestamp }),
       })
         .then(function (r) { return r.json(); })
         .then(function (data) {

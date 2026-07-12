@@ -5,8 +5,9 @@
     <p class="eyebrow">Project workspace</p>
     <h1><%= project.projectName %></h1>
     <p class="muted">
-      Client: <strong><%= project.client?.name || project.clientName || "" %></strong> &middot;
-      <span class="tag tag--<%= getBadgeColor(project.status) %>"><%= formatStatus(project.status) %></span>
+      Client: <strong><%= project.client?.name || project.clientName || "" %></strong>
+      &middot;
+      <span class="status-badge status-badge--<%= project.status === 'ongoing' ? 'ongoing' : project.status === 'submitted' ? 'submitted' : project.status === 'completed' ? 'completed' : 'assigned' %>"><%= formatStatus(project.status) %></span>
     </p>
   </div>
   <a class="btn btn--outline" href="/editor/projects">Back to projects</a>
@@ -27,85 +28,193 @@
 </section>
 
 <% if (project.status === "ongoing") { %>
-  <div class="card admin-panel">
-    <h2 class="h2 mt-0">Submit Work</h2>
-    <form class="admin-form full-width" id="submit-form">
-      <div class="form-group">
-        <label for="driveLink">Drive Link <span class="required">*</span></label>
-        <input type="url" id="driveLink" name="driveLink" placeholder="https://drive.google.com/..." required />
-      </div>
-      <div class="form-group">
-        <label for="description">Description</label>
-        <textarea id="description" name="description" rows="2" placeholder="What's in this submission?"></textarea>
-      </div>
-      <button class="btn" type="submit">Submit Version <%= (project.submissions?.length || 0) + 1 %></button>
-    </form>
-  </div>
-<% } %>
-
-<% if (project.submissions && project.submissions.length > 0) { %>
-  <div class="card admin-panel">
-    <h2 class="h2 mt-0">Submission History</h2>
-    <div class="submission-list">
-      <% project.submissions.slice().reverse().forEach(function(s) { %>
-        <div class="submission-item">
-          <div class="submission-item__head">
-            <strong>Version <%= s.version %></strong>
-            <span class="tag tag--ok">Submitted</span>
-          </div>
-          <div class="submission-item__meta">
-            <span class="muted small"><%= new Date(s.submittedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
-          </div>
-          <div class="submission-item__body">
-            <p><a href="<%= s.driveLink %>" target="_blank" rel="noopener"><%= s.driveLink.length > 80 ? s.driveLink.slice(0, 80) + "..." : s.driveLink %></a></p>
-            <% if (s.description) { %><p class="muted"><%= s.description %></p><% } %>
-          </div>
+  <div class="page-section">
+    <div class="submit-card">
+      <h2 class="submit-card__title">Submit New Version</h2>
+      <p class="submit-card__subtitle">Upload your work for review. Version <strong><%= (project.submissions?.length || 0) + 1 %></strong></p>
+      <form class="admin-form full-width" id="submit-form">
+        <div class="form-group">
+          <label for="driveLink">Drive Link <span class="required">*</span></label>
+          <input type="url" id="driveLink" name="driveLink" placeholder="https://drive.google.com/..." required />
         </div>
-      <% }) %>
-    </div>
-  </div>
-<% } %>
-
-<% if (project.feedback && project.feedback.length > 0) { %>
-  <div class="card admin-panel">
-    <h2 class="h2 mt-0">Feedback History</h2>
-    <div class="feedback-list">
-      <% project.feedback.slice().reverse().forEach(function(f) { %>
-        <div class="feedback-item">
-          <div class="feedback-item__head">
-            <% if (f.versionRef) { %><strong>Version <%= f.versionRef %></strong><% } %>
-            <span class="muted small"><%= new Date(f.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
-          </div>
-          <div class="feedback-item__body">
-            <% if (f.comment) { %><p><%= f.comment %></p><% } %>
-            <% if (f.driveLink) { %><p><a href="<%= f.driveLink %>" target="_blank" rel="noopener">Reference link</a></p><% } %>
-          </div>
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="2" placeholder="What's in this submission?"></textarea>
         </div>
-      <% }) %>
-    </div>
+        <button class="btn" type="submit">Submit Version <%= (project.submissions?.length || 0) + 1 %></button>
+      </form>
   </div>
 <% } %>
 
-<div class="card admin-panel">
-    <h2 class="h2 mt-0">Details</h2>
-  <div class="admin-detail-grid">
-    <div><span>Drive Link</span><strong><% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 60 ? project.driveLink.slice(0,60) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %></strong></div>
-    <% if (project.client?.email) { %><div><span>Client Email</span><strong><%= project.client.email %></strong></div><% } %>
-    <% if (project.client?.phone) { %><div><span>Client Phone</span><strong><%= project.client.phone %></strong></div><% } %>
-    <div><span>Payment Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
-    <div><span>Payment Status</span><strong>
-      <% if (project.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span>
-      <% } else if (project.payment?.status === "pending" && project.status === "completed") { %><span class="tag tag--pending">Awaiting Payment</span>
-      <% } else { %><span class="muted">N/A</span><% } %>
-    </strong></div>
-    <div><span>Created</span><strong><%= new Date(project.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
-    <% if (project.completedAt) { %><div><span>Completed</span><strong><%= new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div><% } %>
-    <% if (project.notes) { %><div class="overflow-auto" style="grid-column:1/-1"><span>Notes</span><strong style="white-space:pre-wrap"><%= project.notes %></strong></div><% } %>
+<!-- ── Project Details ── -->
+<div class="card admin-panel page-section">
+  <div class="section-header">
+    <h2 class="section-header__title">Project Details</h2>
+  </div>
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-item__label">Drive Link</span>
+      <span class="detail-item__value">
+        <% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 50 ? project.driveLink.slice(0,50) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %>
+      </span>
+    </div>
+    <% if (project.client?.email) { %>
+    <div class="detail-item">
+      <span class="detail-item__label">Client Email</span>
+      <span class="detail-item__value"><%= project.client.email %></span>
+    </div>
+    <% } %>
+    <% if (project.client?.phone) { %>
+    <div class="detail-item">
+      <span class="detail-item__label">Client Phone</span>
+      <span class="detail-item__value"><%= project.client.phone %></span>
+    </div>
+    <% } %>
+    <div class="detail-item">
+      <span class="detail-item__label">Payment Amount</span>
+      <span class="detail-item__value"><%= formatMoney(project.payment?.amount || 0) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-item__label">Payment Status</span>
+      <span class="detail-item__value">
+        <% if (project.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span>
+        <% } else if (project.payment?.status === "pending" && project.status === "completed") { %><span class="tag tag--pending">Awaiting Payment</span>
+        <% } else { %><span class="muted">N/A</span><% } %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-item__label">Created On</span>
+      <span class="detail-item__value"><%= new Date(project.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+    </div>
+    <% if (project.updatedAt) { %>
+    <div class="detail-item">
+      <span class="detail-item__label">Updated On</span>
+      <span class="detail-item__value"><%= new Date(project.updatedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+    </div>
+    <% } %>
+    <% if (project.notes) { %>
+    <div class="detail-item" style="grid-column:1/-1">
+      <span class="detail-item__label">Project Notes</span>
+      <span class="detail-item__value" style="font-weight:400;white-space:pre-wrap"><%= project.notes %></span>
+    </div>
+    <% } %>
   </div>
 </div>
 
-<div class="card admin-panel" id="timeline">
-    <h2 class="h2 mt-0">Activity Timeline</h2>
+<!-- ── Feedback Panel ── -->
+<div class="card admin-panel page-section">
+  <div class="section-header">
+    <h2 class="section-header__title">Feedback</h2>
+    <% if (project.feedback && project.feedback.length > 0) { %>
+      <span class="section-header__badge"><%= project.feedback.length %> feedback entries</span>
+    <% } %>
+  </div>
+
+  <% if (!project.feedback || project.feedback.length === 0) { %>
+    <div class="empty-state-card">
+      <div class="empty-state-card__icon">💬</div>
+      <p class="empty-state-card__text">No feedback yet. Feedback from the admin will appear here.</p>
+    </div>
+  <% } else { %>
+    <% 
+      var groupedFeedback = {};
+      project.feedback.forEach(function(f) {
+        var v = f.versionRef || 0;
+        if (!groupedFeedback[v]) groupedFeedback[v] = [];
+        groupedFeedback[v].push(f);
+      });
+      var versionKeys = Object.keys(groupedFeedback).sort(function(a, b) { return Number(b) - Number(a); });
+    %>
+    <div class="feedback-panel">
+      <% versionKeys.forEach(function(v) { %>
+        <% var fbList = groupedFeedback[v]; %>
+        <% fbList.slice().reverse().forEach(function(f, idx) { %>
+          <div class="feedback-group">
+            <div class="feedback-group__header">
+              <div class="feedback-group__header-left">
+                <span class="version-badge">V<%= v %></span>
+                <% if (idx === 0 && v === versionKeys[0]) { %>
+                  <span class="feedback-latest-badge">Latest</span>
+                <% } %>
+                <strong style="font-size:14px"><%= f.createdBy?.name || "Admin" %></strong>
+              </div>
+              <div class="feedback-group__header-right">
+                <span><%= new Date(f.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+                <% if (f.timestamp) { %>
+                  <span class="feedback-group__meta-item">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <%= f.timestamp %>
+                  </span>
+                <% } %>
+              </div>
+            </div>
+            <div class="feedback-group__body">
+              <% if (f.comment) { %>
+                <p class="feedback-group__text"><%= f.comment %></p>
+              <% } %>
+              <div class="feedback-group__meta">
+                <% if (f.driveLink) { %>
+                  <a href="<%= f.driveLink %>" target="_blank" rel="noopener" class="feedback-group__link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Reference Drive Link
+                  </a>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<!-- ── Submission History ── -->
+<div class="card admin-panel page-section">
+  <div class="section-header">
+    <h2 class="section-header__title">Submission History</h2>
+    <% if (project.submissions && project.submissions.length > 0) { %>
+      <span class="section-header__badge"><%= project.submissions.length %> version<%= project.submissions.length !== 1 ? 's' : '' %></span>
+    <% } %>
+  </div>
+
+  <% if (!project.submissions || project.submissions.length === 0) { %>
+    <div class="empty-state-card">
+      <div class="empty-state-card__icon">📁</div>
+      <p class="empty-state-card__text">No submissions yet. Submit your first version to get started.</p>
+    </div>
+  <% } else { %>
+    <div style="display:grid;gap:12px">
+      <% project.submissions.slice().reverse().forEach(function(s) { %>
+        <div class="submission-card">
+          <div class="submission-card__header">
+            <div class="submission-card__header-left">
+              <span class="version-badge">V<%= s.version %></span>
+              <span class="tag tag--ok">Submitted</span>
+            </div>
+            <div class="submission-card__header-right">
+              <span><%= new Date(s.submittedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+            </div>
+          </div>
+          <div class="submission-card__body">
+            <a href="<%= s.driveLink %>" target="_blank" rel="noopener" class="submission-card__link">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <%= s.driveLink.length > 70 ? s.driveLink.slice(0,70) + "..." : s.driveLink %>
+            </a>
+            <% if (s.description) { %>
+              <p class="submission-card__description"><%= s.description %></p>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<!-- ── Activity Timeline ── -->
+<div class="card admin-panel page-section" id="timeline">
+  <div class="section-header">
+    <h2 class="section-header__title">Activity Timeline</h2>
+  </div>
   <% if (project.activityTimeline.length === 0) { %>
     <p class="muted">No activity recorded yet.</p>
   <% } else { %>

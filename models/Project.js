@@ -19,6 +19,7 @@ const feedbackSchema = new mongoose.Schema({
   versionRef: { type: Number, default: null },
   comment: { type: String, default: "" },
   driveLink: { type: String, default: "" },
+  timestamp: { type: String, default: "" },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   createdAt: { type: Date, default: Date.now },
 }, { _id: true });

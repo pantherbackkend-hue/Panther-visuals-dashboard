@@ -469,7 +469,7 @@ workflowRouter.post(
         return res.status(400).json({ error: "Only submitted projects can receive feedback." });
       }
 
-      const { comment, driveLink } = req.body;
+      const { comment, driveLink, timestamp } = req.body;
       const latestSubmission = project.submissions?.length > 0
         ? project.submissions[project.submissions.length - 1]
         : null;
@@ -478,6 +478,7 @@ workflowRouter.post(
         versionRef: latestSubmission ? latestSubmission.version : null,
         comment: String(comment || "").trim(),
         driveLink: String(driveLink || "").trim(),
+        timestamp: String(timestamp || "").trim(),
         createdBy: req.user._id,
         createdAt: new Date(),
       };
@@ -826,6 +827,7 @@ workflowRouter.get(
 
     const project = await Project.findById(id)
       .populate("assignedEditor", "name email")
+      .populate("feedback.createdBy", "name")
       .lean();
 
     if (!project || String(project.assignedEditor?._id || project.assignedEditor) !== String(req.user._id)) {
