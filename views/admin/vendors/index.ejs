@@ -3,55 +3,54 @@
 
 <section class="admin-page-head">
   <div>
-    <p class="eyebrow">Editor management</p>
+    <p class="eyebrow">Team</p>
     <h1>Editors</h1>
-    <p class="muted">Create, reassign, disable, and remove editors without touching the database.</p>
+    <p class="muted">Manage editor accounts and workspace assignments.</p>
   </div>
-  <a class="btn" href="/admin/editors/new">New editor</a>
+  <div class="admin-actions">
+    <a class="btn" href="/admin/editors/new">+ New Editor</a>
+  </div>
 </section>
 
 <div class="card admin-panel">
-  <% if (!vendors.length) { %>
-    <p class="muted">No editors available.</p>
-  <% } else { %>
-    <div style="overflow-x: auto;">
-      <table class="table admin-table">
-        <thead>
+  <div style="overflow-x:auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Workspace</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% vendors.forEach(function(v) { %>
           <tr>
-            <th>Editor</th>
-            <th>Email</th>
-            <th>Assigned Workspace</th>
-            <th>Completed Projects</th>
-            <th>Status</th>
-            <th style="width: 1%; white-space: nowrap;">Actions</th>
+            <td><%= v.name %></td>
+            <td><%= v.email %></td>
+            <td><%= v.assignedShopName %></td>
+            <td><span class="tag tag--<%= v.isActive === false ? 'danger' : 'ok' %>"><%= v.statusLabel %></span></td>
+            <td>
+              <div class="admin-actions">
+                <a class="btn btn--small btn--outline" href="/admin/editors/<%= v._id %>">View</a>
+                <a class="btn btn--small btn--outline" href="/admin/editors/<%= v._id %>/edit">Edit</a>
+                <form method="post" action="/admin/editors/<%= v._id %>/toggle" class="inline" onsubmit="return confirm('Toggle this editor?')">
+                  <button class="btn btn--small btn--ghost" type="submit"><%= v.isActive ? "Disable" : "Enable" %></button>
+                </form>
+                <form method="post" action="/admin/editors/<%= v._id %>/delete" class="inline" onsubmit="return confirm('Delete this editor?')">
+                  <button class="btn btn--small btn--danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          <% vendors.forEach((vendor) => { %>
-            <tr>
-              <td><strong><%= vendor.name %></strong></td>
-              <td><%= vendor.email %></td>
-              <td><%= vendor.assignedShopName %></td>
-              <td><%= vendor.completedOrders %></td>
-              <td><span class="tag tag--<%= vendor.isActive === false ? "danger" : "ok" %>"><%= vendor.statusLabel %></span></td>
-              <td>
-                <div class="admin-actions">
-                  <a class="btn btn--small btn--outline" href="/admin/editors/<%= vendor._id %>">View</a>
-                  <a class="btn btn--small btn--outline" href="/admin/editors/<%= vendor._id %>/edit">Edit</a>
-                  <form method="post" action="/admin/editors/<%= vendor._id %>/toggle" class="inline" onsubmit="return confirm('Toggle this editor status?')">
-                    <button class="btn btn--small btn--ghost" type="submit"><%= vendor.isActive ? "Disable" : "Enable" %></button>
-                  </form>
-                  <form method="post" action="/admin/editors/<%= vendor._id %>/delete" class="inline" onsubmit="return confirm('Delete this editor? This removes the account and unassigns the workspace.')">
-                    <button class="btn btn--small btn--danger" type="submit">Delete</button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
-  <% } %>
+        <% }) %>
+        <% if (vendors.length === 0) { %>
+          <tr><td colspan="5" class="muted">No editors found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <%- include("../partials/layout-end") %>

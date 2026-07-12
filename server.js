@@ -7,18 +7,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import connectDb from "./config/db.js";
-import { Shop } from "./models/Shop.js";
 import { attachUser } from "./middleware/auth.js";
 import { authRouter } from "./routes/auth.js";
-import { shopsRouter } from "./routes/shops.js";
-import { projectsRouter } from "./routes/projects.js";
-import { webhooksRouter } from "./routes/webhooks.js";
-import { editorRouter } from "./routes/editor.js";
-import { assetsRouter } from "./routes/assets.js";
 import { adminRouter } from "./routes/admin.js";
 import { workflowRouter } from "./routes/workflow.js";
-import { formatLocalDateTime } from "./utils/time.js";
-import { formatOrderStatus } from "./utils/admin.js";
 import { initSocket } from "./socket/index.js";
 
 dotenv.config();
@@ -68,8 +60,6 @@ app.set("views", path.join(__dirname, "views"));
 
 app.use(express.static(path.join(__dirname, "public")));
 
-app.use(webhooksRouter);
-
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -93,28 +83,12 @@ app.use(async (req, res, next) => {
       }
     : null;
 
-  res.locals.editorShop = null;
-  if (req.user?.role === "editor" && req.user.shop) {
-    try {
-      res.locals.editorShop = await Shop.findById(req.user.shop)
-        .select("name slug")
-        .lean();
-    } catch {
-      /* ignore */
-    }
-  }
-
   res.locals.flash = {
     success: req.flash("success"),
     error: req.flash("error"),
   };
 
-  res.locals.env = {
-    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
-  };
 
-  res.locals.formatLocalDateTime = formatLocalDateTime;
-  res.locals.formatOrderStatus = formatOrderStatus;
 
   next();
 });
@@ -122,21 +96,14 @@ app.use(async (req, res, next) => {
 app.get("/", (req, res) => {
   if (req.user) {
     const role = req.user.role;
-    if (role === "admin" || role === "owner") return res.redirect("/admin");
-    if (role === "editor") {
-      if (req.user.shop) return res.redirect("/editor/projects");
-      return res.render("home", { pageTitle: null });
-    }
-    return res.redirect("/projects");
+    if (role === "admin" || role === "owner") return res.redirect("/admin/workspace");
+    if (role === "editor") return res.redirect("/editor/projects");
+    return res.redirect("/");
   }
   res.render("home", { pageTitle: null });
 });
 
 app.use(authRouter);
-app.use(shopsRouter);
-app.use(projectsRouter);
-app.use(assetsRouter);
-app.use(editorRouter);
 app.use(workflowRouter);
 app.use("/admin", adminRouter);
 

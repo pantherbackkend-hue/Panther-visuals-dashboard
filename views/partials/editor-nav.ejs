@@ -1,8 +1,5 @@
-<% if (currentUser && currentUser.role === "editor" && editorShop && editorShop.slug) { %>
+<% if (currentUser && currentUser.role === "editor") { %>
   <nav class="editor-nav" aria-label="Editor">
     <a class="nav__link" href="/editor/projects">Projects</a>
-    <a class="nav__link" href="/editor/assets">My Assets</a>
-    <a class="nav__link" href="/editor/payment/settings">Payment</a>
-    <a class="nav__link" href="/workspaces/<%= editorShop.slug %>">View workspace</a>
   </nav>
 <% } %>

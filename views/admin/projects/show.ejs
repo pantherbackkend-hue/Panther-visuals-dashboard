@@ -29,7 +29,7 @@
   <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></h2></article>
   <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.paymentAmount) %></h2></article>
   <article class="card admin-metric"><p class="muted small">Due</p><h2 style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Revisions</p><h2><%= project.revisionCounter %> / 3</h2></article>
+  <article class="card admin-metric"><p class="muted small">Revisions</p><h2><%= project.revisionCounter %></h2></article>
 </section>
 
 <div class="admin-grid--two">

@@ -4,7 +4,7 @@ import { Project } from "../models/Project.js";
 import { Notification } from "../models/Notification.js";
 import { User } from "../models/User.js";
 import { requireDb } from "../middleware/requireDb.js";
-import { requireAuth, requireAdmin, requireEditor, requireVendorShop } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireEditor } from "../middleware/auth.js";
 import {
   isValidStatus,
   canTransition,
@@ -102,7 +102,7 @@ workflowRouter.post(
         if (editor.availability === "busy") {
           const activeCount = await Project.countDocuments({
             assignedEditor: editor._id,
-            status: { $in: ["assigned", "accepted_by_editor", "working", "revision_1", "revision_2", "revision_3"] },
+            status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
           });
           if (activeCount >= 3) {
             req.flash("error", "Editor is fully occupied. Cannot assign more projects.");
@@ -183,7 +183,7 @@ workflowRouter.get(
     if (filter === "new") match.status = "new_project";
     else if (filter === "unassigned") match.status = "pending_assignment";
     else if (filter === "active") match.status = { $in: ["assigned", "accepted_by_editor", "working"] };
-    else if (filter === "revision") match.status = { $in: ["revision_1", "revision_2", "revision_3"] };
+    else if (filter === "revision") match.status = "revision";
     else if (filter === "completed") match.status = "completed";
     else if (filter === "payment") match.status = "waiting_for_payment";
     else if (filter === "paid") match.status = "paid";
@@ -321,19 +321,17 @@ workflowRouter.post(
       project.completedAt = new Date();
     }
 
-    if (toStatus.startsWith("revision_")) {
-      const revNum = parseInt(toStatus.split("_")[1], 10);
+    if (toStatus === "revision") {
+      const revNum = project.revisionCounter + 1;
       project.revisionCounter = revNum;
-      if (revNum > project.revisionHistory.length) {
-        project.revisionHistory.push({
-          revisionNumber: revNum,
-          requestedBy: req.user._id,
-          notes: String(notes || "").trim(),
-        });
-      }
+      project.revisionHistory.push({
+        revisionNumber: revNum,
+        requestedBy: req.user._id,
+        notes: String(notes || "").trim(),
+      });
     }
 
-    if (toStatus === "completed" && fromStatus.startsWith("revision_")) {
+    if (toStatus === "completed" && fromStatus === "revision") {
       const entry = project.revisionHistory[project.revisionHistory.length - 1];
       if (entry && !entry.completedAt) {
         entry.completedAt = new Date();
@@ -420,7 +418,7 @@ workflowRouter.post(
     if (editor.availability === "busy") {
       const activeCount = await Project.countDocuments({
         assignedEditor: editor._id,
-        status: { $in: ["assigned", "accepted_by_editor", "working", "revision_1", "revision_2", "revision_3"] },
+        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
       });
       if (activeCount >= 3) {
         req.flash("error", `${editor.name} is fully occupied (${activeCount} active projects). Cannot assign.`);
@@ -593,7 +591,6 @@ workflowRouter.get(
   requireDb,
   requireAuth,
   requireEditor,
-  requireVendorShop,
   async (req, res) => {
     const editorId = req.user._id;
 

@@ -3,76 +3,39 @@
 
 <section class="admin-page-head">
   <div>
-    <p class="eyebrow">Editor profile</p>
+    <p class="eyebrow">Editor</p>
     <h1><%= vendor.name %></h1>
     <p class="muted"><%= vendor.email %></p>
   </div>
-  <div class="row">
+  <div class="admin-actions">
     <a class="btn btn--outline" href="/admin/editors/<%= vendor._id %>/edit">Edit</a>
-    <form method="post" action="/admin/editors/<%= vendor._id %>/toggle" class="inline" onsubmit="return confirm('Toggle this editor status?')">
+    <form method="post" action="/admin/editors/<%= vendor._id %>/toggle" class="inline" onsubmit="return confirm('Toggle this editor?')">
       <button class="btn btn--ghost" type="submit"><%= vendor.isActive ? "Disable" : "Enable" %></button>
+    </form>
+    <form method="post" action="/admin/editors/<%= vendor._id %>/delete" class="inline" onsubmit="return confirm('Delete this editor?')">
+      <button class="btn btn--danger" type="submit">Delete</button>
     </form>
   </div>
 </section>
 
-<section class="admin-metrics">
-  <article class="card admin-metric">
-    <p class="muted small">Status</p>
-    <h2 class="h2"><%= vendor.isActive === false ? "Disabled" : "Active" %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Assigned Workspace</p>
-    <h2 class="h2"><%= vendor.shop?.name || "Unassigned" %></h2>
-  </article>
-  <article class="card admin-metric">
-    <p class="muted small">Completed Projects</p>
-    <h2 class="h2"><%= completedOrders %></h2>
-  </article>
-</section>
-
-<div class="card admin-panel">
-  <h2 class="h2">Editor details</h2>
-  <div class="admin-detail-grid">
-    <div><span>Email</span><strong><%= vendor.email %></strong></div>
-    <div><span>Workspace slug</span><strong><%= vendor.shop?.slug || "Unassigned" %></strong></div>
-    <div><span>Created</span><strong><%= new Date(vendor.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
-    <div><span>Disabled at</span><strong><%= vendor.disabledAt ? new Date(vendor.disabledAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "Not disabled" %></strong></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
+  <div class="card">
+    <h3>Details</h3>
+    <table class="table table--details">
+      <tr><td>Status</td><td><span class="tag tag--<%= vendor.isActive === false ? 'danger' : 'ok' %>"><%= vendor.isActive === false ? "Disabled" : "Active" %></span></td></tr>
+      <tr><td>Role</td><td><%= vendor.role %></td></tr>
+      <tr><td>Joined</td><td><%= vendor.createdAt?.toLocaleDateString?.() || "" %></td></tr>
+    </table>
   </div>
-</div>
-
-<div class="card admin-panel">
-  <div class="row row--split">
-    <h2 class="h2">Recent projects</h2>
-    <a class="btn btn--outline btn--small" href="/admin/orders?filter=assigned&q=<%= encodeURIComponent(vendor.name) %>">Search projects</a>
+  <div class="card">
+    <h3>Assigned Workspace</h3>
+    <% if (vendor.shop) { %>
+      <p><strong><%= vendor.shop.name %></strong></p>
+      <a class="btn btn--small btn--outline" href="/admin/shops/<%= vendor.shop._id %>">View Workspace</a>
+    <% } else { %>
+      <p class="muted">No workspace assigned.</p>
+    <% } %>
   </div>
-  <% if (!recentOrders.length) { %>
-    <p class="muted">No projects yet for this editor.</p>
-  <% } else { %>
-    <div style="overflow-x: auto;">
-      <table class="table admin-table">
-        <thead>
-          <tr>
-            <th>Project</th>
-            <th>Customer</th>
-            <th>Status</th>
-            <th>Total</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% recentOrders.forEach((order) => { %>
-            <tr>
-              <td><a class="admin-link" href="/admin/orders/<%= order._id %>">#<%= orderNumber(order) %></a></td>
-              <td><%= order.customer?.name || "Customer" %></td>
-              <td><span class="tag tag--<%= order.status === "completed" ? "ok" : order.status === "cancelled" ? "danger" : order.status === "ready_for_pickup" ? "pending" : "muted" %>"><%= formatOrderStatus(order.status) %></span></td>
-              <td><%= formatMoney(order.total) %></td>
-              <td><%= new Date(order.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
-  <% } %>
 </div>
 
 <%- include("../partials/layout-end") %>

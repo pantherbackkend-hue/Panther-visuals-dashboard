@@ -15,7 +15,7 @@
   </article>
   <article class="card admin-metric">
     <p class="muted small">Revision</p>
-    <h2><%= projects.filter(p => p.status.startsWith("revision_")).length %></h2>
+    <h2><%= projects.filter(p => p.status === "revision").length %></h2>
   </article>
   <article class="card admin-metric">
     <p class="muted small">Completed</p>

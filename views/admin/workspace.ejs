@@ -1,0 +1,145 @@
+<%- include("../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Jr Admin</p>
+    <h1>Workspace</h1>
+    <p class="muted">Assign projects to editors and track daily progress.</p>
+  </div>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Pending Assignment</p><h2><%= metrics.pendingAssignment %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Working</p><h2><%= metrics.working %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Review</p><h2><%= metrics.review %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Completed Today</p><h2><%= metrics.completedToday %></h2></article>
+</section>
+
+<div class="card admin-panel">
+  <h2 class="h2" style="margin-top:0">Quick Assign</h2>
+  <form id="assignForm" class="admin-form" style="max-width:none">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px">
+      <div class="form-group" style="margin:0">
+        <label for="projectId">Project</label>
+        <select id="projectId" name="projectId" required>
+          <option value="">— Select Project —</option>
+          <% unassignedProjects.forEach(function(p) { %>
+            <option value="<%= p._id %>"><%= p.clientName %> — <%= p.projectName %></option>
+          <% }) %>
+        </select>
+        <% if (unassignedProjects.length === 0) { %>
+          <p class="form-help" style="color:var(--success)">All projects are assigned!</p>
+        <% } %>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label for="editorId">Editor</label>
+        <select id="editorId" name="editorId" required>
+          <option value="">— Select Editor —</option>
+          <% editors.forEach(function(e) { %>
+            <option value="<%= e._id %>" data-availability="<%= e.availability %>" data-active="<%= e.activeCount %>">
+              <%= e.name %> (<%= e.availability %><%= e.activeCount > 0 ? ', ' + e.activeCount + ' active' : '' %>)
+            </option>
+          <% }) %>
+        </select>
+        <% if (editors.length === 0) { %>
+          <p class="form-help" style="color:var(--danger)">No editors configured.</p>
+        <% } %>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label for="assetLink">Asset Link</label>
+        <input type="url" id="assetLink" name="assetLink" placeholder="https://drive.google.com/..." />
+      </div>
+      <div class="form-group" style="margin:0">
+        <label for="price">Price (₹)</label>
+        <input type="number" id="price" name="price" min="0" step="0.01" placeholder="0.00" />
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="2" placeholder="Optional instructions..."></textarea>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn" id="assignBtn">Assign</button>
+    </div>
+  </form>
+</div>
+
+<div class="card admin-panel">
+  <div class="row row--split" style="margin-bottom:16px">
+    <h2 class="h2" style="margin:0">Recent Activity</h2>
+  </div>
+  <% if (!recentActivity.length) { %>
+    <p class="muted">No recent activity.</p>
+  <% } else { %>
+    <div class="timeline timeline--compact">
+      <% recentActivity.forEach(function(entry) { %>
+        <div class="timeline-item">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <p class="timeline-action"><strong><%= entry.action %></strong> &mdash; <%= entry.projectName %></p>
+            <p class="timeline-meta"><%= entry.userName || "System" %> &middot; <span class="muted"><%= new Date(entry.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></span></p>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+document.getElementById('assignForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('assignBtn');
+  btn.disabled = true;
+  btn.textContent = 'Assigning...';
+
+  const formData = new FormData(this);
+  const data = Object.fromEntries(formData.entries());
+
+  const projectSelect = document.getElementById('projectId');
+  const editorSelect = document.getElementById('editorId');
+  const selectedEditor = editorSelect.options[editorSelect.selectedIndex];
+
+  if (selectedEditor && selectedEditor.dataset.availability === 'on_leave') {
+    alert('Cannot assign: Editor is on leave.');
+    btn.disabled = false;
+    btn.textContent = 'Assign';
+    return;
+  }
+
+  if (selectedEditor && selectedEditor.dataset.availability === 'busy' && parseInt(selectedEditor.dataset.active) >= 3) {
+    if (!confirm('Editor is fully occupied. Assign anyway?')) {
+      btn.disabled = false;
+      btn.textContent = 'Assign';
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch('/admin/workspace/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      const projectName = projectSelect.options[projectSelect.selectedIndex].text;
+      projectSelect.selectedIndex = 0;
+      document.getElementById('assetLink').value = '';
+      document.getElementById('price').value = '';
+      document.getElementById('notes').value = '';
+      window.location.reload();
+    } else {
+      alert(result.error || 'Assignment failed.');
+    }
+  } catch (err) {
+    alert('Network error. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Assign';
+  }
+});
+</script>
+
+<%- include("./partials/layout-end") %>
+<%- include("../partials/footer") %>

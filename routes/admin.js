@@ -2,28 +2,16 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
-import { Order } from "../models/Order.js";
 import { Project } from "../models/Project.js";
 import { User } from "../models/User.js";
 import { Shop } from "../models/Shop.js";
-import { MenuItem } from "../models/MenuItem.js";
 import { Notification } from "../models/Notification.js";
-import { getDashboardCounts, formatStatus, getBadgeColor } from "../utils/workflow.js";
+import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability } from "../utils/workflow.js";
+import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
-import { requireAuth, requireAdmin, resolveAdminVendorShop } from "../middleware/auth.js";
-import { handleShopImageUpload, handleAdminMenuImageUpload } from "../middleware/upload.js";
-import { uploadImportFile } from "../menu-import/upload.js";
-import { stageImport, markProcessing, markError, discardImport } from "../menu-import/importer.js";
-import { updateSession, getSession } from "../menu-import/store.js";
-import { extractMenu } from "../menu-import/vision.js";
-import { isGatewayConfigured } from "./editor.js";
-import {
-  formatOrderStatus,
-  normalizeQuery,
-  startOfIstDay,
-  startOfIstMonth,
-  startOfIstWeek,
-} from "../utils/admin.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { handleShopImageUpload } from "../middleware/upload.js";
+import { normalizeQuery, startOfIstDay } from "../utils/admin.js";
 
 export const adminRouter = express.Router();
 
@@ -33,20 +21,12 @@ function toHexId(value) {
   return value ? String(value) : "";
 }
 
-function orderNumber(order) {
-  return toHexId(order?._id).slice(-6).toUpperCase();
-}
-
 function safeSlug(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function escapeRegExp(value) {
-  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function formatMoney(value) {
@@ -97,129 +77,6 @@ async function syncVendorShopLink({ vendorId = null, shopId = null }) {
   }
 }
 
-async function loadShopOrderCounts() {
-  const rows = await Order.aggregate([
-    {
-      $group: {
-        _id: "$shop",
-        totalOrders: { $sum: 1 },
-        completedOrders: {
-          $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
-        },
-      },
-    },
-  ]);
-
-  const map = new Map();
-  rows.forEach((row) => {
-    map.set(toHexId(row._id), {
-      totalOrders: row.totalOrders || 0,
-      completedOrders: row.completedOrders || 0,
-    });
-  });
-  return map;
-}
-
-async function loadEditorCompletedCounts() {
-  const rows = await Order.aggregate([
-    { $match: { status: "completed" } },
-    { $group: { _id: "$shop", completedOrders: { $sum: 1 } } },
-  ]);
-
-  const map = new Map();
-  rows.forEach((row) => {
-    map.set(toHexId(row._id), row.completedOrders || 0);
-  });
-  return map;
-}
-
-async function loadClientOrderStats() {
-  const rows = await Order.aggregate([
-    {
-      $group: {
-        _id: "$customer",
-        totalOrders: { $sum: 1 },
-        lastOrderDate: { $max: "$createdAt" },
-      },
-    },
-  ]);
-
-  const map = new Map();
-  rows.forEach((row) => {
-    map.set(toHexId(row._id), {
-      totalOrders: row.totalOrders || 0,
-      lastOrderDate: row.lastOrderDate || null,
-    });
-  });
-  return map;
-}
-
-function humanizeTimeHour(hour) {
-  if (hour === null || typeof hour === "undefined") return "Unknown";
-  const normalized = Number(hour);
-  if (!Number.isFinite(normalized)) return "Unknown";
-  const suffix = normalized >= 12 ? "PM" : "AM";
-  const value = normalized % 12 || 12;
-  return `${value} ${suffix}`;
-}
-
-async function loadAdminOrderList() {
-  return Order.find()
-    .sort({ createdAt: -1 })
-    .populate({ path: "customer", select: "name email role isActive" })
-    .populate({
-      path: "shop",
-      select: "name slug vendor isActive isOpen",
-      populate: { path: "vendor", select: "name email role isActive" },
-    })
-    .lean();
-}
-
-function matchesOrderSearch(order, searchValue) {
-  if (!searchValue) return true;
-  const haystack = [
-    orderNumber(order),
-    toHexId(order._id),
-    order.customer?.name,
-    order.customer?.email,
-    order.shop?.name,
-    order.shop?.vendor?.name,
-    order.shop?.vendor?.email,
-    order.paymentNote,
-    order.transactionId,
-    order.adjustmentReason,
-    order.refundStatus,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(searchValue);
-}
-
-function matchesOrderFilter(order, filterValue) {
-  if (!filterValue) return true;
-  const createdAt = new Date(order.createdAt);
-  if (filterValue === "today") return createdAt >= startOfIstDay();
-  if (filterValue === "week") return createdAt >= startOfIstWeek();
-  if (filterValue === "month") return createdAt >= startOfIstMonth();
-  if (filterValue === "pending") return order.status === "pending";
-  if (filterValue === "assigned") return order.status === "assigned";
-  if (filterValue === "in_progress") return order.status === "in_progress";
-  if (filterValue === "review") return order.status === "review";
-  if (filterValue === "completed") return order.status === "completed";
-  if (filterValue === "cancelled") return order.status === "cancelled";
-  return true;
-}
-
-function paymentStatusLabel(order) {
-  if (order.status === "cancelled") {
-    return order.refundStatus === "completed" ? "Refunded" : "Cancelled";
-  }
-  if (order.status === "pending_payment") return "Pending";
-  if (order.paymentNote && order.paymentNote !== "mock") return "Captured";
-  return "Paid";
-}
-
 adminRouter.get("/", async (req, res) => {
   const now = new Date();
   const istStart = startOfIstDay();
@@ -227,12 +84,6 @@ adminRouter.get("/", async (req, res) => {
   const [
     totalShops,
     totalEditors,
-    totalClients,
-    totalOrders,
-    ordersToday,
-    completedOrders,
-    pendingOrders,
-    recentOrders,
     allProjects,
     editors,
     projectsToday,
@@ -253,21 +104,6 @@ adminRouter.get("/", async (req, res) => {
   ] = await Promise.all([
     Shop.countDocuments(),
     User.countDocuments({ role: "editor" }),
-    User.countDocuments({ role: "client" }),
-    Order.countDocuments(),
-    Order.countDocuments({ createdAt: { $gte: istStart } }),
-    Order.countDocuments({ status: "completed" }),
-    Order.countDocuments({ status: { $in: ["pending", "assigned"] } }),
-    Order.find()
-      .sort({ createdAt: -1 })
-      .limit(8)
-      .populate({ path: "customer", select: "name email" })
-      .populate({
-        path: "shop",
-        select: "name slug",
-        populate: { path: "vendor", select: "name email" },
-      })
-      .lean(),
     Project.find()
       .populate("assignedEditor", "name email")
       .sort({ priority: -1, createdAt: -1 })
@@ -279,7 +115,7 @@ adminRouter.get("/", async (req, res) => {
     Project.countDocuments({ status: "assigned" }),
     Project.countDocuments({ status: { $in: ["accepted_by_editor", "working"] } }),
     Project.countDocuments({ status: { $in: ["completed", "waiting_for_payment"] } }),
-    Project.countDocuments({ status: { $in: ["revision_1", "revision_2", "revision_3"] } }),
+    Project.countDocuments({ status: "revision" }),
     Project.countDocuments({ status: "completed" }),
     Project.countDocuments({ status: "waiting_for_payment" }),
     Project.countDocuments({ status: "paid" }),
@@ -337,7 +173,7 @@ adminRouter.get("/", async (req, res) => {
     editors.map(async (e) => {
       const activeCount = await Project.countDocuments({
         assignedEditor: e._id,
-        status: { $in: ["assigned", "accepted_by_editor", "working", "revision_1", "revision_2", "revision_3"] },
+        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
       });
       const workingCount = await Project.countDocuments({
         assignedEditor: e._id,
@@ -379,11 +215,6 @@ adminRouter.get("/", async (req, res) => {
     stats: {
       totalShops,
       totalEditors,
-      totalClients,
-      totalOrders,
-      ordersToday,
-      completedOrders,
-      pendingOrders,
     },
     projectMetrics: {
       projectsToday,
@@ -405,41 +236,166 @@ adminRouter.get("/", async (req, res) => {
     workflowProjects,
     editorWorkload,
     overdueProjects,
-    recentOrders,
     recentNotifications,
     recentActivity: recentActivityTimeline,
     upcomingDeadlines,
-    orderNumber,
-    formatOrderStatus,
     formatMoney,
     formatStatus,
   });
 });
 
+adminRouter.get("/workspace", async (req, res) => {
+  const istStart = startOfIstDay();
+
+  const [
+    pendingAssignment,
+    working,
+    review,
+    completedToday,
+    unassignedProjects,
+    editors,
+    recentActivity,
+  ] = await Promise.all([
+    Project.countDocuments({ status: "pending_assignment" }),
+    Project.countDocuments({ status: { $in: ["accepted_by_editor", "working"] } }),
+    Project.countDocuments({ status: "revision" }),
+    Project.countDocuments({ status: "completed", completedAt: { $gte: istStart } }),
+    Project.find({ status: { $in: ["new_project", "pending_assignment"] } })
+      .select("clientName projectName")
+      .sort({ createdAt: -1 })
+      .lean(),
+    User.find({ role: "editor", isActive: true })
+      .select("name email availability")
+      .sort({ name: 1 })
+      .lean(),
+    Project.aggregate([
+      { $match: { "activityTimeline.0": { $exists: true } } },
+      { $unwind: "$activityTimeline" },
+      { $sort: { "activityTimeline.createdAt": -1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          _id: 0,
+          projectName: 1,
+          action: "$activityTimeline.action",
+          userName: "$activityTimeline.userName",
+          createdAt: "$activityTimeline.createdAt",
+        },
+      },
+    ]),
+  ]);
+
+  const editorsWithCounts = await Promise.all(
+    editors.map(async (e) => {
+      const activeCount = await Project.countDocuments({
+        assignedEditor: e._id,
+        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+      });
+      return { ...e, activeCount };
+    }),
+  );
+
+  res.render("admin/workspace", {
+    pageTitle: "Workspace",
+    activeSection: "workspace",
+    metrics: { pendingAssignment, working, review, completedToday },
+    unassignedProjects,
+    editors: editorsWithCounts,
+    recentActivity,
+  });
+});
+
+adminRouter.post("/workspace/assign", async (req, res) => {
+  try {
+    const { projectId, editorId, assetLink, price, notes } = req.body;
+
+    if (!projectId || !mongoose.isValidObjectId(projectId)) {
+      return res.status(400).json({ success: false, error: "Invalid project." });
+    }
+    if (!editorId || !mongoose.isValidObjectId(editorId)) {
+      return res.status(400).json({ success: false, error: "Invalid editor." });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ success: false, error: "Project not found." });
+    }
+
+    if (!["new_project", "pending_assignment"].includes(project.status)) {
+      return res.status(400).json({ success: false, error: "Project is already assigned." });
+    }
+
+    const editor = await User.findOne({ _id: editorId, role: "editor", isActive: true });
+    if (!editor) {
+      return res.status(400).json({ success: false, error: "Editor not found or inactive." });
+    }
+
+    if (editor.availability === "on_leave") {
+      return res.status(400).json({ success: false, error: `${editor.name} is on leave.` });
+    }
+
+    if (editor.availability === "busy") {
+      const activeCount = await Project.countDocuments({
+        assignedEditor: editor._id,
+        status: { $in: ["assigned", "accepted_by_editor", "working", "revision"] },
+      });
+      if (activeCount >= 3) {
+        return res.status(400).json({ success: false, error: `${editor.name} is fully occupied (${activeCount} active projects).` });
+      }
+    }
+
+    const fromStatus = project.status;
+    project.assignedEditor = editor._id;
+    project.status = "pending_assignment";
+
+    if (assetLink && typeof assetLink === "string" && assetLink.trim()) {
+      try { new URL(assetLink); project.driveLink = assetLink.trim(); } catch { /* ignore invalid URL */ }
+    }
+
+    if (price && !isNaN(Number(price))) {
+      project.paymentAmount = Number(price);
+    }
+
+    project.activityTimeline.push({
+      action: "Assigned",
+      user: req.user._id,
+      userName: req.user.name,
+      previousStatus: fromStatus,
+      newStatus: "pending_assignment",
+      notes: String(notes || "").trim(),
+    });
+
+    await project.save();
+    await updateEditorAvailability(editor._id, User, Project);
+    await notifyProjectAssigned(project, editor);
+    await broadcastDashboardUpdate(project);
+
+    const allProjects = await Project.find().lean();
+    const counts = getDashboardCounts(allProjects);
+    await broadcastProjectCounts(counts);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Workspace assign error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Assignment failed." });
+  }
+});
+
 // --- Workspaces (Shops) ---
 
 adminRouter.get("/shops", async (req, res) => {
-  const [shops, orderCounts] = await Promise.all([
-    Shop.find().sort({ name: 1 }).populate("vendor", "name email role isActive").lean(),
-    loadShopOrderCounts(),
-  ]);
+  const shops = await Shop.find().sort({ name: 1 }).populate("vendor", "name email role isActive").lean();
 
-  const rows = shops.map((shop) => {
-    const counts = orderCounts.get(toHexId(shop._id)) || { totalOrders: 0, completedOrders: 0 };
-    return {
-      ...shop,
-      totalOrders: counts.totalOrders,
-      completedOrders: counts.completedOrders,
-      assignedVendorName: shop.vendor?.name || "Unassigned",
-      statusLabel: shop.isActive === false ? "Disabled" : shop.isOpen === false ? "Closed" : "Open",
-    };
-  });
+  const rows = shops.map((shop) => ({
+    ...shop,
+    assignedVendorName: shop.vendor?.name || "Unassigned",
+    statusLabel: shop.isActive === false ? "Disabled" : shop.isOpen === false ? "Closed" : "Open",
+  }));
 
   res.render("admin/shops/index", {
     pageTitle: "Manage Workspaces",
     activeSection: "shops",
     shops: rows,
-    orderNumber,
   });
 });
 
@@ -487,34 +443,15 @@ adminRouter.get("/shops/:id", async (req, res) => {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
-  const [shop, menuItems, orderStats] = await Promise.all([
-    Shop.findById(id).populate("vendor", "name email role isActive").lean(),
-    MenuItem.find({ shop: id }).sort({ name: 1 }).lean(),
-    Order.aggregate([
-      { $match: { shop: new mongoose.Types.ObjectId(id) } },
-      {
-        $group: {
-          _id: "$shop",
-          totalOrders: { $sum: 1 },
-          completedOrders: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
-          revenue: { $sum: { $cond: [{ $in: ["$status", ["pending", "assigned", "in_progress", "review", "completed"]] }, "$total", 0] } },
-        },
-      },
-    ]),
-  ]);
-
+  const shop = await Shop.findById(id).populate("vendor", "name email role isActive").lean();
   if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
   res.render("admin/shops/show", {
     pageTitle: shop.name,
     activeSection: "shops",
     shop,
-    menuItems,
-    stats: {
-      totalOrders: orderStats[0]?.totalOrders || 0,
-      completedOrders: orderStats[0]?.completedOrders || 0,
-      revenue: orderStats[0]?.revenue || 0,
-    },
+    menuItems: [],
+    stats: { totalOrders: 0, completedOrders: 0, revenue: 0 },
     formatMoney,
   });
 });
@@ -618,95 +555,21 @@ adminRouter.post("/shops/:id/delete", async (req, res) => {
     }
   }
 
-  await MenuItem.deleteMany({ shop: shop._id });
   await Shop.deleteOne({ _id: shop._id });
 
   req.flash("success", "Workspace deleted.");
   return res.redirect("/admin/shops");
 });
 
-adminRouter.get("/shops/:id/payment-settings", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
 
-  const shop = await Shop.findById(id).lean();
-  if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
-
-  res.render("admin/shops/payment-settings", {
-    pageTitle: `Payment Settings - ${shop.name}`,
-    activeSection: "shops",
-    shop,
-  });
-});
-
-adminRouter.post("/shops/:id/payment-settings", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
-
-  try {
-    const { paymentGateway, razorpayKeyId, razorpayKeySecret, easebuzzMerchantKey, easebuzzSalt, easebuzzEnv, phonepeClientId, phonepeClientSecret, phonepeClientVersion, phonepeEnv } = req.body;
-
-    const shop = await Shop.findById(id);
-    if (!shop) { req.flash("error", "Workspace not found."); return res.redirect("/admin/shops"); }
-
-    if (paymentGateway !== undefined) {
-      if (!["razorpay", "easebuzz", "phonepe", "paytm", "bharatpe"].includes(paymentGateway)) {
-        req.flash("error", "Invalid payment gateway.");
-        return res.redirect(`/admin/shops/${id}/payment-settings`);
-      }
-      shop.paymentGateway = paymentGateway;
-    }
-
-    const keyId = String(razorpayKeyId || "").trim();
-    if (keyId) shop.paymentSettings.razorpay.keyId = keyId;
-    if (razorpayKeySecret !== undefined && String(razorpayKeySecret).trim()) {
-      shop.paymentSettings.razorpay.keySecret = String(razorpayKeySecret).trim();
-    }
-
-    const merchantKey = String(easebuzzMerchantKey || "").trim();
-    if (merchantKey) shop.paymentSettings.easebuzz.merchantKey = merchantKey;
-    if (easebuzzSalt !== undefined && String(easebuzzSalt).trim()) {
-      shop.paymentSettings.easebuzz.salt = String(easebuzzSalt).trim();
-    }
-    if (easebuzzEnv !== undefined && ["test", "prod"].includes(easebuzzEnv)) {
-      shop.paymentSettings.easebuzz.env = easebuzzEnv;
-    }
-
-    const ppClientId = String(phonepeClientId || "").trim();
-    if (ppClientId) shop.paymentSettings.phonepe.clientId = ppClientId;
-    if (phonepeClientSecret !== undefined && String(phonepeClientSecret).trim()) {
-      shop.paymentSettings.phonepe.clientSecret = String(phonepeClientSecret).trim();
-    }
-    if (phonepeClientVersion !== undefined && String(phonepeClientVersion).trim()) {
-      shop.paymentSettings.phonepe.clientVersion = String(phonepeClientVersion).trim();
-    }
-    if (phonepeEnv !== undefined && ["UAT", "PROD"].includes(phonepeEnv)) {
-      shop.paymentSettings.phonepe.env = phonepeEnv;
-    }
-
-    shop.paymentConfigured = isGatewayConfigured(shop);
-    await shop.save();
-
-    req.flash("success", "Payment settings saved successfully.");
-    return res.redirect(`/admin/shops/${id}`);
-  } catch (err) {
-    console.error("Error updating payment settings:", err);
-    req.flash("error", "Failed to save payment settings.");
-    return res.redirect(`/admin/shops/${id}/payment-settings`);
-  }
-});
 
 // --- Editors ---
 
 adminRouter.get("/editors", async (req, res) => {
-  const [editors, completedCounts] = await Promise.all([
-    User.find({ role: "editor" }).sort({ name: 1 }).populate("shop", "name slug isActive isOpen vendor").lean(),
-    loadEditorCompletedCounts(),
-  ]);
+  const editors = await User.find({ role: "editor" }).sort({ name: 1 }).populate("shop", "name slug isActive isOpen vendor").lean();
 
   const rows = editors.map((editor) => ({
     ...editor,
-    completedOrders: completedCounts.get(toHexId(editor.shop?._id || editor.shop)) || 0,
     assignedShopName: editor.shop?.name || "Unassigned",
     statusLabel: editor.isActive === false ? "Disabled" : "Active",
   }));
@@ -715,7 +578,6 @@ adminRouter.get("/editors", async (req, res) => {
     pageTitle: "Manage Editors",
     activeSection: "editors",
     vendors: rows,
-    orderNumber,
   });
 });
 
@@ -771,25 +633,11 @@ adminRouter.get("/editors/:id", async (req, res) => {
 
   if (!editor) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
 
-  const recentOrders = await Order.find({ shop: editor.shop?._id || editor.shop })
-    .sort({ createdAt: -1 })
-    .limit(8)
-    .populate("customer", "name email")
-    .lean();
-
-  const completedOrders = editor.shop
-    ? await Order.countDocuments({ shop: editor.shop._id, status: "completed" })
-    : 0;
-
   res.render("admin/vendors/show", {
     pageTitle: editor.name,
     activeSection: "editors",
     vendor: editor,
-    completedOrders,
-    recentOrders,
     formatMoney,
-    orderNumber,
-    formatOrderStatus,
   });
 });
 
@@ -885,418 +733,3 @@ adminRouter.post("/editors/:id/delete", async (req, res) => {
   return res.redirect("/admin/editors");
 });
 
-// --- Clients ---
-
-adminRouter.get("/clients", async (req, res) => {
-  const [clients, orderStats] = await Promise.all([
-    User.find({ role: "client" }).sort({ name: 1 }).lean(),
-    loadClientOrderStats(),
-  ]);
-
-  const rows = clients.map((client) => {
-    const stats = orderStats.get(toHexId(client._id)) || { totalOrders: 0, lastOrderDate: null };
-    return { ...client, totalOrders: stats.totalOrders, lastOrderDate: stats.lastOrderDate, statusLabel: client.isActive === false ? "Disabled" : "Active" };
-  });
-
-  res.render("admin/students/index", {
-    pageTitle: "Manage Clients",
-    activeSection: "clients",
-    students: rows,
-  });
-});
-
-adminRouter.get("/clients/:id", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Client not found."); return res.redirect("/admin/clients"); }
-
-  const client = await User.findOne({ _id: id, role: "client" }).lean();
-  if (!client) { req.flash("error", "Client not found."); return res.redirect("/admin/clients"); }
-
-  const recentOrders = await Order.find({ customer: client._id })
-    .sort({ createdAt: -1 })
-    .limit(10)
-    .populate({ path: "shop", select: "name slug", populate: { path: "vendor", select: "name email" } })
-    .lean();
-
-  const [stats] = await Order.aggregate([
-    { $match: { customer: client._id } },
-    { $group: { _id: "$customer", totalOrders: { $sum: 1 }, lastOrderDate: { $max: "$createdAt" } } },
-  ]);
-
-  res.render("admin/students/show", {
-    pageTitle: client.name,
-    activeSection: "clients",
-    student: client,
-    stats: { totalOrders: stats?.totalOrders || 0, lastOrderDate: stats?.lastOrderDate || null },
-    recentOrders,
-    formatMoney,
-    orderNumber,
-    formatOrderStatus,
-  });
-});
-
-adminRouter.post("/clients/:id/toggle", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Client not found."); return res.redirect("/admin/clients"); }
-
-  const client = await User.findOne({ _id: id, role: "client" });
-  if (!client) { req.flash("error", "Client not found."); return res.redirect("/admin/clients"); }
-
-  client.isActive = !client.isActive;
-  client.disabledAt = client.isActive ? null : new Date();
-  await client.save();
-
-  req.flash("success", client.isActive ? "Client enabled." : "Client disabled.");
-  return res.redirect("/admin/clients");
-});
-
-// --- Orders / Projects ---
-
-adminRouter.get("/orders", async (req, res) => {
-  const filter = normalizeQuery(req.query.filter).toLowerCase();
-  const search = normalizeQuery(req.query.q).toLowerCase();
-  const allOrders = await loadAdminOrderList();
-
-  const rows = allOrders
-    .filter((o) => matchesOrderFilter(o, filter))
-    .filter((o) => matchesOrderSearch(o, search))
-    .map((o) => ({
-      ...o,
-      orderNumber: orderNumber(o),
-      paymentStatus: paymentStatusLabel(o),
-      statusLabel: formatOrderStatus(o.status),
-      customerName: o.customer?.name || "Client",
-      shopName: o.shop?.name || "Deleted workspace",
-      vendorName: o.shop?.vendor?.name || "Unassigned",
-    }));
-
-  res.render("admin/orders/index", {
-    pageTitle: "Manage Projects",
-    activeSection: "projects",
-    orders: rows,
-    filter,
-    search,
-  });
-});
-
-adminRouter.get("/orders/:id", async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) { req.flash("error", "Project not found."); return res.redirect("/admin/orders"); }
-
-  const order = await Order.findById(id)
-    .populate({ path: "customer", select: "name email role isActive" })
-    .populate({
-      path: "shop",
-      select: "name slug vendor isOpen isActive description image",
-      populate: { path: "vendor", select: "name email role isActive" },
-    })
-    .lean();
-
-  if (!order) { req.flash("error", "Project not found."); return res.redirect("/admin/orders"); }
-
-  res.render("admin/orders/show", {
-    pageTitle: `Project ${orderNumber(order)}`,
-    activeSection: "projects",
-    order,
-    orderNumber,
-    formatOrderStatus,
-    paymentStatus: paymentStatusLabel(order),
-    formatMoney,
-  });
-});
-
-adminRouter.get("/assets", async (req, res) => {
-  const [editors, menuCounts] = await Promise.all([
-    User.find({ role: "editor" }).sort({ name: 1 }).populate("shop", "name slug isActive isOpen").lean(),
-    MenuItem.aggregate([{ $group: { _id: "$shop", count: { $sum: 1 } } }]),
-  ]);
-
-  const countsMap = new Map();
-  menuCounts.forEach((row) => countsMap.set(toHexId(row._id), row.count));
-
-  const rows = editors.map((editor) => ({
-    ...editor,
-    menuCount: countsMap.get(toHexId(editor.shop?._id || editor.shop)) || 0,
-    assignedShopName: editor.shop?.name || "Unassigned",
-    statusLabel: editor.isActive === false ? "Disabled" : "Active",
-    shopStatusLabel: editor.shop?.isActive === false ? "Disabled" : editor.shop?.isOpen === false ? "Closed" : "Open",
-  }));
-
-  res.render("admin/menus/index", {
-    pageTitle: "Manage Assets",
-    activeSection: "assets",
-    vendors: rows,
-  });
-});
-
-adminRouter.get("/editors/:vendorId/assets", resolveAdminVendorShop, async (req, res) => {
-  const assets = await MenuItem.find({ shop: req.vendorShopId }).sort({ name: 1 }).lean();
-  res.render("admin/vendors/menu", {
-    pageTitle: `Assets – ${req.targetVendor.name}`,
-    activeSection: "assets",
-    vendor: req.targetVendor,
-    shop: req.targetShop,
-    menuItems: assets,
-  });
-});
-
-adminRouter.post("/editors/:vendorId/assets", resolveAdminVendorShop, handleAdminMenuImageUpload((req) => `/admin/editors/${req.params.vendorId}/assets`), async (req, res) => {
-  const shop = await Shop.findById(req.vendorShopId).lean();
-  if (!shop || shop.isActive === false) { req.flash("error", "This workspace is disabled."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-
-  const name = String((req.body && req.body.name) || "").trim();
-  const description = String((req.body && req.body.description) || "").trim();
-  const price = Number((req.body && req.body.price) || 0);
-  const image = req.file?.path || "";
-
-  if (!name) { req.flash("error", "Name is required."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-  if (!Number.isFinite(price) || price <= 0) { req.flash("error", "Price must be greater than 0."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-
-  await MenuItem.create({ shop: req.vendorShopId, name, description, price, image });
-  req.flash("success", "Asset created.");
-  return res.redirect(`/admin/editors/${req.params.vendorId}/assets`);
-});
-
-adminRouter.patch("/editors/:vendorId/assets/:id", resolveAdminVendorShop, handleAdminMenuImageUpload((req) => `/admin/editors/${req.params.vendorId}/assets`), async (req, res) => {
-  const activeShop = await Shop.findById(req.vendorShopId).lean();
-  if (!activeShop || activeShop.isActive === false) return res.status(403).json({ error: "This workspace is disabled." });
-
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "Invalid asset id." });
-
-  const item = await MenuItem.findOne({ _id: id, shop: req.vendorShopId });
-  if (!item) return res.status(404).json({ error: "Asset not found." });
-
-  const name = String((req.body && req.body.name) || "").trim();
-  const description = String((req.body && req.body.description) || "").trim();
-  const price = Number((req.body && req.body.price) || 0);
-
-  if (!name) return res.status(400).json({ error: "Name is required." });
-  if (!Number.isFinite(price) || price <= 0) return res.status(400).json({ error: "Price must be greater than 0." });
-
-  item.name = name;
-  item.description = description;
-  item.price = price;
-  if (req.file?.path) item.image = req.file.path;
-  await item.save();
-
-  return res.json({ success: true, message: "Asset updated.", item: { _id: String(item._id), name: item.name, description: item.description, price: item.price, image: item.image, available: item.available } });
-});
-
-adminRouter.delete("/editors/:vendorId/assets/:id", resolveAdminVendorShop, async (req, res) => {
-  const activeShop = await Shop.findById(req.vendorShopId).lean();
-  if (!activeShop || activeShop.isActive === false) return res.status(403).json({ error: "This workspace is disabled." });
-
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "Invalid asset id." });
-
-  const result = await MenuItem.deleteOne({ _id: id, shop: req.vendorShopId });
-  if (!result.deletedCount) return res.status(404).json({ error: "Asset not found." });
-
-  return res.json({ success: true, message: "Asset deleted." });
-});
-
-adminRouter.patch("/editors/:vendorId/assets/:id/toggle", resolveAdminVendorShop, async (req, res) => {
-  const activeShop = await Shop.findById(req.vendorShopId).lean();
-  if (!activeShop || activeShop.isActive === false) return res.status(403).json({ error: "This workspace is disabled." });
-
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "Invalid asset id." });
-
-  const item = await MenuItem.findOne({ _id: id, shop: req.vendorShopId });
-  if (!item) return res.status(404).json({ error: "Asset not found." });
-
-  item.available = !item.available;
-  await item.save();
-
-  return res.json({ item: { _id: String(item._id), name: item.name, price: item.price, available: item.available } });
-});
-
-adminRouter.post("/editors/:vendorId/shop/toggle", resolveAdminVendorShop, async (req, res) => {
-  try {
-    const shop = await Shop.findById(req.vendorShopId);
-    if (!shop) { req.flash("error", "Workspace not found."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-    shop.isOpen = !shop.isOpen;
-    await shop.save();
-    req.flash("success", shop.isOpen ? "Workspace opened." : "Workspace closed.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets`);
-  } catch (error) {
-    console.error(error);
-    req.flash("error", "Failed to update workspace status.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets`);
-  }
-});
-
-// --- Smart Import ---
-
-adminRouter.get("/editors/:vendorId/assets/import", resolveAdminVendorShop, async (req, res) => {
-  res.render("admin/vendors/menu-import", {
-    pageTitle: `Import Assets – ${req.targetVendor.name}`,
-    activeSection: "assets",
-    vendor: req.targetVendor,
-    shop: req.targetShop,
-  });
-});
-
-adminRouter.post("/editors/:vendorId/assets/import", resolveAdminVendorShop, (req, res, next) => {
-  uploadImportFile.single("importFile")(req, res, (err) => {
-    if (err) { req.flash("error", err.message || "Upload failed."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`); }
-    next();
-  });
-}, async (req, res) => {
-  if (!req.file) { req.flash("error", "No file was uploaded."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`); }
-
-  let importId;
-  try {
-    const staged = await stageImport(req.file, req.params.vendorId, req.vendorShopIdStr);
-    importId = staged.importId;
-  } catch (err) {
-    console.error("stageImport failed:", err);
-    req.flash("error", err.message || "Failed to process import.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`);
-  }
-
-  try { markProcessing(importId); } catch (err) {
-    console.error("markProcessing failed:", err);
-    req.flash("error", err.message || "Failed to process import.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`);
-  }
-
-  let result;
-  try {
-    result = await extractMenu(req.file.path);
-  } catch (err) {
-    console.error("extractMenu failed:", err);
-    try { markError(importId, err.message || "Extraction failed."); } catch {}
-    req.flash("error", err.message || "Failed to process import.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`);
-  }
-
-  const hasItems = result.items.length > 0;
-  const errorMsg = result.metadata?.error || null;
-
-  try {
-    if (hasItems) {
-      updateSession(importId, { status: "ready", visionResult: { items: result.items, rawText: result.rawText, metadata: result.metadata } });
-    } else {
-      updateSession(importId, { status: "error", visionResult: { items: [], rawText: result.rawText, metadata: result.metadata }, errors: errorMsg ? [errorMsg] : [] });
-    }
-  } catch (err) {
-    console.error("updateSession failed:", err);
-    req.flash("error", err.message || "Failed to process import.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`);
-  }
-
-  res.render("admin/vendors/menu-import-preview", {
-    pageTitle: hasItems ? "Review Extracted Items" : "Extraction Failed",
-    activeSection: "assets",
-    vendor: req.targetVendor,
-    shop: req.targetShop,
-    importId,
-    fileName: req.file.originalname,
-    items: result.items,
-    rawText: result.rawText,
-    avgConfidence: result.metadata.averageConfidence || 0,
-    itemCount: result.metadata.itemCount || 0,
-    visionError: errorMsg,
-    provider: result.metadata.provider || "gemini-vision",
-  });
-});
-
-adminRouter.post("/editors/:vendorId/assets/import/confirm", resolveAdminVendorShop, async (req, res) => {
-  try {
-    const { importId } = req.body;
-    if (!importId) { req.flash("error", "Import session not found."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-
-    const session = getSession(importId);
-    if (!session) { req.flash("error", "Import session has expired."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-
-    const shop = await Shop.findById(req.vendorShopId).lean();
-    if (!shop || shop.isActive === false) { req.flash("error", "This workspace is disabled."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets`); }
-
-    const rawItems = req.body.items;
-    if (!rawItems || (Array.isArray(rawItems) && rawItems.length === 0)) { req.flash("error", "No items to import."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`); }
-
-    const items = Array.isArray(rawItems) ? rawItems : [rawItems];
-    const docs = [];
-
-    for (const item of items) {
-      const name = String(item.name || "").trim();
-      const description = String(item.description || "").trim();
-      const price = Number(item.price) || 0;
-      if (!name || price <= 0) continue;
-
-      docs.push({ shop: req.vendorShopId, name, description, price, available: true });
-    }
-
-    if (docs.length === 0) { req.flash("error", "No valid items to import."); return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`); }
-
-    await MenuItem.insertMany(docs);
-    discardImport(importId);
-
-    req.flash("success", `${docs.length} asset(s) imported successfully.`);
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets`);
-  } catch (err) {
-    console.error("Import confirm error:", err);
-    req.flash("error", err.message || "Failed to import assets.");
-    return res.redirect(`/admin/editors/${req.params.vendorId}/assets/import`);
-  }
-});
-
-// --- Analytics ---
-
-adminRouter.get("/analytics", async (req, res) => {
-  const [totalRevenueAgg, ordersToday, ordersThisWeek, ordersThisMonth, popularShop, popularItem, peakHour, topShops, topVendors] = await Promise.all([
-    Order.aggregate([
-      { $match: { status: { $in: ["pending", "assigned", "in_progress", "review", "completed"] } } },
-      { $group: { _id: null, total: { $sum: "$total" } } },
-    ]),
-    Order.countDocuments({ createdAt: { $gte: startOfIstDay() } }),
-    Order.countDocuments({ createdAt: { $gte: startOfIstWeek() } }),
-    Order.countDocuments({ createdAt: { $gte: startOfIstMonth() } }),
-    Order.aggregate([
-      { $group: { _id: "$shop", orders: { $sum: 1 }, revenue: { $sum: "$total" } } },
-      { $sort: { orders: -1, revenue: -1 } }, { $limit: 1 },
-      { $lookup: { from: "shops", localField: "_id", foreignField: "_id", as: "shop" } },
-      { $unwind: { path: "$shop", preserveNullAndEmptyArrays: true } },
-      { $project: { orders: 1, revenue: 1, name: "$shop.name", slug: "$shop.slug" } },
-    ]),
-    Order.aggregate([
-      { $unwind: "$items" },
-      { $match: { "items.status": { $ne: "removed" } } },
-      { $group: { _id: "$items.name", quantity: { $sum: "$items.quantity" }, revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } } } },
-      { $sort: { quantity: -1, revenue: -1 } }, { $limit: 1 },
-    ]),
-    Order.aggregate([
-      { $group: { _id: { $hour: { date: "$createdAt", timezone: "Asia/Kolkata" } }, orders: { $sum: 1 } } },
-      { $sort: { orders: -1, _id: 1 } }, { $limit: 1 },
-    ]),
-    Order.aggregate([
-      { $group: { _id: "$shop", orders: { $sum: 1 }, revenue: { $sum: "$total" } } },
-      { $sort: { orders: -1, revenue: -1 } }, { $limit: 5 },
-      { $lookup: { from: "shops", localField: "_id", foreignField: "_id", as: "shop" } },
-      { $unwind: { path: "$shop", preserveNullAndEmptyArrays: true } },
-      { $project: { orders: 1, revenue: 1, shopName: "$shop.name", shopSlug: "$shop.slug" } },
-    ]),
-    Order.aggregate([
-      { $lookup: { from: "shops", localField: "shop", foreignField: "_id", as: "shop" } },
-      { $unwind: { path: "$shop", preserveNullAndEmptyArrays: true } },
-      { $lookup: { from: "users", localField: "shop.vendor", foreignField: "_id", as: "vendor" } },
-      { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
-      { $group: { _id: "$shop.vendor", vendorName: { $first: "$vendor.name" }, vendorEmail: { $first: "$vendor.email" }, shopName: { $first: "$shop.name" }, orders: { $sum: 1 }, revenue: { $sum: "$total" } } },
-      { $sort: { orders: -1, revenue: -1 } }, { $limit: 5 },
-    ]),
-  ]);
-
-  res.render("admin/analytics", {
-    pageTitle: "Analytics",
-    activeSection: "analytics",
-    stats: { totalRevenue: totalRevenueAgg[0]?.total || 0, ordersToday, ordersThisWeek, ordersThisMonth },
-    mostPopularShop: popularShop[0] || null,
-    mostPopularItem: popularItem[0] || null,
-    peakHour: peakHour[0] ? humanizeTimeHour(peakHour[0]._id) : "Unknown",
-    topShops,
-    topVendors,
-    formatMoney,
-  });
-});

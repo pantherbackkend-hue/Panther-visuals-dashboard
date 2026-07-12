@@ -2,53 +2,36 @@
 <%- include("../partials/layout-start", { activeSection }) %>
 
 <section class="admin-page-head">
-  <div>
-    <p class="eyebrow"><%= mode === "edit" ? "Edit editor" : "Create editor" %></p>
-    <h1><%= mode === "edit" ? "Update editor" : "New editor" %></h1>
-    <p class="muted">Assign or reassign an editor to any workspace from one browser form.</p>
-  </div>
+  <p class="eyebrow">Editors</p>
+  <h1><%= mode === "create" ? "New Editor" : "Edit Editor" %></h1>
 </section>
 
-<div class="card admin-panel">
-  <form method="post" action="<%= mode === "edit" ? `/admin/editors/${vendor._id}/edit` : "/admin/editors" %>" class="form">
-    <label>
-      <span>Name</span>
-      <input name="name" type="text" maxlength="120" required value="<%= vendor?.name || "" %>" />
-    </label>
-    <label>
-      <span>Email</span>
-      <input name="email" type="email" maxlength="160" required value="<%= vendor?.email || "" %>" />
-    </label>
-    <label>
-      <span><%= mode === "edit" ? "New password (leave blank to keep existing)" : "Password" %></span>
-      <div class="pw-field">
-        <input name="password" type="password" id="pw-admin-vendor" <%= mode === "create" ? "required" : "" %> />
-        <button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePasswordVisibility('pw-admin-vendor', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
-      </div>
-    </label>
-    <label>
-      <span>Assigned workspace</span>
-      <select name="shop">
-        <option value="">No workspace assigned</option>
-        <% shops.forEach((shop) => { %>
-          <option value="<%= shop._id %>" <%= String(vendor?.shop?._id || vendor?.shop || "") === String(shop._id) ? "selected" : "" %>><%= shop.name %> (<%= shop.slug %>)</option>
+<div class="card" style="max-width:600px">
+  <form method="post" action="<%= mode === 'create' ? '/admin/editors' : '/admin/editors/' + vendor._id + '?_method=PUT' %>">
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" value="<%= vendor?.name || '' %>" required>
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="<%= vendor?.email || '' %>" required <%= mode === 'edit' ? 'readonly' : '' %>>
+    </div>
+    <div class="form-group">
+      <label for="password"><%= mode === "create" ? "Password" : "New Password (leave blank to keep current)" %></label>
+      <input type="password" id="password" name="password" <%= mode === 'create' ? 'required' : '' %>>
+    </div>
+    <div class="form-group">
+      <label for="shop">Assigned Workspace</label>
+      <select id="shop" name="shop">
+        <option value="">-- None --</option>
+        <% shops.forEach(function(s) { %>
+          <option value="<%= s._id %>" <%= String(vendor?.shop?._id || vendor?.shop) === String(s._id) ? 'selected' : '' %>><%= s.name %></option>
         <% }) %>
       </select>
-    </label>
-    <% if (mode === "edit") { %>
-      <label>
-        <span>Status</span>
-        <select name="isActive">
-          <option value="1" <%= vendor?.isActive !== false ? "selected" : "" %>>Enabled</option>
-          <option value="0" <%= vendor?.isActive === false ? "selected" : "" %>>Disabled</option>
-        </select>
-      </label>
-    <% } %>
-    <div class="row">
-      <button class="btn" type="submit"><%= mode === "edit" ? "Save changes" : "Create editor" %></button>
+    </div>
+    <div class="form-actions">
       <a class="btn btn--outline" href="/admin/editors">Cancel</a>
+      <button class="btn" type="submit"><%= mode === "create" ? "Create Editor" : "Save Changes" %></button>
     </div>
   </form>
 </div>
