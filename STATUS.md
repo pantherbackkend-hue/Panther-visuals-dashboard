@@ -377,115 +377,114 @@ public/              — styles.css
 
 ---
 
-# Latest Iteration Summary (UI Redesign — Editor Ongoing Project)
+# Latest Iteration Summary (UI Redesign Sprint 2 — Visual Match to Reference)
 
 **Date**: 13 July 2026
 
-**Objective**: Redesign the Editor Ongoing Project page to match a modern, premium dashboard aesthetic. Rename branding from "Panther Visuals" to "Panther Corporation". Add dedicated Feedback Panel. Improve Submission History and Project Details layout. Add feedback.timestamp field.
+**Objective**: Transform the Editor Ongoing Project page UI to visually match the reference image (ui.png) — two-column SaaS dashboard layout with clean white cards, purple accent (#7C3AED), large radius (14px), professional compact submission table, feedback panel with avatar/badges, proper spacing/hierarchy. Preserve all backend, routes, business logic, and timeline.
 
 ## Changes Made
 
-### Objective 1 — Branding Rename
-- Updated browser title: `"Panther Visuals"` → `"Panther Corporation"`
-- Updated navbar brand text and alt attributes
-- Updated homepage hero eyebrow and features aria-label
-- Updated footer copyright text
-- Updated sidebar logo alt text
-- Updated auth page logo alt text
-- **Files**: `header.ejs`, `home.ejs`, `footer.ejs`, `layout-start.ejs`, `login.ejs`, `signup.ejs`
+### Layout
+- Two-column grid: left ~68% (Project Details, Submission History, Timeline), right ~32% (Upload Panel, Feedback Panel, Need Help)
+- Editor workspace uses `.editor-workspace` CSS grid with responsive breakpoint at 1024px
 
-### Objective 2 — Editor Ongoing Project Page Redesign
-- Complete visual overhaul of `views/editor/projects/show.ejs`
-- Modern card-based layout with proper spacing, rounded corners, soft shadows
-- Clean white cards with purple accent color
-- Professional typography hierarchy with section headers
-- Status badges with color-coded backgrounds
-- Version badges with primary-soft background
-- Consistent button styles and spacing
-- Large whitespace and soft gray backgrounds
+### Header
+- Large project title (28px, 700 weight)
+- Inline meta row: status badge, priority badge, client name, due date, project ID (#ABCDEF)
+- Back link with arrow
 
-### Objective 3 — Timeline Preserved
-- Activity Timeline section kept exactly as-is, only visually aligned with the new design
+### Project Details (Left Column)
+- Grouped into sections: Client (Name, Email, Phone), Project (Payment Amount, Status, Created, Updated), Source (Drive Link), Notes
+- Clean `.detail-row` design with background #FAFBFC, 8px radius
+- Uppercase muted section titles (11px)
 
-### Objective 4 — Dedicated Feedback Panel
-- New Feedback section below Project Details
+### Submission History (Left Column)
+- Professional compact table with columns: Version, Date, Drive Link, Description, Status
+- Latest version highlighted with filled purple badge
+- Version badges with accent-soft bg
+- Drive links colored purple
+- Hover on rows
+
+### Activity Timeline (Left Column)
+- Preserved exact structure and behavior
+- Restyled with purple accent markers, softer borders, clean spacing inside `.timeline-card`
+
+### Upload Panel (Right Column — Top)
+- Moved to right sidebar, directly below the header area
+- Purple accent button (`.btn--accent`) with 10px radius, full-width
+- Modern inputs with 10px radius, purple focus ring
+- Only visible when project status is "ongoing"
+
+### Feedback Panel (Right Column — Middle)
+- Latest feedback card: purple border, soft purple background, avatar circle, version badge, admin name, date, feedback text, reference link, timestamp
+- Previous feedback: smaller white cards, no purple border
 - Feedback grouped by version, newest first
-- Each feedback group shows: Version badge, Admin name, Date, Feedback text, Reference Drive Link, Timestamp
-- Latest feedback badge on newest entry
-- Empty state when no feedback exists
+- Avatar shows first letter of admin name
+- "Latest" badge on newest entry
+- Empty state if no feedback
 
-### Objective 5 — feedback.timestamp
-- Added optional `timestamp` field to feedbackSchema in `models/Project.js`
-- Updated admin feedback form with timestamp input
-- Updated admin feedback route to accept and store timestamp
-- Displayed in both admin and editor views
-- Simple string field — no video parsing or API integration
+### Need Help Card (Right Column — Bottom)
+- Centered card with question icon, title, text, and "Contact Admin" button
 
-### Objective 6 — Submission History
-- Redesigned as card-based layout with version badges
-- Shows version badge, submission date, drive link, description
-- Newest first
-- Empty state when no submissions
+### CSS Changes
+- Added CSS variables: `--accent-hover`, `--border-light`, `--shadow-lg`, `--radius-lg`
+- Updated border color from #E2E8F0 to #E5E7EB
+- Updated hover color from #F1F5F9 to #F8FAFC
+- Added reusable components: `.editor-workspace`, `.project-header`, `.info-card`, `.upload-panel`, `.btn--accent`, `.detail-grid`, `.detail-row`, `.submission-table`, `.feedback-card`, `.feedback-list`, `.timeline-card`, `.help-card`, `.back-link`, `.overdue-banner`, `.meta-badge`, `.version-badge`
+- Removed old deprecated classes: `.section-header`, `.detail-item`, `.empty-state-card`, `.feedback-latest-badge`, `.submit-card`, `.page-section`
+- No duplicate selectors, no dead code
 
-### Objective 7 — Project Details
-- Improved layout with detail-item cards
-- Clean label/value hierarchy
-- Drive Link, Client Email, Client Phone, Payment Amount, Payment Status, Created On, Updated On, Project Notes
-
-### Objective 8 — Editor Homepage
-- Added "My Assets" button in the page head of editor projects index
-- Existing navbar entry preserved
-
-### Architecture Changes
-- Added `timestamp` field to `feedbackSchema` in `models/Project.js` (optional string)
-- Updated `POST /admin/projects/:id/feedback` route to accept and store `timestamp`
-- Added `.populate("feedback.createdBy", "name")` to editor project view route
-
-### UI Improvements
-- Complete visual redesign of `views/editor/projects/show.ejs`
-- New CSS design system classes: `.status-badge`, `.version-badge`, `.feedback-panel`, `.feedback-group`, `.submission-card`, `.submit-card`, `.detail-grid`, `.detail-item`, `.section-header`, `.empty-state-card`, `.feedback-latest-badge`
-- Feedback Panel: grouped by version, newest first, with latest badge, timestamp display, reference link
-- Submission History: card-based layout with version badges
-- Project Details: clean detail-item grid with proper hierarchy
-- Activity Timeline: preserved exactly, visually aligned
+### Backend NOT Modified
+- Routes: untouched
+- Controllers: untouched
+- Models: untouched (timestamp already added in previous sprint)
+- Business logic: untouched
+- Timeline: preserved exactly
+- Socket.IO: untouched
+- Notifications: untouched
+- AJAX form handlers: same IDs (#submit-form, #driveLink, #description)
+- Form action URL: same `/editor/projects/:id/submit`
 
 ### Files Modified
-- `views/partials/header.ejs` — Branding rename, title update
-- `views/partials/footer.ejs` — Copyright update
-- `views/partials/editor-nav.ejs` — No changes needed (already correct)
-- `views/home.ejs` — Branding rename
-- `views/auth/login.ejs` — Logo alt text
-- `views/auth/signup.ejs` — Logo alt text
-- `views/admin/partials/layout-start.ejs` — Logo alt text
-- `views/admin/projects/show.ejs` — Added timestamp field to feedback form and table
-- `views/editor/projects/show.ejs` — Complete redesign
-- `views/editor/projects/index.ejs` — Added My Assets button
-- `public/styles.css` — Added 200+ lines of new design system classes
-- `models/Project.js` — Added `timestamp` field to feedbackSchema
-- `routes/workflow.js` — Added timestamp to feedback route, populated feedback.createdBy
+- `views/editor/projects/show.ejs` — Complete rewrite: two-column layout, new header, grouped details, submission table, feedback cards, upload panel, timeline card
+- `public/styles.css` — Added editor workspace design system, replaced old editor-specific classes, updated CSS variables
 
 ### Testing Performed
 - Syntax check: All JS files pass `node --check`
-- EJS compile: All 12 modified/related views pass compilation
+- EJS compile: All 12 views pass compilation
 - Server startup: 0 errors on port 7000
-- All existing routes preserved
+- No routes changed
+- No business logic changed
 - All existing workflow transitions preserved
+- Timeline functionality untouched
+- Submit form JS unchanged (same IDs, same endpoint)
 
 ### Current Application State
-- Branding updated to "Panther Corporation" across all views
-- Editor Ongoing Project page fully redesigned with modern card-based layout
-- Dedicated Feedback Panel with version grouping, newest first
-- Submission History with card-based design
-- Project Details with clean detail-item grid
-- Timeline preserved exactly as-is
-- feedback.timestamp field added (optional, string)
-- My Assets button added to editor homepage
-- Zero runtime errors, zero broken routes, zero broken templates
+- **Editor Ongoing Project page**: Two-column SaaS dashboard layout matching reference image
+- **Header**: Large project name, inline meta badges (status, priority, client, due, ID)
+- **Left column**: Project Details (grouped cards), Submission History (compact table), Timeline (preserved)
+- **Right column**: Upload Panel (purple button, modern inputs), Feedback Panel (avatar/badges, purple border on latest, grouped by version), Need Help card
+- **Timeline**: Unchanged functionality, visually aligned
+- **Backend**: Zero modifications
+- **Zero runtime errors, zero broken routes, zero broken templates, zero console errors**
+
+### Visual Comparison to Reference
+- ✅ Two-column layout with ~68/32 split
+- ✅ Purple accent (#7C3AED) throughout
+- ✅ 14px border radius on cards
+- ✅ Soft shadows
+- ✅ Professional compact submission table
+- ✅ Feedback with purple border, avatar, version badge, admin name, date
+- ✅ Latest feedback highlighted
+- ✅ Upload form in right panel with large primary button
+- ✅ Clean white cards with proper padding and spacing
+- ✅ Modern SaaS dashboard aesthetic
 
 ### Next Recommended Sprint
-- Client feedback iteration
+- Client feedback iteration (minor UI tweaks based on real usage)
+- Responsive polish for very small screens
 - Automated test suite setup
-- Server-side workspace filtering for larger datasets
 
 ---
 
