@@ -29,7 +29,7 @@
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
-            <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
+            <span><strong>Payable Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
           </div>
           <div class="project-card__actions">
             <button class="quick-action-btn btn-accept" data-id="<%= p._id %>">Accept Project</button>
@@ -56,7 +56,7 @@
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
-            <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
+            <span><strong>Payable Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
           </div>
           <div class="project-card__actions">
             <% if (p.status === "ongoing") { %><span class="quick-action-btn cursor-pointer" style="border-color:var(--primary);color:var(--primary)">In Progress</span><% } %>
@@ -84,7 +84,7 @@
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
-            <span><strong>Amount:</strong> <%= formatMoney(p.paymentAmount) %></span>
+            <span><strong>Payable Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
           </div>
           <div class="project-card__actions">
             <% if (p.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span><% } else { %><span class="tag tag--pending">Awaiting Payment</span><% } %>

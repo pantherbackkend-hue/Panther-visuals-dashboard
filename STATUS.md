@@ -166,6 +166,37 @@ public/              — styles.css
 
 ---
 
+# Editor UI Security
+
+**Date**: 14 July 2026
+
+**Objective**: Restrict financial information visible to editors to only what they need — their payable amount.
+
+## Changes Made
+
+- `views/editor/projects/show.ejs` — Replaced "Payment Amount" (showing `payment.amount`, the client budget) with "Payable Amount" (showing `payment.editorAmount`). Added "Payment Status" badge and conditional "Paid At" row. Editors no longer see client-facing financial data.
+- `views/editor/projects/index.ejs` — Changed "Amount" label to "Payable Amount" across all three tabs (assigned, ongoing, completed). Now displays `payment.editorAmount` instead of `payment.amount`.
+
+## What Was NOT Changed
+
+- Admin project detail (`views/admin/projects/show.ejs`) — untouched; admin/owner still see Client Amount, Editor Amount, Profit, Payment Status
+- Admin project list — untouched
+- Admin dashboard, profits, analytics — untouched
+- Owner profit/analytics pages — untouched
+- Routes, middleware, permissions, database schema — none modified
+- Editor workflow (accept, submit, feedback, transitions) — unchanged
+
+## Verification
+
+| Check | Result |
+|-------|--------|
+| EJS compile (show.ejs) | PASS |
+| EJS compile (index.ejs) | PASS |
+| Node.js syntax check (all JS files) | PASS |
+| Server startup (0 errors, port 7000) | PASS |
+
+---
+
 # Technical Debt
 
 - `Shop` model retains legacy payment gateway fields — unused

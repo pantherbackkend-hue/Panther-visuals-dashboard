@@ -74,9 +74,23 @@
         <div class="detail-group">
           <h3 class="detail-group__title">Project</h3>
           <div class="detail-row">
-            <span class="detail-row__label">Payment Amount</span>
-            <span class="detail-row__value"><%= formatMoney(project.payment?.amount || 0) %></span>
+            <span class="detail-row__label">Payable Amount</span>
+            <span class="detail-row__value"><%= formatMoney(project.payment?.editorAmount || 0) %></span>
           </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Payment Status</span>
+            <span class="detail-row__value">
+              <span class="tag tag--<%= project.payment?.status === 'paid' ? 'ok' : 'pending' %>">
+                <%= project.payment?.status === 'paid' ? 'Paid' : 'Pending' %>
+              </span>
+            </span>
+          </div>
+          <% if (project.payment?.status === 'paid' && project.payment?.paidAt) { %>
+          <div class="detail-row">
+            <span class="detail-row__label">Paid At</span>
+            <span class="detail-row__value"><%= new Date(project.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+          </div>
+          <% } %>
           <div class="detail-row">
             <span class="detail-row__label">Status</span>
             <span class="detail-row__value">
