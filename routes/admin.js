@@ -161,12 +161,28 @@ adminRouter.get("/", async (req, res) => {
     status: { $nin: ["completed"] },
   });
 
+  const profitStats = req.user.role === "owner"
+    ? await Project.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalClientAmount: { $sum: { $ifNull: ["$payment.clientAmount", { $ifNull: ["$payment.amount", 0] }] } },
+            totalEditorAmount: { $sum: { $ifNull: ["$payment.editorAmount", 0] } },
+            totalPaid: {
+              $sum: { $cond: [{ $eq: ["$payment.status", "paid"] }, 1, 0] },
+            },
+          },
+        },
+      ])
+    : [];
+
   const workflowProjects = allProjects.map((p) => ({
     ...p,
     clientName: p.client?.name || p.clientName || "",
     paymentAmount: p.payment?.amount || 0,
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
+    ownerAssignmentLabel: p.ownerAssignment === "admin" ? "Via JR Admin" : p.ownerAssignment === "direct" ? "Direct to Editor" : null,
   }));
 
   const editorWorkload = await Promise.all(
@@ -210,6 +226,15 @@ adminRouter.get("/", async (req, res) => {
     statusLabel: formatStatus(entry.newStatus || entry.previousStatus || ""),
   }));
 
+  const profitData = profitStats.length > 0
+    ? {
+        totalClientAmount: profitStats[0].totalClientAmount || 0,
+        totalEditorAmount: profitStats[0].totalEditorAmount || 0,
+        totalProfit: (profitStats[0].totalClientAmount || 0) - (profitStats[0].totalEditorAmount || 0),
+        totalPaid: profitStats[0].totalPaid || 0,
+      }
+    : null;
+
   res.render("admin/dashboard", {
     pageTitle: "Admin Dashboard",
     activeSection: "dashboard",
@@ -240,6 +265,7 @@ adminRouter.get("/", async (req, res) => {
     recentNotifications,
     recentActivity: recentActivityTimeline,
     upcomingDeadlines,
+    profitData,
     formatMoney,
     formatStatus,
   });
@@ -292,6 +318,7 @@ adminRouter.get("/workspace", async (req, res) => {
     latestVersion: p.submissions && p.submissions.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
+    ownerAssignmentLabel: p.ownerAssignment === "admin" ? "Via JR Admin" : p.ownerAssignment === "direct" ? "Direct to Editor" : null,
   }));
 
   const activeCounts = await Project.aggregate([
@@ -363,7 +390,12 @@ adminRouter.post("/workspace/assign", async (req, res) => {
     }
 
     if (price && !isNaN(Number(price))) {
-      project.payment.amount = Number(price);
+      if (project.ownerAssignment) {
+        project.payment.editorAmount = Number(price);
+      } else {
+        project.payment.amount = Number(price);
+        project.payment.clientAmount = Number(price);
+      }
     }
 
     project.activityTimeline.push({

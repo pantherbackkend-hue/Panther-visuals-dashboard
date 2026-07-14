@@ -87,6 +87,9 @@
       <div>
         <a href="/admin/projects/<%= project._id %>" class="admin-link fw-semibold text-sm"><%= project.projectName %></a>
         <p class="muted text-sm mt-0 mb-0"><%= project.clientName %></p>
+        <% if (project.ownerAssignmentLabel) { %>
+          <span class="tag tag--info" style="font-size:10px;margin-top:2px"><%= project.ownerAssignmentLabel %></span>
+        <% } %>
       </div>
       <span class="tag tag--<%= project.badgeColor %> text-xs" style="white-space:nowrap"><%= project.statusLabel %></span>
     </div>

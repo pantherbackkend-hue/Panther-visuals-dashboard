@@ -1,0 +1,41 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Insights</p>
+    <h1>Analytics</h1>
+    <p class="muted">High-level overview of platform activity, users, and financials.</p>
+  </div>
+  <a class="btn btn--outline" href="/admin">Back to Dashboard</a>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Total Projects</p><h2><%= counts.total %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Active Projects</p><h2><%= counts.active %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Under Review</p><h2><%= counts.review %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Completed</p><h2><%= counts.completed %></h2></article>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Total Users</p><h2><%= userBreakdown.total %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Owners</p><h2><%= userBreakdown.owners %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Admins</p><h2><%= userBreakdown.admins %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editors</p><h2><%= userBreakdown.editors %></h2></article>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Client Revenue</p><h2 style="color:var(--success)"><%= formatMoney(totalClientAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editor Costs</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Net Profit</p><h2 style="color:<%= totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(totalProfit) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Payments Made</p><h2><%= totalPaid %></h2></article>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Owner-Assigned Projects</p><h2><%= ownerProjects %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Direct to Editor</p><h2><%= directAssign %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Via JR Admin</p><h2><%= adminAssign %></h2></article>
+</section>
+
+<%- include("./partials/layout-end") %>
+<%- include("../../partials/footer") %>

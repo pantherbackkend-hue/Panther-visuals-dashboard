@@ -30,6 +30,15 @@
   <article class="card admin-metric"><p class="muted small">Overdue Projects</p><h2 style="color:<%= overdueProjects > 0 ? 'var(--danger)' : 'inherit' %>"><%= overdueProjects %></h2></article>
 </section>
 
+<% if (profitData) { %>
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Client Revenue</p><h2 style="color:var(--success)"><%= formatMoney(profitData.totalClientAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editor Costs</p><h2 style="color:var(--danger)"><%= formatMoney(profitData.totalEditorAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Net Profit</p><h2 style="color:<%= profitData.totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profitData.totalProfit) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Payments Made</p><h2><%= profitData.totalPaid %></h2></article>
+</section>
+<% } %>
+
 <% if (overdueProjects > 0) { %>
   <div class="overdue-warning">
     <strong><%= overdueProjects %></strong> project(s) are past their due date.

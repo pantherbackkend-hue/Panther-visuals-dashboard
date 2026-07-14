@@ -1,0 +1,56 @@
+<%- include("../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Financials</p>
+    <h1>Profit Overview</h1>
+    <p class="muted">Client revenue, editor costs, and profit across all projects.</p>
+  </div>
+  <a class="btn btn--outline" href="/admin">Back to Dashboard</a>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Total Client Amount</p><h2 style="color:var(--success)"><%= formatMoney(totalClientAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Editor Cost</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Profit</p><h2 style="color:<%= totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(totalProfit) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Completed & Paid</p><h2><%= totalPaid %></h2></article>
+</section>
+
+<div class="card admin-panel">
+  <h2 class="h2 mt-0">All Projects Profit Breakdown</h2>
+  <div style="overflow-x:auto">
+    <table class="table" role="table">
+      <thead>
+        <tr>
+          <th scope="col">Project</th>
+          <th scope="col">Client</th>
+          <th scope="col">Status</th>
+          <th scope="col">Client Amt</th>
+          <th scope="col">Editor Amt</th>
+          <th scope="col">Profit</th>
+          <th scope="col">Payment</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% projects.forEach(function(p) { %>
+          <tr>
+            <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
+            <td><%= p.clientName %></td>
+            <td><span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span></td>
+            <td><%= formatMoney(p.clientAmount) %></td>
+            <td><%= formatMoney(p.editorAmount) %></td>
+            <td style="color:<%= p.profitColor %>;font-weight:600"><%= formatMoney(p.profit) %></td>
+            <td><%= p.payment?.status === "paid" ? '<span class="tag tag--ok">Paid</span>' : '<span class="tag tag--pending">Pending</span>' %></td>
+          </tr>
+        <% }) %>
+        <% if (projects.length === 0) { %>
+          <tr><td colspan="7" class="muted" style="text-align:center">No projects found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include("./partials/layout-end") %>
+<%- include("../../partials/footer") %>

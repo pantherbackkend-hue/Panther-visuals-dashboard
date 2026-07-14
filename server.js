@@ -11,6 +11,7 @@ import { attachUser } from "./middleware/auth.js";
 import { authRouter } from "./routes/auth.js";
 import { adminRouter } from "./routes/admin.js";
 import { workflowRouter } from "./routes/workflow.js";
+import { ownerRouter } from "./routes/owner.js";
 import { initSocket } from "./socket/index.js";
 
 dotenv.config();
@@ -106,6 +107,7 @@ app.get("/", (req, res) => {
 app.use(authRouter);
 app.use(workflowRouter);
 app.use("/admin", adminRouter);
+app.use("/admin", ownerRouter);
 
 app.use((err, req, res, _next) => {
   console.error("=== GLOBAL EXPRESS ERROR HANDLER ===");

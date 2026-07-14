@@ -13,6 +13,11 @@
   <div class="flex gap-8 flex-wrap">
     <a class="btn btn--outline" href="/admin/projects">Back</a>
     <a class="btn btn--outline" href="/admin/projects/<%= project._id %>/edit">Edit</a>
+    <% if (project.ownerAssignment) { %>
+      <span class="tag tag--info" style="font-size:11px;align-self:center">
+        <%= project.ownerAssignment === 'admin' ? 'Owner → JR Admin' : 'Owner → Editor' %>
+      </span>
+    <% } %>
   </div>
 </section>
 
@@ -27,7 +32,14 @@
   <article class="card admin-metric"><p class="muted small">Client</p><h2><%= project.client?.name || project.clientName || "" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Editor</p><h2><%= project.assignedEditor?.name || "Unassigned" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></h2></article>
-  <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.payment?.amount || 0) %></h2></article>
+  <% var showProfit = currentUser.role === "owner" && (project.ownerAssignment || project.payment?.editorAmount > 0); %>
+  <% if (showProfit) { %>
+    <article class="card admin-metric"><p class="muted small">Client Amt</p><h2><%= formatMoney(project.payment?.clientAmount || 0) %></h2></article>
+    <article class="card admin-metric"><p class="muted small">Editor Amt</p><h2><%= formatMoney(project.payment?.editorAmount || 0) %></h2></article>
+    <article class="card admin-metric"><p class="muted small">Profit</p><h2 style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></h2></article>
+  <% } else { %>
+    <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.payment?.amount || 0) %></h2></article>
+  <% } %>
   <article class="card admin-metric"><p class="muted small">Due</p><h2 class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Versions</p><h2><%= project.submissions?.length || 0 %></h2></article>
 </section>
@@ -144,6 +156,15 @@
       <div><span>Completed</span><strong><%= new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
     <% } %>
     <div><span>Payment Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
+    <% if (project.payment?.clientAmount > 0) { %>
+      <div><span>Client Amount</span><strong><%= formatMoney(project.payment.clientAmount) %></strong></div>
+    <% } %>
+    <% if (project.payment?.editorAmount > 0) { %>
+      <div><span>Editor Amount</span><strong><%= formatMoney(project.payment.editorAmount) %></strong></div>
+    <% } %>
+    <% if (showProfit) { %>
+      <div><span>Profit</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
+    <% } %>
     <div><span>Payment Status</span><strong>
       <% if (project.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span>
       <% } else if (project.payment?.status === "pending" && project.status === "completed") { %><span class="tag tag--pending">Awaiting Payment</span>
@@ -159,7 +180,8 @@
 <% var editorUpi = project.assignedEditor?.upiId || ""; %>
 <% var editorName = project.assignedEditor?.name || "Editor"; %>
 <% var clientName = project.client?.name || project.clientName || ""; %>
-<% var waMsg = encodeURIComponent("Hi " + editorName + "%0A%0APayment has been completed.%0A%0AProject: " + project.projectName + "%0AClient: " + clientName + "%0AAmount: ₹" + (project.payment?.amount || 0) + "%0A%0AThank you."); %>
+<% var waPayAmount = project.payment?.editorAmount || project.payment?.amount || 0; %>
+<% var waMsg = encodeURIComponent("Hi " + editorName + "%0A%0APayment has been completed.%0A%0AProject: " + project.projectName + "%0AClient: " + clientName + "%0AAmount: ₹" + waPayAmount + "%0A%0AThank you."); %>
 <% var waUrl = "https://wa.me/?text=" + waMsg; %>
 <div class="card admin-panel payment-section">
     <h2 class="h2 mt-0">Payment <span class="tag tag--<%= project.payment?.status === 'paid' ? 'ok' : 'pending' %>" style="margin-left:8px"><%= project.payment?.status === 'paid' ? 'Paid' : 'Pending' %></span></h2>
@@ -168,6 +190,15 @@
     <div class="payment-detail"><span>Client</span><strong><%= clientName %></strong></div>
     <div class="payment-detail"><span>Editor</span><strong><%= editorName %></strong></div>
     <div class="payment-detail"><span>Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
+    <% if (project.payment?.clientAmount > 0) { %>
+      <div class="payment-detail"><span>Client Amount</span><strong><%= formatMoney(project.payment.clientAmount) %></strong></div>
+    <% } %>
+    <% if (project.payment?.editorAmount > 0) { %>
+      <div class="payment-detail"><span>Editor Amount</span><strong><%= formatMoney(project.payment.editorAmount) %></strong></div>
+    <% } %>
+    <% if (showProfit) { %>
+      <div class="payment-detail"><span>Profit</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
+    <% } %>
     <div class="payment-detail"><span>Editor UPI ID</span><strong><%= editorUpi || '<span class="muted">Not set</span>' %></strong></div>
     <div class="payment-detail"><span>Completed</span><strong><%= project.completedAt ? new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
     <% if (project.payment?.status === "paid") { %>

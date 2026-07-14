@@ -42,12 +42,17 @@ workflowRouter.get(
       .sort({ name: 1 })
       .lean();
 
+    const admins = req.user.role === "owner"
+      ? await User.find({ role: "admin", isActive: true }).sort({ name: 1 }).lean()
+      : [];
+
     res.render("admin/projects/form", {
       pageTitle: "Create Project",
       activeSection: "projects",
       mode: "create",
       project: null,
       editors,
+      admins,
       formatStatus,
     });
   },
@@ -71,6 +76,10 @@ workflowRouter.post(
         dueDate,
         notes,
         paymentAmount,
+        ownerAssignment,
+        ownerAdmin,
+        clientAmount,
+        editorAmount,
       } = req.body;
 
       if (!clientName || !clientName.trim()) {
@@ -109,6 +118,18 @@ workflowRouter.post(
         }
       }
 
+      const ca = Number(clientAmount || paymentAmount) || 0;
+      const ea = Number(editorAmount) || 0;
+      const paymentData = { amount: ca, clientAmount: ca, editorAmount: ea };
+
+      if (req.user.role === "owner") {
+        paymentData.clientAmount = ca;
+        paymentData.editorAmount = ea;
+      }
+
+      const isOwnerAssignAdmin = ownerAssignment === "admin";
+      const isOwnerAssignDirect = ownerAssignment === "direct";
+
       const project = await Project.create({
         client: {
           name: clientName.trim(),
@@ -116,13 +137,15 @@ workflowRouter.post(
           phone: String(clientPhone || "").trim(),
         },
         projectName: projectName.trim(),
-        assignedEditor: assignedEditor || null,
+        assignedEditor: isOwnerAssignDirect && assignedEditor ? assignedEditor : (assignedEditor || null),
         driveLink: String(driveLink || "").trim(),
         priority: priority || "medium",
         dueDate: dueDate || null,
         notes: String(notes || "").trim(),
-        payment: { amount: Number(paymentAmount) || 0 },
-        status: "pending_assignment",
+        payment: paymentData,
+        status: isOwnerAssignDirect && assignedEditor ? "assigned" : "pending_assignment",
+        ownerAssignment: req.user.role === "owner" ? (ownerAssignment || null) : null,
+        ownerAdmin: isOwnerAssignAdmin && ownerAdmin ? ownerAdmin : null,
         createdBy: req.user._id,
       });
 
@@ -135,22 +158,38 @@ workflowRouter.post(
         notes: `Project created by ${req.user.name}`,
       });
 
-      if (assignedEditor) {
+      if (assignedEditor && !isOwnerAssignAdmin) {
         const editor = await User.findById(assignedEditor);
+        if (editor) {
+          project.assignedEditor = editor._id;
+          project.status = "assigned";
+          const assignNote = isOwnerAssignDirect
+            ? `Assigned directly to ${editor.name}`
+            : `Assigned to ${editor.name}`;
+          project.activityTimeline.push({
+            action: "Assigned",
+            user: req.user._id,
+            userName: req.user.name,
+            previousStatus: "pending_assignment",
+            newStatus: "assigned",
+            notes: assignNote,
+          });
+          await notifyProjectAssigned(project, editor);
+        }
+      }
 
-        project.assignedEditor = editor._id;
-        project.status = "assigned";
-
-        project.activityTimeline.push({
-          action: "Assigned",
-          user: req.user._id,
-          userName: req.user.name,
-          previousStatus: "pending_assignment",
-          newStatus: "assigned",
-          notes: `Assigned to ${editor.name}`,
-        });
-
-        await notifyProjectAssigned(project, editor);
+      if (isOwnerAssignAdmin && ownerAdmin) {
+        const admin = await User.findById(ownerAdmin);
+        if (admin) {
+          project.activityTimeline.push({
+            action: "Project Created",
+            user: req.user._id,
+            userName: req.user.name,
+            previousStatus: "",
+            newStatus: "pending_assignment",
+            notes: `Assigned to JR Admin ${admin.name} for editor assignment`,
+          });
+        }
       }
 
       await project.save();
@@ -215,6 +254,7 @@ workflowRouter.get(
       paymentAmount: p.payment?.amount || 0,
       statusLabel: formatStatus(p.status),
       badgeColor: getBadgeColor(p.status),
+      ownerAssignmentLabel: p.ownerAssignment === "admin" ? "Via JR Admin" : p.ownerAssignment === "direct" ? "Direct to Editor" : null,
     }));
 
     res.render("admin/projects/index", {
@@ -254,23 +294,32 @@ workflowRouter.get(
       return res.redirect("/admin/projects");
     }
 
-    const [editors, projectNotifications] = await Promise.all([
+    const [editors, projectNotifications, admins] = await Promise.all([
       User.find({ role: "editor", isActive: true }).sort({ name: 1 }).lean(),
       Notification.find({ project: project._id })
         .sort({ createdAt: -1 })
         .limit(10)
         .lean(),
+      req.user.role === "owner"
+        ? User.find({ role: "admin", isActive: true }).sort({ name: 1 }).lean()
+        : Promise.resolve([]),
     ]);
 
     const allowedTransitions = getAllowedTransitions(project.status);
+
+    const clientAmount = project.payment?.clientAmount || project.payment?.amount || 0;
+    const editorAmount = project.payment?.editorAmount || 0;
+    const profit = clientAmount - editorAmount;
 
     res.render("admin/projects/show", {
       pageTitle: `${project.projectName} - Project Details`,
       activeSection: "projects",
       project,
       editors,
+      admins,
       allowedTransitions,
       projectNotifications,
+      profit,
       formatStatus,
       getBadgeColor,
       formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
@@ -600,13 +649,14 @@ workflowRouter.post(
       project.payment.paidAt = new Date();
       project.payment.paidBy = req.user._id;
 
+      const paidAmount = project.payment?.editorAmount || project.payment?.amount || 0;
       project.activityTimeline.push({
         action: "Payment Done",
         user: req.user._id,
         userName: req.user.name,
         previousStatus: project.status,
         newStatus: project.status,
-        notes: `Payment of ₹${project.payment.amount} marked as paid`,
+        notes: `Payment of ₹${paidAmount} marked as paid`,
       });
 
       await project.save();
@@ -616,7 +666,7 @@ workflowRouter.post(
         recipientRole: "editor",
         project: project._id,
         title: `Payment completed: "${project.projectName}"`,
-        message: `Payment of ₹${project.payment.amount} has been processed.`,
+        message: `Payment of ₹${paidAmount} has been processed.`,
         type: "payment_done",
         actionUrl: `/editor/projects/${project._id}`,
       });
@@ -656,12 +706,17 @@ workflowRouter.get(
       .sort({ name: 1 })
       .lean();
 
+    const admins = req.user.role === "owner"
+      ? await User.find({ role: "admin", isActive: true }).sort({ name: 1 }).lean()
+      : [];
+
     res.render("admin/projects/form", {
       pageTitle: `Edit ${project.projectName}`,
       activeSection: "projects",
       mode: "edit",
       project,
       editors,
+      admins,
       formatStatus,
     });
   },
@@ -695,28 +750,50 @@ workflowRouter.post(
       dueDate,
       notes,
       paymentAmount,
+      clientAmount,
+      editorAmount,
     } = req.body;
 
-    if (!clientName || !clientName.trim()) {
-      req.flash("error", "Client name is required.");
-      return res.redirect(`/admin/projects/${id}/edit`);
-    }
-    if (!projectName || !projectName.trim()) {
-      req.flash("error", "Project name is required.");
-      return res.redirect(`/admin/projects/${id}/edit`);
+    const isOwnerProject = project.ownerAssignment && req.user.role !== "owner";
+
+    if (!isOwnerProject) {
+      if (!clientName || !clientName.trim()) {
+        req.flash("error", "Client name is required.");
+        return res.redirect(`/admin/projects/${id}/edit`);
+      }
+      if (!projectName || !projectName.trim()) {
+        req.flash("error", "Project name is required.");
+        return res.redirect(`/admin/projects/${id}/edit`);
+      }
     }
 
-    project.client = {
-      name: clientName.trim(),
-      email: String(clientEmail || "").trim(),
-      phone: String(clientPhone || "").trim(),
-    };
-    project.projectName = projectName.trim();
-    project.driveLink = String(driveLink || "").trim();
-    project.priority = priority || "medium";
-    project.dueDate = dueDate || null;
-    project.notes = String(notes || "").trim();
-    project.payment.amount = Number(paymentAmount) || 0;
+    if (req.user.role === "owner" || !project.ownerAssignment) {
+      project.client = {
+        name: String(clientName || project.client?.name || "").trim(),
+        email: String(clientEmail || project.client?.email || "").trim(),
+        phone: String(clientPhone || project.client?.phone || "").trim(),
+      };
+      project.projectName = String(projectName || project.projectName || "").trim();
+      project.driveLink = String(driveLink || project.driveLink || "").trim();
+      project.priority = priority || project.priority || "medium";
+      project.dueDate = dueDate || project.dueDate || null;
+      project.notes = String(notes || project.notes || "").trim();
+    }
+
+    if (req.user.role === "owner") {
+      const ca = Number(clientAmount);
+      const ea = Number(editorAmount);
+      project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
+      project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
+      project.payment.amount = project.payment.clientAmount;
+    } else if (project.ownerAssignment) {
+      const ea = Number(editorAmount);
+      project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
+    } else {
+      const pa = Number(paymentAmount);
+      project.payment.amount = isNaN(pa) ? 0 : pa;
+      project.payment.clientAmount = project.payment.amount;
+    }
 
     project.activityTimeline.push({
       action: "Updated",

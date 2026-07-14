@@ -1,0 +1,46 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">User Management</p>
+    <h1>All Users</h1>
+    <p class="muted">View all registered users across roles.</p>
+  </div>
+  <a class="btn btn--outline" href="/admin">Back to Dashboard</a>
+</section>
+
+<div class="card admin-panel">
+  <div style="overflow-x:auto">
+    <table class="table" role="table">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Email</th>
+          <th scope="col">Role</th>
+          <th scope="col">Status</th>
+          <th scope="col">Availability</th>
+          <th scope="col">Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function(u) { %>
+          <tr>
+            <td><strong><%= u.name %></strong></td>
+            <td><%= u.email %></td>
+            <td><span class="tag tag--<%= u.role === 'owner' ? 'ok' : u.role === 'admin' ? 'info' : 'pending' %>"><%= u.role %></span></td>
+            <td><%= u.isActive ? '<span class="tag tag--ok">Active</span>' : '<span class="tag tag--danger">Disabled</span>' %></td>
+            <td><%= u.availability || '—' %></td>
+            <td><%= new Date(u.createdAt).toLocaleDateString("en-IN") %></td>
+          </tr>
+        <% }) %>
+        <% if (users.length === 0) { %>
+          <tr><td colspan="6" class="muted" style="text-align:center">No users found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include("./partials/layout-end") %>
+<%- include("../../partials/footer") %>

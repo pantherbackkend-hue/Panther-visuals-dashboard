@@ -31,7 +31,35 @@
       <input id="projectName" name="projectName" type="text" required value="<%= project?.projectName || "" %>" />
     </div>
 
+    <% if (currentUser.role === "owner" && mode === "create") { %>
     <div class="form-group">
+      <label>Assignment Type</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;padding:8px 0">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="ownerAssignment" value="" checked onchange="toggleOwnerAssignment()" /> Standard (no assignment)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="ownerAssignment" value="admin" onchange="toggleOwnerAssignment()" /> Assign to JR Admin
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="ownerAssignment" value="direct" onchange="toggleOwnerAssignment()" /> Assign directly to Editor
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group" id="ownerAdminGroup" style="display:none">
+      <label for="ownerAdmin">Select JR Admin</label>
+      <select id="ownerAdmin" name="ownerAdmin">
+        <option value="">— Select JR Admin —</option>
+        <% (admins || []).forEach(function(admin) { %>
+          <option value="<%= admin._id %>"><%= admin.name %> (<%= admin.email %>)</option>
+        <% }) %>
+      </select>
+      <p class="form-help">The JR Admin will assign an editor and manage this project.</p>
+    </div>
+    <% } %>
+
+    <div class="form-group" id="editorSelectGroup" style="<%= currentUser.role === 'owner' && mode === 'create' ? 'display:none' : '' %>">
       <label for="assignedEditor">Assign Editor</label>
       <select id="assignedEditor" name="assignedEditor">
         <option value="">— Unassigned —</option>
@@ -41,6 +69,28 @@
       </select>
       <p class="form-help">Editors on leave or fully occupied cannot be assigned.</p>
     </div>
+
+    <% if (currentUser.role === "owner" || (project && !project.ownerAssignment)) { %>
+    <div class="form-group">
+      <label for="paymentAmount">Client Amount (₹)</label>
+      <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.clientAmount || project?.payment?.amount || project?.paymentAmount || "" %>" />
+    </div>
+    <% } %>
+
+    <% if (currentUser.role === "owner" || project?.ownerAssignment) { %>
+    <div class="form-group">
+      <label for="editorAmount">Editor Amount (₹)</label>
+      <input id="editorAmount" name="editorAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.editorAmount || "" %>" />
+      <p class="form-help">Amount paid to the editor. Profit = Client Amount - Editor Amount.</p>
+    </div>
+    <% } %>
+
+    <% if (currentUser.role !== "owner" && !(project && project.ownerAssignment)) { %>
+    <div class="form-group">
+      <label for="paymentAmount">Payment Amount (₹)</label>
+      <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.amount || project?.paymentAmount || "" %>" />
+    </div>
+    <% } %>
 
     <div class="form-group">
       <label for="priority">Priority</label>
@@ -55,11 +105,6 @@
     <div class="form-group">
       <label for="dueDate">Due Date</label>
       <input id="dueDate" name="dueDate" type="date" value="<%= project?.dueDate ? new Date(project.dueDate).toISOString().split("T")[0] : "" %>" />
-    </div>
-
-    <div class="form-group">
-      <label for="paymentAmount">Payment Amount (₹)</label>
-      <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.amount || project?.paymentAmount || "" %>" />
     </div>
 
     <div class="form-group">
@@ -78,6 +123,21 @@
     </div>
   </form>
 </div>
+
+<script>
+function toggleOwnerAssignment() {
+  var radios = document.querySelectorAll('input[name="ownerAssignment"]');
+  var selected;
+  radios.forEach(function(r) { if (r.checked) selected = r.value; });
+
+  var adminGroup = document.getElementById('ownerAdminGroup');
+  var editorGroup = document.getElementById('editorSelectGroup');
+
+  if (adminGroup) adminGroup.style.display = selected === 'admin' ? '' : 'none';
+  if (editorGroup) editorGroup.style.display = selected === 'direct' ? '' : (selected === '' ? '' : 'none');
+}
+<%= currentUser.role === 'owner' && mode === 'create' ? 'toggleOwnerAssignment();' : '' %>
+</script>
 
 <%- include("../partials/layout-end") %>
 <%- include("../../partials/footer") %>

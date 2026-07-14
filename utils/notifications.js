@@ -50,6 +50,9 @@ export function broadcastNotification(notification) {
 
   if (notification.recipientRole) {
     io.to(`role:${notification.recipientRole}`).emit("notification", payload);
+    if (notification.recipientRole === "admin") {
+      io.to("role:owner").emit("notification", payload);
+    }
   }
 }
 
@@ -59,6 +62,18 @@ export async function notifyProjectCreated(project, adminUser) {
     recipientRole: "admin",
     project: project._id,
     title: `Project "${project.projectName}" created`,
+    message: `Client: ${project.client?.name || project.clientName}`,
+    type: "project_created",
+    actionUrl: `/admin/projects/${project._id}`,
+  });
+}
+
+export async function notifyProjectCreatedOwner(project, ownerUser) {
+  return createNotification({
+    recipient: ownerUser?._id,
+    recipientRole: "owner",
+    project: project._id,
+    title: `Project "${project.projectName}" created by owner`,
     message: `Client: ${project.client?.name || project.clientName}`,
     type: "project_created",
     actionUrl: `/admin/projects/${project._id}`,
@@ -124,6 +139,7 @@ export async function broadcastDashboardUpdate(project) {
   };
 
   io.to("role:admin").emit("dashboard:update", payload);
+  io.to("role:owner").emit("dashboard:update", payload);
   if (project.assignedEditor) {
     io.to(`user:${project.assignedEditor}`).emit("dashboard:update", payload);
   }
@@ -133,4 +149,5 @@ export async function broadcastProjectCounts(counts) {
   const io = getIO();
   if (!io) return;
   io.to("role:admin").emit("dashboard:counts", counts);
+  io.to("role:owner").emit("dashboard:counts", counts);
 }

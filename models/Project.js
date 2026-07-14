@@ -26,6 +26,8 @@ const feedbackSchema = new mongoose.Schema({
 
 const paymentSchema = new mongoose.Schema({
   amount: { type: Number, default: 0, min: 0 },
+  clientAmount: { type: Number, default: 0, min: 0 },
+  editorAmount: { type: Number, default: 0, min: 0 },
   status: { type: String, enum: ["pending", "paid"], default: "pending" },
   paidAt: { type: Date, default: null },
   paidBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
@@ -85,6 +87,8 @@ const projectSchema = new mongoose.Schema(
     feedback: { type: [feedbackSchema], default: [] },
     payment: { type: paymentSchema, default: () => ({}) },
     activityTimeline: { type: [timelineEntrySchema], default: [] },
+    ownerAssignment: { type: String, enum: ["admin", "direct", null], default: null },
+    ownerAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     completedAt: { type: Date, default: null },
   },
