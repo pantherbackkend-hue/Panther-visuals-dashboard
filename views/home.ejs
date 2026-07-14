@@ -9,15 +9,13 @@
     <% if (!currentUser) { %>
       <div class="hero__actions">
         <a class="btn" href="/login">Launch Dashboard</a>
-        <a class="btn btn--outline" href="/workspaces">View Workspaces</a>
       </div>
     <% } else { %>
       <div class="hero__panel">
         <p>Logged in as <strong><%= currentUser.role %></strong>.</p>
         <% if (currentUser.role === "client") { %>
           <div class="row">
-            <a class="btn" href="/workspaces">Browse Workspaces</a>
-            <a class="btn btn--outline" href="/projects">My Projects</a>
+            <a class="btn" href="/projects">My Projects</a>
           </div>
         <% } else if (currentUser.role === "editor") { %>
           <div class="row">
@@ -28,7 +26,7 @@
           <div class="row">
             <a class="btn" href="/admin/workspace">Open Admin Dashboard</a>
             <a class="btn btn--outline" href="/admin/projects">Projects</a>
-            <a class="btn btn--outline" href="/admin/shops">Workspaces</a>
+            <a class="btn btn--outline" href="/admin/workspace">Workspace</a>
           </div>
         <% } %>
       </div>

@@ -197,9 +197,90 @@ public/              — styles.css
 
 ---
 
+# Legacy Workspaces Cleanup
+
+**Date**: 14 July 2026
+
+**Objective**: Remove the obsolete "Workspaces" (plural) concept. The product uses one singular "Workspace" concept.
+
+## Files Deleted (4)
+
+| File | Reason |
+|------|--------|
+| `models/Shop.js` | Entire Shop (workspace) model — zero remaining dependents |
+| `views/admin/shops/index.ejs` | Workspaces list page — obsolete CRUD |
+| `views/admin/shops/show.ejs` | Workspace detail page — obsolete CRUD |
+| `views/admin/shops/form.ejs` | Workspace create/edit form — obsolete CRUD |
+
+## Files Modified (11)
+
+| File | Changes |
+|------|---------|
+| `routes/admin.js` | Removed `Shop` import, `syncVendorShopLink` helper, all 8 shops CRUD routes (~190 lines), `safeSlug` helper, `totalShops` dead stat, shop field from editor CRUD (create, edit, delete, list, detail) |
+| `views/admin/vendors/form.ejs` | Removed "Assigned Workspace" dropdown |
+| `views/admin/vendors/show.ejs` | Removed "Assigned Workspace" card |
+| `views/admin/vendors/index.ejs` | Removed "Workspace" column, adjusted colspan |
+| `views/partials/header.ejs` | Removed dead `<a href="/workspaces">Workspaces</a>` nav link |
+| `views/home.ejs` | Removed 3 dead Workspaces links, replaced admin/owner "Workspaces" with "Workspace" → `/admin/workspace` |
+| `views/admin/partials/sidebar.ejs` | Removed "Workspaces" nav link to `/admin/shops` |
+| `middleware/upload.js` | Removed `uploadShopImage`, `handleShopImageUpload`, `shopImageStorage` import |
+| `config/cloudinary.js` | Removed `shopImageStorage` |
+| `public/styles.css` | Renamed `.editor-workspace*` → `.editor-layout*` |
+| `views/editor/projects/show.ejs` | Renamed CSS classes `editor-workspace*` → `editor-layout*` |
+
+## Dead Code Removed
+
+- `syncVendorShopLink` bidirectional helper (150+ lines)
+- `safeSlug` slug generator
+- `Shop.countDocuments()` in dashboard (computed but never rendered)
+- `totalShops` stat passed to dashboard view
+- `uploadShopImage` multer configuration
+- `handleShopImageUpload` middleware wrapper
+- `shopImageStorage` Cloudinary storage config
+- All shop-related `assignedShopName` mapping in editor list
+- All shop-related `populate()` calls in editor detail/edit routes
+- All `syncVendorShopLink` calls in editor create/edit/delete routes
+
+## Architecture Cleanup
+
+- **Concept**: "Workspaces" (plural, multi-workspace management) completely removed
+- **Concept**: "Workspace" (singular, operational center) remains untouched
+- **DB schema**: `User.shop` field kept dormant for backward compatibility (existing documents have it, zero code references it)
+- **Routes removed**: `GET /admin/shops`, `GET /admin/shops/new`, `POST /admin/shops`, `GET /admin/shops/:id`, `GET /admin/shops/:id/edit`, `POST /admin/shops/:id/edit`, `POST /admin/shops/:id/toggle`, `POST /admin/shops/:id/delete`
+- **Routes preserved**: `GET /admin/workspace`, `POST /admin/workspace/assign`
+- **Header/Welcome page**: Dead `/workspaces` links removed (that route never existed)
+
+## Smoke Test Results
+
+| Check | Result |
+|-------|--------|
+| Node.js syntax (all JS files) | PASS |
+| EJS compile (all templates) | PASS |
+| Server startup (port 7000) | PASS |
+| `GET /` (public) | 200 |
+| `GET /login` / `GET /signup` | 200 |
+| `GET /workspaces` (dead route) | 404 |
+| `GET /admin/shops` (removed route) | 302 (auth wall) → 404 after login |
+| `GET /admin/workspace` (auth wall) | 302 |
+| Static assets (`/styles.css`) | 200 |
+| 404 handler | 404 |
+
+## Full Repository Search — Remaining Occurrences
+
+| Term | Remaining | Status |
+|------|-----------|--------|
+| `workspace` (singular) | 15 | All legitimate — operational routes, UI, documentation |
+| `workspaces` (plural) | 0 | Fully removed |
+| `Shop` / `shop` (model) | 1 | `User.shop` field — kept dormant for backward compat |
+| `/admin/shops` | 0 | Fully removed |
+| `uploadShopImage` | 0 | Fully removed |
+| `handleShopImageUpload` | 0 | Fully removed |
+| `shopImageStorage` | 0 | Fully removed |
+
+---
+
 # Technical Debt
 
-- `Shop` model retains legacy payment gateway fields — unused
 - `User` model has `client` role in enum — unused
 - `Notification` model has `email`/`whatsapp` channels — unused
 - `resetPasswordToken` / `resetPasswordExpires` on User — never set
@@ -220,6 +301,6 @@ public/              — styles.css
 - Always update STATUS.md after every prompt
 - Use the existing workflow pipeline — don't invent new status systems
 - Don't reintroduce removed FlashFoods features
-- All editor functionality should work without a workspace/shop assignment
+- Workspace features removed: shops CRUD, editor–workspace assignment, vendor/shop sync
 - Version/submission tracking remains unbounded — version = `submissions.length + 1`
 - Keep `STATUS.md` under 500 lines

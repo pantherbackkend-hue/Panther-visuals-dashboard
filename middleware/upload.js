@@ -1,5 +1,5 @@
 import multer from "multer";
-import { isCloudinaryConfigured, menuImageStorage, shopImageStorage } from "../config/cloudinary.js";
+import { isCloudinaryConfigured, menuImageStorage } from "../config/cloudinary.js";
 
 const imageFileFilter = (req, file, cb) => {
   if (file.mimetype && file.mimetype.startsWith("image/")) {
@@ -11,12 +11,6 @@ const imageFileFilter = (req, file, cb) => {
 
 export const uploadMenuImage = multer({
   storage: menuImageStorage,
-  fileFilter: imageFileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
-
-export const uploadShopImage = multer({
-  storage: shopImageStorage,
   fileFilter: imageFileFilter,
   limits: { fileSize: 5 * 1024 * 1024 },
 });
@@ -56,12 +50,5 @@ export function handleAdminMenuImageUpload(redirectPath = "/editor/assets") {
   return function (req, res, next) {
     const resolvedPath = typeof redirectPath === "function" ? redirectPath(req) : redirectPath;
     return handleImageUpload(uploadMenuImage, resolvedPath)(req, res, next);
-  };
-}
-
-export function handleShopImageUpload(redirectPath = "/admin/workspaces/new") {
-  return function (req, res, next) {
-    const resolvedPath = typeof redirectPath === "function" ? redirectPath(req) : redirectPath;
-    return handleImageUpload(uploadShopImage, resolvedPath)(req, res, next);
   };
 }

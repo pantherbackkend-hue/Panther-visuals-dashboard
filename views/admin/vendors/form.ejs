@@ -24,15 +24,6 @@
       <label for="upiId">UPI ID <span class="muted">(for payments)</span></label>
       <input type="text" id="upiId" name="upiId" value="<%= vendor?.upiId || '' %>" placeholder="editor@upi">
     </div>
-    <div class="form-group">
-      <label for="shop">Assigned Workspace</label>
-      <select id="shop" name="shop">
-        <option value="">-- None --</option>
-        <% shops.forEach(function(s) { %>
-          <option value="<%= s._id %>" <%= String(vendor?.shop?._id || vendor?.shop) === String(s._id) ? 'selected' : '' %>><%= s.name %></option>
-        <% }) %>
-      </select>
-    </div>
     <div class="form-actions">
       <a class="btn btn--outline" href="/admin/editors">Cancel</a>
       <button class="btn" type="submit"><%= mode === "create" ? "Create Editor" : "Save Changes" %></button>

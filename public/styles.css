@@ -1697,29 +1697,29 @@ fieldset.fieldset legend {
 .confirm-dialog p { margin: 0 0 20px; font-size: 15px; line-height: 1.5; }
 .confirm-dialog__actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-/* ── Editor Workspace Layout (Two Column) ── */
+/* ── Editor Layout (Two Column) ── */
 
-.editor-workspace {
+.editor-layout {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 24px;
   align-items: start;
 }
 
-.editor-workspace__main {
+.editor-layout__main {
   min-width: 0;
   display: grid;
   gap: 24px;
 }
 
-.editor-workspace__sidebar {
+.editor-layout__sidebar {
   min-width: 0;
   display: grid;
   gap: 24px;
 }
 
 @media (max-width: 1024px) {
-  .editor-workspace {
+  .editor-layout {
     grid-template-columns: 1fr;
   }
 }

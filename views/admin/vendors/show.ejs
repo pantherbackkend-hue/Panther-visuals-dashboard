@@ -28,15 +28,6 @@
       <tr><td>Joined</td><td><%= vendor.createdAt?.toLocaleDateString?.() || "" %></td></tr>
     </table>
   </div>
-  <div class="card">
-    <h3>Assigned Workspace</h3>
-    <% if (vendor.shop) { %>
-      <p><strong><%= vendor.shop.name %></strong></p>
-      <a class="btn btn--small btn--outline" href="/admin/shops/<%= vendor.shop._id %>">View Workspace</a>
-    <% } else { %>
-      <p class="muted">No workspace assigned.</p>
-    <% } %>
-  </div>
 </div>
 
 <%- include("../partials/layout-end") %>

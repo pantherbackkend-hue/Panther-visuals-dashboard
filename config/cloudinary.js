@@ -23,13 +23,3 @@ export const menuImageStorage = new CloudinaryStorage({
     transformation: [{ width: 500, height: 500, crop: "fill", gravity: "auto", quality: "auto", fetch_format: "auto" }],
   },
 });
-
-export const shopImageStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "panther-visuals/workspaces",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    resource_type: "image",
-    transformation: [{ width: 900, height: 600, crop: "fill", gravity: "auto", quality: "auto", fetch_format: "auto" }],
-  },
-});

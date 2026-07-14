@@ -5,7 +5,7 @@
   <div>
     <p class="eyebrow">Team</p>
     <h1>Editors</h1>
-    <p class="muted">Manage editor accounts and workspace assignments.</p>
+    <p class="muted">Manage editor accounts.</p>
   </div>
   <div class="admin-actions">
     <a class="btn" href="/admin/editors/new">+ New Editor</a>
@@ -19,7 +19,6 @@
         <tr>
           <th>Name</th>
           <th>Email</th>
-          <th>Workspace</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -29,7 +28,6 @@
           <tr>
             <td><%= v.name %></td>
             <td><%= v.email %></td>
-            <td><%= v.assignedShopName %></td>
             <td><span class="tag tag--<%= v.isActive === false ? 'danger' : 'ok' %>"><%= v.statusLabel %></span></td>
             <td>
               <div class="admin-actions">
@@ -45,8 +43,8 @@
             </td>
           </tr>
         <% }) %>
-        <% if (vendors.length === 0) { %>
-          <tr><td colspan="5" class="muted">No editors found.</td></tr>
+          <% if (vendors.length === 0) { %>
+            <tr><td colspan="4" class="muted">No editors found.</td></tr>
         <% } %>
       </tbody>
     </table>
