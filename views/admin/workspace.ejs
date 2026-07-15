@@ -111,18 +111,23 @@
 
     <% if (project.status === "pending_assignment") { %>
       <div class="full-width" style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">
-        <form class="inline-assign-form flex gap-8">
-          <input type="hidden" name="projectId" value="<%= project._id %>" />
-          <select name="editorId" required class="text-sm" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card)">
-            <option value="">Assign Editor</option>
-            <% editors.forEach(function(e) { %>
-              <option value="<%= e._id %>" <%= e.availability === 'on_leave' ? 'disabled' : '' %> data-availability="<%= e.availability %>" data-active="<%= e.activeCount %>">
-                <%= e.name %> (<%= e.availability %><%= e.activeCount > 0 ? ', ' + e.activeCount + ' active' : '' %>)
-              </option>
-            <% }) %>
-          </select>
-          <button type="submit" class="btn btn--small">Assign</button>
-        </form>
+        <div class="flex gap-8">
+          <% if (project.ownerAssignment === "admin") { %>
+            <a href="/admin/projects/<%= project._id %>/edit" class="btn btn--outline btn--small">Edit Project</a>
+          <% } %>
+          <form class="inline-assign-form flex gap-8" style="flex:1">
+            <input type="hidden" name="projectId" value="<%= project._id %>" />
+            <select name="editorId" required class="text-sm" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card)">
+              <option value="">Assign Editor</option>
+              <% editors.forEach(function(e) { %>
+                <option value="<%= e._id %>" <%= e.availability === 'on_leave' ? 'disabled' : '' %> data-availability="<%= e.availability %>" data-active="<%= e.activeCount %>">
+                  <%= e.name %> (<%= e.availability %><%= e.activeCount > 0 ? ', ' + e.activeCount + ' active' : '' %>)
+                </option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn--small">Assign</button>
+          </form>
+        </div>
       </div>
     <% } else if (project.assignedEditor) { %>
       <div class="full-width text-sm" style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">

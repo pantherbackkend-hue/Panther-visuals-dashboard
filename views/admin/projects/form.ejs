@@ -70,22 +70,24 @@
       <p class="form-help">Editors on leave or fully occupied cannot be assigned.</p>
     </div>
 
-    <% if (currentUser.role === "owner" || (project && !project.ownerAssignment)) { %>
+    <% if (currentUser.role === "owner") { %>
+    <div class="form-group">
+      <label for="clientAmount">Client Amount (₹)</label>
+      <input id="clientAmount" name="clientAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.clientAmount || project?.payment?.amount || "" %>" />
+      <p class="form-help">Amount charged to the client.</p>
+    </div>
+    <% } else if (project?.ownerAssignment) { %>
     <div class="form-group">
       <label for="paymentAmount">Client Amount (₹)</label>
-      <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.clientAmount || project?.payment?.amount || project?.paymentAmount || "" %>" />
+      <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.clientAmount || project?.payment?.amount || "" %>" readonly />
+      <p class="form-help">Set by owner. Cannot be changed.</p>
     </div>
-    <% } %>
-
-    <% if (currentUser.role === "owner" || project?.ownerAssignment) { %>
     <div class="form-group">
       <label for="editorAmount">Editor Amount (₹)</label>
       <input id="editorAmount" name="editorAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.editorAmount || "" %>" />
-      <p class="form-help">Amount paid to the editor. Profit = Client Amount - Editor Amount.</p>
+      <p class="form-help">Amount paid to the editor.</p>
     </div>
-    <% } %>
-
-    <% if (currentUser.role !== "owner" && !(project && project.ownerAssignment)) { %>
+    <% } else { %>
     <div class="form-group">
       <label for="paymentAmount">Payment Amount (₹)</label>
       <input id="paymentAmount" name="paymentAmount" type="number" min="0" step="0.01" value="<%= project?.payment?.amount || project?.paymentAmount || "" %>" />

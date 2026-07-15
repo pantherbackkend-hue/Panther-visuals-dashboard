@@ -101,7 +101,7 @@ adminRouter.get("/", async (req, res) => {
     status: { $nin: ["completed"] },
   });
 
-  const profitStats = req.user.role === "owner"
+  const profitStats = req.user.role === "admin"
     ? await Project.aggregate([
         {
           $group: {
@@ -505,6 +505,59 @@ adminRouter.post("/editors/:id/toggle", async (req, res) => {
     console.error("Editor toggle error:", err);
     req.flash("error", "Something went wrong.");
     return res.redirect("/admin/editors");
+  }
+});
+
+adminRouter.get("/profits", async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      req.flash("error", "Admin access only.");
+      return res.redirect("/admin");
+    }
+
+    const allProjects = await Project.find()
+      .populate("assignedEditor", "name email")
+      .populate("ownerAdmin", "name email")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const projects = allProjects.map((p) => {
+      const clientAmount = p.payment?.clientAmount || p.payment?.amount || 0;
+      const editorAmount = p.payment?.editorAmount || 0;
+      const profit = clientAmount - editorAmount;
+      return {
+        ...p,
+        clientName: p.client?.name || p.clientName || "",
+        clientAmount,
+        editorAmount,
+        profit,
+        statusLabel: formatStatus(p.status),
+        badgeColor: getBadgeColor(p.status),
+        profitColor: profit >= 0 ? "var(--success)" : "var(--danger)",
+      };
+    });
+
+    const totalClientAmount = projects.reduce((s, p) => s + p.clientAmount, 0);
+    const totalEditorAmount = projects.reduce((s, p) => s + p.editorAmount, 0);
+    const totalProfit = totalClientAmount - totalEditorAmount;
+    const totalPaid = projects.filter((p) => p.payment?.status === "paid").length;
+
+    res.render("admin/profits", {
+      pageTitle: "Earnings Overview",
+      activeSection: "profits",
+      projects,
+      totalClientAmount,
+      totalEditorAmount,
+      totalProfit,
+      totalPaid,
+      formatMoney,
+      formatStatus,
+      getBadgeColor,
+    });
+  } catch (err) {
+    console.error("Earnings error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin");
   }
 });
 

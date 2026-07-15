@@ -32,11 +32,12 @@
   <article class="card admin-metric"><p class="muted small">Client</p><h2><%= project.client?.name || project.clientName || "" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Editor</p><h2><%= project.assignedEditor?.name || "Unassigned" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Priority</p><h2><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></h2></article>
-  <% var showProfit = currentUser.role === "owner" && (project.ownerAssignment || project.payment?.editorAmount > 0); %>
-  <% if (showProfit) { %>
+  <% if (currentUser.role === "owner") { %>
+    <article class="card admin-metric"><p class="muted small">Client Amount</p><h2><%= formatMoney(project.payment?.clientAmount || project.payment?.amount || 0) %></h2></article>
+  <% } else if (project.ownerAssignment || project.payment?.editorAmount > 0) { %>
     <article class="card admin-metric"><p class="muted small">Client Amt</p><h2><%= formatMoney(project.payment?.clientAmount || 0) %></h2></article>
     <article class="card admin-metric"><p class="muted small">Editor Amt</p><h2><%= formatMoney(project.payment?.editorAmount || 0) %></h2></article>
-    <article class="card admin-metric"><p class="muted small">Profit</p><h2 style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></h2></article>
+    <article class="card admin-metric"><p class="muted small">Earnings</p><h2 style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></h2></article>
   <% } else { %>
     <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.payment?.amount || 0) %></h2></article>
   <% } %>
@@ -155,15 +156,19 @@
     <% if (project.completedAt) { %>
       <div><span>Completed</span><strong><%= new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
     <% } %>
-    <div><span>Payment Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
-    <% if (project.payment?.clientAmount > 0) { %>
-      <div><span>Client Amount</span><strong><%= formatMoney(project.payment.clientAmount) %></strong></div>
-    <% } %>
-    <% if (project.payment?.editorAmount > 0) { %>
-      <div><span>Editor Amount</span><strong><%= formatMoney(project.payment.editorAmount) %></strong></div>
-    <% } %>
-    <% if (showProfit) { %>
-      <div><span>Profit</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
+    <% if (currentUser.role === "owner") { %>
+      <div><span>Client Amount</span><strong><%= formatMoney(project.payment?.clientAmount || project.payment?.amount || 0) %></strong></div>
+    <% } else { %>
+      <div><span>Payment Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
+      <% if (project.payment?.clientAmount > 0) { %>
+        <div><span>Client Amount</span><strong><%= formatMoney(project.payment.clientAmount) %></strong></div>
+      <% } %>
+      <% if (project.payment?.editorAmount > 0) { %>
+        <div><span>Editor Amount</span><strong><%= formatMoney(project.payment.editorAmount) %></strong></div>
+      <% } %>
+      <% if (currentUser.role === "admin" && (project.ownerAssignment || project.payment?.editorAmount > 0)) { %>
+        <div><span>Earnings</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
+      <% } %>
     <% } %>
     <div><span>Payment Status</span><strong>
       <% if (project.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span>
@@ -189,6 +194,9 @@
     <div class="payment-detail"><span>Project</span><strong><%= project.projectName %></strong></div>
     <div class="payment-detail"><span>Client</span><strong><%= clientName %></strong></div>
     <div class="payment-detail"><span>Editor</span><strong><%= editorName %></strong></div>
+    <% if (currentUser.role === "owner") { %>
+    <div class="payment-detail"><span>Client Amount</span><strong><%= formatMoney(project.payment?.clientAmount || project.payment?.amount || 0) %></strong></div>
+    <% } else { %>
     <div class="payment-detail"><span>Amount</span><strong><%= formatMoney(project.payment?.amount || 0) %></strong></div>
     <% if (project.payment?.clientAmount > 0) { %>
       <div class="payment-detail"><span>Client Amount</span><strong><%= formatMoney(project.payment.clientAmount) %></strong></div>
@@ -196,8 +204,9 @@
     <% if (project.payment?.editorAmount > 0) { %>
       <div class="payment-detail"><span>Editor Amount</span><strong><%= formatMoney(project.payment.editorAmount) %></strong></div>
     <% } %>
-    <% if (showProfit) { %>
-      <div class="payment-detail"><span>Profit</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
+    <% if (currentUser.role === "admin" && (project.ownerAssignment || project.payment?.editorAmount > 0)) { %>
+      <div class="payment-detail"><span>Earnings</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
+    <% } %>
     <% } %>
     <div class="payment-detail"><span>Editor UPI ID</span><strong><%= editorUpi || '<span class="muted">Not set</span>' %></strong></div>
     <div class="payment-detail"><span>Completed</span><strong><%= project.completedAt ? new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>

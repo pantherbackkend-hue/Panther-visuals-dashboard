@@ -27,54 +27,6 @@ ownerRouter.use((req, res, next) => {
   next();
 });
 
-ownerRouter.get("/profits", async (req, res) => {
-  try {
-    const allProjects = await Project.find()
-      .populate("assignedEditor", "name email")
-      .populate("ownerAdmin", "name email")
-      .sort({ createdAt: -1 })
-      .lean();
-
-    const projects = allProjects.map((p) => {
-      const clientAmount = p.payment?.clientAmount || p.payment?.amount || 0;
-      const editorAmount = p.payment?.editorAmount || 0;
-      const profit = clientAmount - editorAmount;
-      return {
-        ...p,
-        clientName: p.client?.name || p.clientName || "",
-        clientAmount,
-        editorAmount,
-        profit,
-        statusLabel: formatStatus(p.status),
-        badgeColor: getBadgeColor(p.status),
-        profitColor: profit >= 0 ? "var(--success)" : "var(--danger)",
-      };
-    });
-
-    const totalClientAmount = projects.reduce((s, p) => s + p.clientAmount, 0);
-    const totalEditorAmount = projects.reduce((s, p) => s + p.editorAmount, 0);
-    const totalProfit = totalClientAmount - totalEditorAmount;
-    const totalPaid = projects.filter((p) => p.payment?.status === "paid").length;
-
-    res.render("admin/profits", {
-      pageTitle: "Profit Overview",
-      activeSection: "profits",
-      projects,
-      totalClientAmount,
-      totalEditorAmount,
-      totalProfit,
-      totalPaid,
-      formatMoney,
-      formatStatus,
-      getBadgeColor,
-    });
-  } catch (err) {
-    console.error("Profits error:", err);
-    req.flash("error", "Something went wrong.");
-    return res.redirect("/admin");
-  }
-});
-
 ownerRouter.get("/analytics", async (req, res) => {
   try {
     const allProjects = await Project.find().lean();
@@ -86,8 +38,7 @@ ownerRouter.get("/analytics", async (req, res) => {
     const adminAssign = ownerProjects.filter((p) => p.ownerAssignment === "admin").length;
 
     const totalClientAmount = allProjects.reduce((s, p) => s + (p.payment?.clientAmount || p.payment?.amount || 0), 0);
-    const totalEditorAmount = allProjects.reduce((s, p) => s + (p.payment?.editorAmount || 0), 0);
-    const totalProfit = totalClientAmount - totalEditorAmount;
+    const totalPaid = allProjects.filter((p) => p.payment?.status === "paid").length;
 
     const userBreakdown = {
       owners: allUsers.filter((u) => u.role === "owner").length,
@@ -105,9 +56,7 @@ ownerRouter.get("/analytics", async (req, res) => {
       directAssign,
       adminAssign,
       totalClientAmount,
-      totalEditorAmount,
-      totalProfit,
-      totalPaid: allProjects.filter((p) => p.payment?.status === "paid").length,
+      totalPaid,
       formatMoney,
       formatStatus,
     });

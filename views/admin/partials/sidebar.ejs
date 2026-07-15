@@ -7,7 +7,9 @@
   <a class="admin-sidebar__link <%= activeSection === "clients" ? "is-active" : "" %>" href="/admin/clients">Clients</a>
   <% if (currentUser && currentUser.role === "owner") { %>
     <a class="admin-sidebar__link <%= activeSection === "analytics" ? "is-active" : "" %>" href="/admin/analytics">Analytics</a>
-    <a class="admin-sidebar__link <%= activeSection === "profits" ? "is-active" : "" %>" href="/admin/profits">Profits</a>
     <a class="admin-sidebar__link <%= activeSection === "users" ? "is-active" : "" %>" href="/admin/users">All Users</a>
+  <% } %>
+  <% if (currentUser && currentUser.role === "admin") { %>
+    <a class="admin-sidebar__link <%= activeSection === "profits" ? "is-active" : "" %>" href="/admin/profits">Earnings</a>
   <% } %>
 </nav>

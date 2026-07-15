@@ -279,6 +279,175 @@ public/              — styles.css
 
 ---
 
+---
+
+# Financial Responsibility Refactor (Owner → JR Admin)
+
+**Date**: 16 July 2026
+
+**Objective**: Shift financial responsibility from Owner to JR Admin. Owner only manages Client Amount. JR Admin manages Editor Amount, Earnings, and editor payments.
+
+## New Financial Ownership Model
+
+| Responsibility | Owner | JR Admin |
+|---------------|-------|----------|
+| Set Client Amount | YES | NO (read-only on owner projects) |
+| Set Editor Amount | NO | YES |
+| Pay Editor | NO | YES |
+| View Earnings | NO | YES |
+| View Profit | NO (replaced by Earnings) | YES |
+
+**Earnings** = `payment.clientAmount - payment.editorAmount` (calculated dynamically, never stored)
+
+## Files Modified (8)
+
+| File | Changes |
+|------|---------|
+| `routes/workflow.js` | Owner project creation no longer sets `editorAmount` (defaults to 0). Owner edit no longer modifies `editorAmount`. |
+| `routes/admin.js` | Added `/admin/profits` route (Earnings page) for admin only. Dashboard `profitStats` now queries for `admin` role instead of `owner`. |
+| `routes/owner.js` | Removed `/admin/profits` route (moved to admin.js). Analytics no longer calculates `totalEditorAmount` or `totalProfit`. |
+| `views/admin/projects/form.ejs` | Owner creation/edit: Only shows "Client Amount" field. Admin on owner projects: Shows read-only "Client Amount" + editable "Editor Amount". Admin on standard: Shows "Payment Amount". |
+| `views/admin/projects/show.ejs` | Owner: Only sees "Client Amount" (no Editor Amount, no Earnings). Admin: Sees "Client Amt", "Editor Amt", "Earnings". Editor Amt/Earnings hidden from owner in metrics, overview, and payment sections. |
+| `views/admin/dashboard.ejs` | Profit metrics section now renders only for `currentUser.role === "admin"`. Label "Net Profit" changed to "Earnings". |
+| `views/admin/analytics.ejs` | Removed "Editor Costs", "Net Profit" metric cards. Kept "Client Revenue", "Payments Made". |
+| `views/admin/partials/sidebar.ejs` | Owner sidebar: Removed "Profits" link. Admin sidebar: Added "Earnings" link to `/admin/profits`. |
+| `views/admin/profits.ejs` | Title changed from "Profit Overview" to "Earnings Overview". "Total Profit" → "Total Earnings". "Profit Breakdown" → "Earnings Breakdown". |
+
+## Files NOT Modified (28)
+
+- `models/Project.js` — Schema unchanged (`payment.clientAmount`, `payment.editorAmount`, `payment.amount` all preserved)
+- `models/User.js` — No changes
+- `models/Notification.js` — No changes
+- `middleware/auth.js` — No changes
+- `utils/workflow.js` — No changes
+- `utils/admin.js` — No changes
+- `utils/notifications.js` — No changes
+- `socket/index.js` — No changes
+- `server.js` — No changes
+- `routes/auth.js` — No changes
+- `views/admin/projects/index.ejs` — Unchanged (Amount column uses `paymentAmount`)
+- `views/admin/workspace.ejs` — Unchanged
+- `views/admin/users.ejs` — Unchanged
+- `views/admin/vendors/*` — Unchanged (3 vendor views)
+- `views/admin/partials/layout-*.ejs` — Unchanged (2 layout partials)
+- `views/editor/projects/show.ejs` — Unchanged (editor sees Payable Amount)
+- `views/editor/projects/index.ejs` — Unchanged (editor sees Payable Amount)
+- `views/editor/assets.ejs` — Unchanged
+- `views/editor/profile.ejs` — Unchanged
+- `views/partials/*` — Unchanged (3 partials)
+- `views/auth/*` — Unchanged
+- `views/home.ejs` — Unchanged
+- `public/styles.css` — Unchanged
+
+## Permission Changes
+
+| Asset | Before | After |
+|-------|--------|-------|
+| `/admin/profits` | Owner only | Admin only |
+| `/admin/analytics` | Owner only | Owner only (unchanged) |
+| `/admin/users` | Owner only | Owner only (unchanged) |
+| Owner sidebar Profits link | Visible | Removed |
+| Admin sidebar Earnings link | Hidden | Visible |
+| Editor Amount in form | Owner + Admin on owner projects | Admin only |
+| Editor Amount on detail | Owner (when `showProfit`) | Admin only |
+| Profit on detail | Owner (when `showProfit`) | Admin (renamed to Earnings) |
+
+## Earnings Calculation
+
+```
+Earnings = payment.clientAmount - payment.editorAmount
+```
+
+- Calculated in: `routes/admin.js` (dashboard), `routes/admin.js` (profits page), `routes/workflow.js` (project show)
+- Never stored in database
+- `payment.clientAmount` and `payment.editorAmount` remain persisted on the Project model
+
+## Validation Performed
+
+| Check | Result |
+|-------|--------|
+| Syntax validation (all 12 JS files) | PASS |
+| Server startup (0 errors, port 7000) | PASS |
+| Route smoke test (all 30+ routes) | PASS |
+| Public routes (/, /login, /signup) | 200 |
+| Auth-protected routes (unauthenticated) | 302 |
+| Static assets (/styles.css) | 200 |
+| 404 handler | 404 |
+
+## Current Architecture
+
+**Owner** creates project → sets **Client Amount** → assigns to **JR Admin** (or directly to **Editor**).
+
+**JR Admin** views **Client Amount** (read-only) → sets **Editor Amount** → assigns **Editor** → manages workflow → pays **Editor**.
+
+**Editor** sees only **Payable Amount** (`payment.editorAmount`).
+
+**Earnings** = Client Amount − Editor Amount, always calculated dynamically, visible only to JR Admin on `/admin/profits`.
+
+---
+
+# Pre-Assignment Review for JR Admin
+
+**Date**: 16 July 2026
+
+**Objective**: Allow JR Admin to review and edit project details before assigning an editor. Previously, JR Admin was forced to assign an editor immediately before making any edits.
+
+## Workflow Enhancement
+
+**Before:**
+```
+Owner creates project → Assigns JR Admin → JR Admin assigns Editor → Only then can edit
+```
+
+**After:**
+```
+Owner creates project → Assigns JR Admin → JR Admin reviews + edits → Assigns Editor → Normal workflow
+```
+
+## Files Modified (2)
+
+| File | Changes |
+|------|---------|
+| `views/admin/workspace.ejs` | Added `[Edit Project]` button on workspace cards where `ownerAssignment === "admin"` and `status === "pending_assignment"`. Button links to existing `/admin/projects/:id/edit` route. Hidden after editor is assigned. |
+| `routes/workflow.js` | Updated edit POST route. New `canAdminEditOwnerProject` flag allows admin to edit client/project details on owner projects **only while** `status === "pending_assignment"`. After assignment, existing restrictions apply. |
+
+## Files NOT Modified (all other files)
+
+- Models, middleware, utils, socket, server, auth routes, owner routes, admin routes (except profits), all other views, CSS — untouched.
+
+## Permission Enforcement
+
+| Action | Owner | Admin (pre-assignment) | Admin (post-assignment) |
+|--------|-------|----------------------|------------------------|
+| Edit Client Name/Email/Phone | YES | YES | NO |
+| Edit Project Name | YES | YES | NO |
+| Edit Drive Link | YES | YES | NO |
+| Edit Priority | YES | YES | NO |
+| Edit Due Date | YES | YES | NO |
+| Edit Notes | YES | YES | NO |
+| Edit Editor Amount | NO (removed) | YES | YES |
+| Edit Client Amount | YES | NO | NO |
+| View/Edit Owner Assignment | YES | NO | NO |
+
+## Validation
+
+| Check | Result |
+|-------|--------|
+| Syntax validation (all JS files) | PASS |
+| Server startup (0 errors, port 7000) | PASS |
+| Public routes (/, /login, /signup) | 200 |
+| Auth-protected routes (unauthenticated) | 302 |
+| Static assets (/styles.css) | 200 |
+| 404 handler | 404 |
+
+## Architecture
+
+The pre-assignment review is a UI-only permission toggle at the route level:
+- **View layer**: Edit button conditionally rendered based on `ownerAssignment` and `status`
+- **Route layer**: `canAdminEditOwnerProject` flag controls write access to client/project fields
+- **Financial layer**: Unchanged — admin can only edit `editorAmount`, never `clientAmount`
+- **Workflow pipeline**: Fully preserved — no status transitions, socket events, or notification logic modified
+
 # Technical Debt
 
 - `User` model has `client` role in enum — unused

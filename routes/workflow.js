@@ -119,13 +119,8 @@ workflowRouter.post(
       }
 
       const ca = Number(clientAmount || paymentAmount) || 0;
-      const ea = Number(editorAmount) || 0;
+      const ea = req.user.role === "owner" ? 0 : (Number(editorAmount) || 0);
       const paymentData = { amount: ca, clientAmount: ca, editorAmount: ea };
-
-      if (req.user.role === "owner") {
-        paymentData.clientAmount = ca;
-        paymentData.editorAmount = ea;
-      }
 
       const isOwnerAssignAdmin = ownerAssignment === "admin";
       const isOwnerAssignDirect = ownerAssignment === "direct";
@@ -754,9 +749,10 @@ workflowRouter.post(
       editorAmount,
     } = req.body;
 
-    const isOwnerProject = project.ownerAssignment && req.user.role !== "owner";
+    const canAdminEditOwnerProject = req.user.role === "admin" && project.ownerAssignment && project.status === "pending_assignment";
+    const canEditDetails = req.user.role === "owner" || !project.ownerAssignment || canAdminEditOwnerProject;
 
-    if (!isOwnerProject) {
+    if (canEditDetails) {
       if (!clientName || !clientName.trim()) {
         req.flash("error", "Client name is required.");
         return res.redirect(`/admin/projects/${id}/edit`);
@@ -767,7 +763,7 @@ workflowRouter.post(
       }
     }
 
-    if (req.user.role === "owner" || !project.ownerAssignment) {
+    if (canEditDetails) {
       project.client = {
         name: String(clientName || project.client?.name || "").trim(),
         email: String(clientEmail || project.client?.email || "").trim(),
@@ -782,9 +778,7 @@ workflowRouter.post(
 
     if (req.user.role === "owner") {
       const ca = Number(clientAmount);
-      const ea = Number(editorAmount);
       project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
-      project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
       project.payment.amount = project.payment.clientAmount;
     } else if (project.ownerAssignment) {
       const ea = Number(editorAmount);
