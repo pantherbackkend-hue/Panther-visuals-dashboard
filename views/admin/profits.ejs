@@ -3,54 +3,187 @@
 
 <section class="admin-page-head">
   <div>
-    <p class="eyebrow">Financials</p>
-    <h1>Earnings Overview</h1>
-    <p class="muted">Client revenue, editor costs, and earnings across all projects.</p>
+    <p class="eyebrow">Financial Ledger</p>
+    <h1>Earnings Ledger</h1>
+    <p class="muted">Permanent record of every completed and paid project.</p>
   </div>
   <a class="btn btn--outline" href="/admin">Back to Dashboard</a>
 </section>
 
 <section class="admin-metrics">
-  <article class="card admin-metric"><p class="muted small">Total Client Amount</p><h2 style="color:var(--success)"><%= formatMoney(totalClientAmount) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Total Editor Cost</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Total Earnings</p><h2 style="color:<%= totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(totalProfit) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Completed & Paid</p><h2><%= totalPaid %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Earnings</p><h2 style="color:var(--success)"><%= formatMoney(totalEarnings) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Projects Completed & Paid</p><h2><%= totalProjects %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Client Revenue</p><h2><%= formatMoney(totalClientAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Editor Payments</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Avg Earnings / Project</p><h2><%= formatMoney(avgEarnings) %></h2></article>
 </section>
 
-<div class="card admin-panel">
-  <h2 class="h2 mt-0">All Projects Earnings Breakdown</h2>
-  <div style="overflow-x:auto">
-    <table class="table" role="table">
-      <thead>
-        <tr>
-          <th scope="col">Project</th>
-          <th scope="col">Client</th>
-          <th scope="col">Status</th>
-          <th scope="col">Client Amt</th>
-          <th scope="col">Editor Amt</th>
-          <th scope="col">Profit</th>
-          <th scope="col">Payment</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% projects.forEach(function(p) { %>
-          <tr>
-            <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
-            <td><%= p.clientName %></td>
-            <td><span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span></td>
-            <td><%= formatMoney(p.clientAmount) %></td>
-            <td><%= formatMoney(p.editorAmount) %></td>
-            <td style="color:<%= p.profitColor %>;font-weight:600"><%= formatMoney(p.profit) %></td>
-            <td><%= p.payment?.status === "paid" ? '<span class="tag tag--ok">Paid</span>' : '<span class="tag tag--pending">Pending</span>' %></td>
-          </tr>
+<div class="card admin-panel admin-toolbar">
+  <div class="admin-filter-bar">
+    <label style="flex:1;min-width:160px">
+      <span class="sr-only">Search</span>
+      <input id="searchInput" type="search" placeholder="Search project, client, editor..." oninput="applyFilters()" />
+    </label>
+    <label>
+      <span class="sr-only">Date From</span>
+      <input id="dateFrom" type="date" onchange="applyFilters()" />
+    </label>
+    <label>
+      <span class="sr-only">Date To</span>
+      <input id="dateTo" type="date" onchange="applyFilters()" />
+    </label>
+    <label>
+      <span class="sr-only">Editor</span>
+      <select id="editorFilter" onchange="applyFilters()">
+        <option value="all">All Editors</option>
+        <% editors.forEach(function(e) { %>
+          <option value="<%= e.name.toLowerCase() %>"><%= e.name %></option>
         <% }) %>
-        <% if (projects.length === 0) { %>
-          <tr><td colspan="7" class="muted" style="text-align:center">No projects found.</td></tr>
-        <% } %>
-      </tbody>
-    </table>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Sort</span>
+      <select id="sortFilter" onchange="applyFilters()">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+        <option value="earnings_high">Highest Earnings</option>
+        <option value="earnings_low">Lowest Earnings</option>
+      </select>
+    </label>
   </div>
 </div>
 
+<div class="card admin-panel">
+  <h2 class="h2 mt-0">Detailed Earnings Ledger</h2>
+  <% if (ledger.length === 0) { %>
+    <p class="muted">No completed and paid projects yet. Records appear automatically after a project is completed and payment is marked done.</p>
+  <% } else { %>
+    <div style="overflow-x:auto">
+      <table class="table" role="table" id="ledgerTable">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Client</th>
+            <th scope="col">Owner</th>
+            <th scope="col">JR Admin</th>
+            <th scope="col">Editor</th>
+            <th scope="col">Completed</th>
+            <th scope="col">Paid</th>
+            <th scope="col">Client Amt</th>
+            <th scope="col">Editor Amt</th>
+            <th scope="col">Earnings</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% ledger.forEach(function(p) { %>
+            <% var pEditorName = (p.assignedEditor?.name || "").toLowerCase(); %>
+            <tr class="ledger-row" data-search="<%= (p.projectName + ' ' + p.clientName + ' ' + (p.assignedEditor?.name || '') + ' ' + (p.ownerAdmin?.name || '') + ' ' + (p.createdBy?.name || '')).toLowerCase() %>" data-paid="<%= p.paidAtFormatted %>" data-earnings="<%= p.earnings %>" data-editor="<%= pEditorName %>">
+              <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
+              <td><%= p.clientName %></td>
+              <td><%= p.createdBy?.name || "—" %></td>
+              <td><%= p.ownerAdmin?.name || "—" %></td>
+              <td><%= p.assignedEditor?.name || "—" %></td>
+              <td><%= p.completedAtFormatted %></td>
+              <td><%= p.paidAtFormatted %></td>
+              <td><%= formatMoney(p.clientAmount) %></td>
+              <td><%= formatMoney(p.editorAmount) %></td>
+              <td style="color:<%= p.earnings >= 0 ? 'var(--success)' : 'var(--danger)' %>;font-weight:600"><%= formatMoney(p.earnings) %></td>
+              <td><a class="btn btn--outline btn--small" href="/admin/projects/<%= p._id %>">View</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<% if (ledger.length > 0) { %>
+<div class="admin-grid--two">
+  <div class="card admin-panel" style="margin:0">
+    <h2 class="h2 mt-0">Project Statistics</h2>
+    <div class="admin-detail-grid">
+      <div><span>Highest Earning Project</span><strong><a class="admin-link" href="/admin/projects/<%= highestEarning._id %>"><%= highestEarning.projectName %></a> (<%= formatMoney(highestEarning.earnings) %>)</strong></div>
+      <div><span>Lowest Earning Project</span><strong><a class="admin-link" href="/admin/projects/<%= lowestEarning._id %>"><%= lowestEarning.projectName %></a> (<%= formatMoney(lowestEarning.earnings) %>)</strong></div>
+      <div><span>Average Earnings / Project</span><strong><%= formatMoney(avgEarnings) %></strong></div>
+      <div><span>Total Projects Paid</span><strong><%= totalProjects %></strong></div>
+      <div><span>Total Client Revenue</span><strong><%= formatMoney(totalClientAmount) %></strong></div>
+      <div><span>Total Editor Payments</span><strong><%= formatMoney(totalEditorAmount) %></strong></div>
+      <div><span>Net Earnings</span><strong style="color:<%= totalEarnings >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(totalEarnings) %></strong></div>
+    </div>
+  </div>
+  <div class="card admin-panel" style="margin:0">
+    <h2 class="h2 mt-0">Record Integrity</h2>
+    <p class="muted text-sm">Records appear automatically when:<br /><br />
+      ✓ Project status is <strong>Completed</strong><br />
+      ✓ Payment status is <strong>Paid</strong><br /><br />
+      No manual entry needed. No editing allowed. Earnings calculated as <strong>Client Amount − Editor Amount</strong>.</p>
+  </div>
+</div>
+<% } %>
+
+<script>
+function applyFilters() {
+  var search = document.getElementById('searchInput').value.toLowerCase().trim();
+  var dateFrom = document.getElementById('dateFrom').value;
+  var dateTo = document.getElementById('dateTo').value;
+  var editor = document.getElementById('editorFilter').value;
+  var sort = document.getElementById('sortFilter').value;
+
+  var rows = document.querySelectorAll('.ledger-row');
+  var visible = [];
+
+  rows.forEach(function(row) {
+    var match = true;
+
+    if (search) {
+      var text = row.getAttribute('data-search') || '';
+      var searchTerms = search.split(' ').filter(Boolean);
+      searchTerms.forEach(function(term) {
+        if (!text.includes(term)) match = false;
+      });
+    }
+
+    if (editor !== 'all' && row.getAttribute('data-editor') !== editor) match = false;
+
+    if (dateFrom || dateTo) {
+      var paidDateStr = row.getAttribute('data-paid');
+      if (paidDateStr && paidDateStr !== '—') {
+        var parts = paidDateStr.split('/');
+        var paidDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        if (dateFrom && paidDate < new Date(dateFrom)) match = false;
+        if (dateTo) {
+          var endDate = new Date(dateTo);
+          endDate.setDate(endDate.getDate() + 1);
+          if (paidDate >= endDate) match = false;
+        }
+      }
+    }
+
+    row.style.display = match ? '' : 'none';
+    if (match) visible.push(row);
+  });
+
+  if (visible.length > 1) {
+    var tbody = document.querySelector('#ledgerTable tbody');
+    visible.sort(function(a, b) {
+      if (sort === 'oldest') {
+        var aPaid = a.getAttribute('data-paid');
+        var bPaid = b.getAttribute('data-paid');
+        if (aPaid === '—') return 1;
+        if (bPaid === '—') return -1;
+        var aParts = aPaid.split('/');
+        var bParts = bPaid.split('/');
+        return new Date(aParts[2], aParts[1]-1, aParts[0]) - new Date(bParts[2], bParts[1]-1, bParts[0]);
+      }
+      if (sort === 'earnings_high') return Number(b.getAttribute('data-earnings')) - Number(a.getAttribute('data-earnings'));
+      if (sort === 'earnings_low') return Number(a.getAttribute('data-earnings')) - Number(b.getAttribute('data-earnings'));
+      return -1;
+    });
+    visible.forEach(function(row) { tbody.appendChild(row); });
+  }
+}
+</script>
+
 <%- include("./partials/layout-end") %>
-<%- include("../../partials/footer") %>
+<%- include("../partials/footer") %>

@@ -60,13 +60,13 @@ public/              — styles.css
 | Edit project | YES | restricted on owner projects | NO |
 | Delete project | YES | pending_assignment only | NO |
 | Assign editors | YES | YES | NO |
-| Change editor payment | YES | YES (on owner projects only) | NO |
+| Change editor payment | NO | YES (on owner projects) | NO |
 | Change client amount | YES | NO (on owner projects) | NO |
 | Complete workflow | YES | YES | NO |
-| Mark payment done | YES | YES | NO |
-| View analytics | YES | NO | NO |
-| View profits | YES | NO | NO |
-| View all users | YES | NO | NO |
+| Mark payment done | NO | YES | NO |
+| View analytics | NO | YES | NO |
+| View earnings | NO | YES | NO |
+| View all users | NO | YES | NO |
 | View/manage shops | YES | YES | NO |
 | View/manage editors | YES | YES | NO |
 | Accept project | NO | NO | YES |
@@ -92,190 +92,7 @@ public/              — styles.css
 
 # Owner-Only Features
 
-- `/admin/analytics` — Platform-wide analytics (users, projects, revenue, costs, profit)
-- `/admin/profits` — Profit breakdown per project
-- `/admin/users` — All users across roles
-- Profit metrics on dashboard
-- Client/Editor Amount and Profit display on project detail
 - Owner assignment options on project creation (Assign to JR Admin / Direct to Editor)
-
----
-
-# Super Admin Implementation
-
-**Date**: 13 July 2026
-
-**Objective**: Implement Super Admin layer on top of existing JR Admin workflow. Preserve 100% of existing functionality. No duplicated dashboards. No copied pages.
-
-## Model Changes
-
-- **Project model**: Added `ownerAssignment` (enum: `"admin"`, `"direct"`, null) and `ownerAdmin` (ObjectId ref User)
-- **Payment subdoc**: Added `clientAmount` and `editorAmount` alongside existing `amount` for backward compatibility
-- Profit never stored — always calculated as `clientAmount - editorAmount`
-
-## Routes Added
-
-- `routes/owner.js` — `/admin/profits`, `/admin/analytics`, `/admin/users` (owner-only)
-
-## Routes Modified
-
-- `routes/workflow.js` — Project create handles ownerAssignment, clientAmount, editorAmount; edit route restricts admin changes on owner projects; payment uses correct amount
-- `routes/admin.js` — Dashboard passes profit stats for owner; workspace assign handles `editorAmount` for owner projects; sets `clientAmount` for non-owner projects
-
-## Views Added
-
-- `views/admin/profits.ejs` — Profit overview table
-- `views/admin/analytics.ejs` — Platform analytics
-- `views/admin/users.ejs` — All users list
-
-## Views Modified
-
-- `views/admin/projects/form.ejs` — Owner assignment radio buttons (Assign to JR Admin / Direct to Editor / Standard), separate Client Amount and Editor Amount fields
-- `views/admin/projects/show.ejs` — Owner assignment badge, profit display, client/editor amount breakdown
-- `views/admin/projects/index.ejs` — Assignment column for owner
-- `views/admin/workspace.ejs` — Owner assignment label on project cards
-- `views/admin/dashboard.ejs` — Profit metrics row for owner
-- `views/admin/partials/sidebar.ejs` — Analytics/Profits/Users links for owner only
-
-## Socket.IO / Notifications
-
-- `broadcastNotification` forwards admin-targeted notifications to owner role
-- `broadcastDashboardUpdate` and `broadcastProjectCounts` emit to both `role:admin` and `role:owner`
-
-## Verification
-
-| Check | Result |
-|-------|--------|
-| Syntax validation (all JS files) | PASS |
-| EJS compile (all 27 views) | PASS |
-| Server startup (0 errors, port 7000) | PASS |
-| Route smoke test (31 routes) | PASS |
-| Public routes (/, /login, /signup) | 200 |
-| Auth-protected routes (unauthenticated) | 302 |
-| Static files (CSS, images) | 200 |
-| 404 handler | 404 |
-
-## Backward Compatibility
-
-- Existing `payment.amount` field preserved — all views that reference it still work
-- Existing projects without `ownerAssignment` field continue to function normally
-- Existing admin workflow completely unchanged
-- `ownerAssignment` defaults to `null` for backward compatibility
-- `requireAdmin` middleware continues to allow both `admin` and `owner` roles
-- All existing routes, transitions, editor workflow, payments, and socket events preserved
-
----
-
-# Editor UI Security
-
-**Date**: 14 July 2026
-
-**Objective**: Restrict financial information visible to editors to only what they need — their payable amount.
-
-## Changes Made
-
-- `views/editor/projects/show.ejs` — Replaced "Payment Amount" (showing `payment.amount`, the client budget) with "Payable Amount" (showing `payment.editorAmount`). Added "Payment Status" badge and conditional "Paid At" row. Editors no longer see client-facing financial data.
-- `views/editor/projects/index.ejs` — Changed "Amount" label to "Payable Amount" across all three tabs (assigned, ongoing, completed). Now displays `payment.editorAmount` instead of `payment.amount`.
-
-## What Was NOT Changed
-
-- Admin project detail (`views/admin/projects/show.ejs`) — untouched; admin/owner still see Client Amount, Editor Amount, Profit, Payment Status
-- Admin project list — untouched
-- Admin dashboard, profits, analytics — untouched
-- Owner profit/analytics pages — untouched
-- Routes, middleware, permissions, database schema — none modified
-- Editor workflow (accept, submit, feedback, transitions) — unchanged
-
-## Verification
-
-| Check | Result |
-|-------|--------|
-| EJS compile (show.ejs) | PASS |
-| EJS compile (index.ejs) | PASS |
-| Node.js syntax check (all JS files) | PASS |
-| Server startup (0 errors, port 7000) | PASS |
-
----
-
-# Legacy Workspaces Cleanup
-
-**Date**: 14 July 2026
-
-**Objective**: Remove the obsolete "Workspaces" (plural) concept. The product uses one singular "Workspace" concept.
-
-## Files Deleted (4)
-
-| File | Reason |
-|------|--------|
-| `models/Shop.js` | Entire Shop (workspace) model — zero remaining dependents |
-| `views/admin/shops/index.ejs` | Workspaces list page — obsolete CRUD |
-| `views/admin/shops/show.ejs` | Workspace detail page — obsolete CRUD |
-| `views/admin/shops/form.ejs` | Workspace create/edit form — obsolete CRUD |
-
-## Files Modified (11)
-
-| File | Changes |
-|------|---------|
-| `routes/admin.js` | Removed `Shop` import, `syncVendorShopLink` helper, all 8 shops CRUD routes (~190 lines), `safeSlug` helper, `totalShops` dead stat, shop field from editor CRUD (create, edit, delete, list, detail) |
-| `views/admin/vendors/form.ejs` | Removed "Assigned Workspace" dropdown |
-| `views/admin/vendors/show.ejs` | Removed "Assigned Workspace" card |
-| `views/admin/vendors/index.ejs` | Removed "Workspace" column, adjusted colspan |
-| `views/partials/header.ejs` | Removed dead `<a href="/workspaces">Workspaces</a>` nav link |
-| `views/home.ejs` | Removed 3 dead Workspaces links, replaced admin/owner "Workspaces" with "Workspace" → `/admin/workspace` |
-| `views/admin/partials/sidebar.ejs` | Removed "Workspaces" nav link to `/admin/shops` |
-| `middleware/upload.js` | Removed `uploadShopImage`, `handleShopImageUpload`, `shopImageStorage` import |
-| `config/cloudinary.js` | Removed `shopImageStorage` |
-| `public/styles.css` | Renamed `.editor-workspace*` → `.editor-layout*` |
-| `views/editor/projects/show.ejs` | Renamed CSS classes `editor-workspace*` → `editor-layout*` |
-
-## Dead Code Removed
-
-- `syncVendorShopLink` bidirectional helper (150+ lines)
-- `safeSlug` slug generator
-- `Shop.countDocuments()` in dashboard (computed but never rendered)
-- `totalShops` stat passed to dashboard view
-- `uploadShopImage` multer configuration
-- `handleShopImageUpload` middleware wrapper
-- `shopImageStorage` Cloudinary storage config
-- All shop-related `assignedShopName` mapping in editor list
-- All shop-related `populate()` calls in editor detail/edit routes
-- All `syncVendorShopLink` calls in editor create/edit/delete routes
-
-## Architecture Cleanup
-
-- **Concept**: "Workspaces" (plural, multi-workspace management) completely removed
-- **Concept**: "Workspace" (singular, operational center) remains untouched
-- **DB schema**: `User.shop` field kept dormant for backward compatibility (existing documents have it, zero code references it)
-- **Routes removed**: `GET /admin/shops`, `GET /admin/shops/new`, `POST /admin/shops`, `GET /admin/shops/:id`, `GET /admin/shops/:id/edit`, `POST /admin/shops/:id/edit`, `POST /admin/shops/:id/toggle`, `POST /admin/shops/:id/delete`
-- **Routes preserved**: `GET /admin/workspace`, `POST /admin/workspace/assign`
-- **Header/Welcome page**: Dead `/workspaces` links removed (that route never existed)
-
-## Smoke Test Results
-
-| Check | Result |
-|-------|--------|
-| Node.js syntax (all JS files) | PASS |
-| EJS compile (all templates) | PASS |
-| Server startup (port 7000) | PASS |
-| `GET /` (public) | 200 |
-| `GET /login` / `GET /signup` | 200 |
-| `GET /workspaces` (dead route) | 404 |
-| `GET /admin/shops` (removed route) | 302 (auth wall) → 404 after login |
-| `GET /admin/workspace` (auth wall) | 302 |
-| Static assets (`/styles.css`) | 200 |
-| 404 handler | 404 |
-
-## Full Repository Search — Remaining Occurrences
-
-| Term | Remaining | Status |
-|------|-----------|--------|
-| `workspace` (singular) | 15 | All legitimate — operational routes, UI, documentation |
-| `workspaces` (plural) | 0 | Fully removed |
-| `Shop` / `shop` (model) | 1 | `User.shop` field — kept dormant for backward compat |
-| `/admin/shops` | 0 | Fully removed |
-| `uploadShopImage` | 0 | Fully removed |
-| `handleShopImageUpload` | 0 | Fully removed |
-| `shopImageStorage` | 0 | Fully removed |
 
 ---
 
@@ -447,6 +264,161 @@ The pre-assignment review is a UI-only permission toggle at the route level:
 - **Route layer**: `canAdminEditOwnerProject` flag controls write access to client/project fields
 - **Financial layer**: Unchanged — admin can only edit `editorAmount`, never `clientAmount`
 - **Workflow pipeline**: Fully preserved — no status transitions, socket events, or notification logic modified
+
+---
+
+# Owner Sidebar Cleanup
+
+**Date**: 16 July 2026
+
+**Objective**: Remove Analytics and All Users from the Owner sidebar. These are operational features that belong to the JR Admin. Move them to the Admin sidebar.
+
+## Changes
+
+| File | Changes |
+|------|---------|
+| `views/admin/partials/sidebar.ejs` | Removed `role === "owner"` block (Analytics + All Users). Moved Analytics, All Users into existing `role === "admin"` block alongside Earnings. |
+| `routes/owner.js` | Updated middleware from `req.user.role !== "owner"` to `req.user.role !== "owner" && req.user.role !== "admin"` — allows admin to access `/admin/analytics` and `/admin/users`. |
+
+## Sidebar After Changes
+
+**Owner** sees:
+```
+Workspace
+Dashboard
+Editors
+Manage Assets
+Projects
+Clients
+```
+
+**Admin** sees:
+```
+Workspace
+Dashboard
+Editors
+Manage Assets
+Projects
+Clients
+Analytics
+Earnings
+All Users
+```
+
+## What Was NOT Changed
+
+- Analytics page (`views/admin/analytics.ejs`) — unchanged
+- Users page (`views/admin/users.ejs`) — unchanged
+- Owner analytics route — kept, now also serves admin
+- Owner users route — kept, now also serves admin
+- All business logic, models, middleware, utils, socket — untouched
+- All other sidebar links — untouched
+
+## Validation
+
+| Check | Result |
+|-------|--------|
+| Syntax validation (all JS files) | PASS |
+| Server startup (0 errors, port 7000) | PASS |
+| Public routes (/, /login, /signup) | 200 |
+| Auth-protected routes (unauthenticated) | 302 |
+| `/admin/analytics` (auth required) | 302 |
+| `/admin/users` (auth required) | 302 |
+| `/admin/profits` (auth required) | 302 |
+| 404 handler | 404 |
+| Owner no longer sees Analytics/All Users | Sidebar has no `role === "owner"` block |
+| Admin still sees Analytics/All Users/Earnings | Sidebar has `role === "admin"` block with all three |
+
+---
+
+# Earnings Ledger (Permanent Record)
+
+**Date**: 16 July 2026
+
+**Objective**: Transform the Earnings page into a permanent, immutable financial ledger showing only completed & paid projects, with summary cards, filters, statistics, and detailed records.
+
+## What Changed
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Query | All projects (unfiltered) | Only `status: "completed"` AND `payment.status: "paid"` |
+| Population | `assignedEditor`, `ownerAdmin` | Added `createdBy` for ownership column |
+| Sort | `{ createdAt: -1 }` | `{ "payment.paidAt": -1 }` (most recent paid first) |
+| Summary Cards | 4 cards (Total Client, Total Editor, Total Profit, Completed & Paid count) | 5 cards (Total Earnings, Projects Paid, Total Client Revenue, Total Editor Payments, Avg Earnings) |
+| Filters | None | Search, Date Range (paidAt), Editor dropdown, Sort (newest/oldest/highest earnings/lowest earnings) |
+| Table Columns | 8 cols (Project, Client, Editor, Completed, Client Amt, Editor Amt, Profit, Payment) | 11 cols (Project, Client, Owner, JR Admin, Editor, Completed, Paid, Client Amt, Editor Amt, Earnings, View) |
+| Statistics | None | Highest Earning project, Lowest Earning project, plus all aggregate values |
+| Helper functions | `formatMoney`, `formatStatus`, `getBadgeColor` | Removed `getBadgeColor` (no status badges needed in ledger) |
+
+## Files Modified
+
+| File | Lines | Changes |
+|------|-------|---------|
+| `routes/admin.js:511-575` | 65 | Filtered query to `{ status: "completed", "payment.status": "paid" }`, added `createdBy` populate, sort by `paidAt desc`, computed full statistics (total, avg, highest, lowest), fetched active editors for filter dropdown |
+| `views/admin/profits.ejs` | 180 | Full rewrite: 5 summary cards, filter bar (4 controls + sort), 11-column ledger table, statistics panel, record integrity info box, client-side JS for filtering/sorting |
+
+## Earnings Ledger Rules
+
+- **Only** completed projects with `payment.status === "paid"` appear
+- **Earnings** = `clientAmount − editorAmount` (dynamically calculated, never stored)
+- **No editing** — records are immutable once payment is marked done
+- **No manual entry** — records appear automatically after workflow completion + payment-done action
+- **Search** searches across project name, client name, editor name, owner, JR admin
+- **Date filter** filters by `paidAt` date
+- **Sort** supports newest/oldest by paid date, or highest/lowest earnings
+
+## Validation
+
+| Check | Result |
+|-------|--------|
+| Syntax validation (all JS files) | PASS |
+| Server startup (0 errors, port 7000) | PASS |
+| `/` | 200 |
+| `/login` | 200 |
+| `/admin` (auth redirect) | 302 |
+| `/admin/profits` (auth redirect) | 302 |
+| `/admin/analytics` (auth redirect) | 302 |
+| `/admin/users` (auth redirect) | 302 |
+| `/nonexistent` | 404 |
+
+---
+
+# Dashboard 404 Fix — Broken Error Handler Redirect
+
+**Date**: 16 July 2026
+
+**Root Cause**: `server.js:129` — the global 500 error handler redirected admin users to `/admin/dashboard` when no `referer` header was present. **No route at `/admin/dashboard` has ever existed.** The Dashboard has always been served at `/admin` (the root mount of the admin router). This meant any server error without a valid referer would redirect admins to a 404 page, making it appear the Dashboard was broken.
+
+**Trace**:
+1. `server.js:109` mounts admin router at `/admin`
+2. `routes/admin.js:22` handles `GET /` (Dashboard) — serves at `/admin`
+3. `routes/admin.js` has **no** `GET /dashboard` route — never has
+4. `sidebar.ejs:3` correctly links Dashboard to `/admin`
+5. `server.js:129` erroneously used `"/admin/dashboard"` as fallback on error — **only reference to this path in the entire codebase**
+
+**Fix**: Changed `server.js:129` from `"/admin/dashboard"` to `"/admin"` — matches the actual Dashboard route.
+
+**File Modified** (1):
+
+| File | Line | Change |
+|------|------|--------|
+| `server.js` | 129 | `"/admin/dashboard"` → `"/admin"` |
+
+**Validation**:
+
+| Check | Result |
+|-------|--------|
+| Syntax check (`node --check server.js`) | PASS |
+| Server startup (0 errors, port 7000) | PASS |
+| `/admin` (Dashboard, unauthenticated) | 302 |
+| `/admin/workspace` (unauthenticated) | 302 |
+| `/admin/profits` (Earnings, unauthenticated) | 302 |
+| `/admin/dashboard` (no route, unauthenticated) | 302 (auth redirect, not 404) |
+| `/` (public) | 200 |
+| `/login` | 200 |
+| `/nonexistent` | 404 |
+
+---
 
 # Technical Debt
 

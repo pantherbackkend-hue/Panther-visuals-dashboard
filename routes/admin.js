@@ -515,44 +515,57 @@ adminRouter.get("/profits", async (req, res) => {
       return res.redirect("/admin");
     }
 
-    const allProjects = await Project.find()
+    const paidProjects = await Project.find({ status: "completed", "payment.status": "paid" })
       .populate("assignedEditor", "name email")
       .populate("ownerAdmin", "name email")
-      .sort({ createdAt: -1 })
+      .populate("createdBy", "name")
+      .sort({ "payment.paidAt": -1 })
       .lean();
 
-    const projects = allProjects.map((p) => {
+    const ledger = paidProjects.map((p) => {
       const clientAmount = p.payment?.clientAmount || p.payment?.amount || 0;
       const editorAmount = p.payment?.editorAmount || 0;
-      const profit = clientAmount - editorAmount;
+      const earnings = clientAmount - editorAmount;
       return {
         ...p,
         clientName: p.client?.name || p.clientName || "",
         clientAmount,
         editorAmount,
-        profit,
-        statusLabel: formatStatus(p.status),
-        badgeColor: getBadgeColor(p.status),
-        profitColor: profit >= 0 ? "var(--success)" : "var(--danger)",
+        earnings,
+        completedAtFormatted: p.completedAt ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
+        paidAtFormatted: p.payment?.paidAt ? new Date(p.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
       };
     });
 
-    const totalClientAmount = projects.reduce((s, p) => s + p.clientAmount, 0);
-    const totalEditorAmount = projects.reduce((s, p) => s + p.editorAmount, 0);
-    const totalProfit = totalClientAmount - totalEditorAmount;
-    const totalPaid = projects.filter((p) => p.payment?.status === "paid").length;
+    const totalProjects = ledger.length;
+    const totalClientAmount = ledger.reduce((s, p) => s + p.clientAmount, 0);
+    const totalEditorAmount = ledger.reduce((s, p) => s + p.editorAmount, 0);
+    const totalEarnings = totalClientAmount - totalEditorAmount;
+    const avgEarnings = totalProjects > 0 ? totalEarnings / totalProjects : 0;
+
+    let highestEarning = null;
+    let lowestEarning = null;
+    if (ledger.length > 0) {
+      highestEarning = ledger.reduce((max, p) => p.earnings > max.earnings ? p : max, ledger[0]);
+      lowestEarning = ledger.reduce((min, p) => p.earnings < min.earnings ? p : min, ledger[0]);
+    }
+
+    const editors = await User.find({ role: "editor", isActive: true }).select("name").sort({ name: 1 }).lean();
 
     res.render("admin/profits", {
-      pageTitle: "Earnings Overview",
+      pageTitle: "Earnings Ledger",
       activeSection: "profits",
-      projects,
+      ledger,
+      totalProjects,
       totalClientAmount,
       totalEditorAmount,
-      totalProfit,
-      totalPaid,
+      totalEarnings,
+      avgEarnings,
+      highestEarning,
+      lowestEarning,
+      editors,
       formatMoney,
       formatStatus,
-      getBadgeColor,
     });
   } catch (err) {
     console.error("Earnings error:", err);

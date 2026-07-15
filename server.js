@@ -126,7 +126,7 @@ app.use((err, req, res, _next) => {
   req.flash("error", "Something went wrong. Please try again.");
   const fallback =
     req.headers.referer ||
-    (req.user?.role === "admin" ? "/admin/dashboard" : "/");
+    (req.user?.role === "admin" ? "/admin" : "/");
   res.status(500).redirect(fallback);
 });
 

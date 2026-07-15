@@ -20,8 +20,8 @@ function formatMoney(value) {
 }
 
 ownerRouter.use((req, res, next) => {
-  if (req.user.role !== "owner") {
-    req.flash("error", "Owner access only.");
+  if (req.user.role !== "owner" && req.user.role !== "admin") {
+    req.flash("error", "Access denied.");
     return res.redirect("/");
   }
   next();
