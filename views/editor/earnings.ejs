@@ -1,0 +1,64 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">My earnings</p>
+    <h1>My Earnings</h1>
+    <p class="muted">Your completed projects and payment summary.</p>
+  </div>
+  <a class="btn btn--outline" href="/editor/projects">Back to Projects</a>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Completed Projects</p><h2><%= completedCount %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Earnings</p><h2 style="color:var(--success)"><%= formatMoney(totalEarnings) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Paid</p><h2 style="color:var(--success)"><%= formatMoney(paidAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Pending Payments</p><h2 style="color:<%= pendingPayments > 0 ? 'var(--warning)' : 'inherit' %>"><%= pendingPayments %></h2></article>
+  <% if (unpaidAmount > 0) { %>
+  <article class="card admin-metric"><p class="muted small">Unpaid Amount</p><h2 style="color:var(--warning)"><%= formatMoney(unpaidAmount) %></h2></article>
+  <% } %>
+</section>
+
+<div class="card admin-panel">
+  <h2 class="h2 mt-0">Payment History</h2>
+  <% if (rows.length === 0) { %>
+    <p class="muted">No completed projects yet. Your earnings will appear here once projects are marked complete.</p>
+  <% } else { %>
+    <div style="overflow-x:auto">
+      <table class="table" role="table">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Client</th>
+            <th scope="col">Completed</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Status</th>
+            <th scope="col">Paid At</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(p) { %>
+            <tr>
+              <td><a class="admin-link" href="/editor/projects/<%= p._id %>"><%= p.projectName %></a></td>
+              <td><%= p.clientName %></td>
+              <td><%= p.completedAtFormatted %></td>
+              <td><%= formatMoney(p.amount) %></td>
+              <td>
+                <% if (p.paymentStatus === "paid") { %>
+                  <span class="tag tag--ok">Paid</span>
+                <% } else { %>
+                  <span class="tag tag--pending">Pending</span>
+                <% } %>
+              </td>
+              <td><%= p.paidAtFormatted %></td>
+              <td><a class="btn btn--outline btn--small" href="/editor/projects/<%= p._id %>">View</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include("../partials/footer") %>

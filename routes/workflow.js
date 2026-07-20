@@ -832,7 +832,10 @@ workflowRouter.post(
         return res.redirect(`/admin/projects/${id}`);
       }
 
+      await Notification.deleteMany({ project: id });
       await Project.deleteOne({ _id: id });
+      const allProjects = await Project.find().lean();
+      await broadcastProjectCounts(getDashboardCounts(allProjects));
       req.flash("success", "Project deleted.");
       return res.redirect("/admin/projects");
     } catch (err) {
@@ -1174,6 +1177,68 @@ workflowRouter.post(
       console.error("Profile update error:", err);
       req.flash("error", err.message || "Failed to update profile.");
       return res.redirect("/editor/profile");
+    }
+  },
+);
+
+// --- Editor: Earnings ---
+
+workflowRouter.get(
+  "/editor/earnings",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    try {
+      const projects = await Project.find({
+        assignedEditor: req.user._id,
+        status: "completed",
+      })
+        .sort({ completedAt: -1 })
+        .lean();
+
+      const rows = projects.map((p) => {
+        const editorAmount = p.payment?.editorAmount || 0;
+        const projectAmount = p.payment?.amount || 0;
+        const amount = editorAmount || projectAmount;
+        const isPaid = p.payment?.status === "paid";
+        return {
+          _id: p._id,
+          projectName: p.projectName,
+          clientName: p.client?.name || p.clientName || "",
+          completedAt: p.completedAt,
+          completedAtFormatted: p.completedAt
+            ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
+            : "—",
+          amount,
+          paymentStatus: p.payment?.status || "pending",
+          paidAtFormatted: p.payment?.paidAt
+            ? new Date(p.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
+            : "—",
+        };
+      });
+
+      const completedCount = rows.length;
+      const totalEarnings = rows.reduce((s, p) => s + p.amount, 0);
+      const pendingPayments = rows.filter((p) => p.paymentStatus === "pending").length;
+      const paidAmount = rows.filter((p) => p.paymentStatus === "paid").reduce((s, p) => s + p.amount, 0);
+      const unpaidAmount = totalEarnings - paidAmount;
+
+      res.render("editor/earnings", {
+        pageTitle: "My Earnings",
+        rows,
+        completedCount,
+        totalEarnings,
+        pendingPayments,
+        paidAmount,
+        unpaidAmount,
+        formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
+        formatStatus,
+      });
+    } catch (err) {
+      console.error("Editor earnings error:", err);
+      req.flash("error", "Something went wrong.");
+      return res.redirect("/editor/projects");
     }
   },
 );

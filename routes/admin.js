@@ -510,11 +510,6 @@ adminRouter.post("/editors/:id/toggle", async (req, res) => {
 
 adminRouter.get("/profits", async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      req.flash("error", "Admin access only.");
-      return res.redirect("/admin");
-    }
-
     const paidProjects = await Project.find({ status: "completed", "payment.status": "paid" })
       .populate("assignedEditor", "name email")
       .populate("ownerAdmin", "name email")

@@ -13,6 +13,11 @@
   <div class="flex gap-8 flex-wrap">
     <a class="btn btn--outline" href="/admin/projects">Back</a>
     <a class="btn btn--outline" href="/admin/projects/<%= project._id %>/edit">Edit</a>
+    <% if (project.status === "pending_assignment") { %>
+      <form method="post" action="/admin/projects/<%= project._id %>/delete" style="display:inline" id="delete-form">
+        <button type="button" class="btn btn--danger" id="btn-delete">Delete</button>
+      </form>
+    <% } %>
     <% if (project.ownerAssignment) { %>
       <span class="tag tag--info" style="font-size:11px;align-self:center">
         <%= project.ownerAssignment === 'admin' ? 'Owner → JR Admin' : 'Owner → Editor' %>
@@ -445,6 +450,18 @@
             completeBtn.disabled = false;
             completeBtn.textContent = "Complete Project";
           });
+      });
+    });
+  }
+
+  var deleteBtn = document.getElementById("btn-delete");
+  var deleteForm = document.getElementById("delete-form");
+  if (deleteBtn && deleteForm) {
+    deleteBtn.addEventListener("click", function () {
+      showConfirm("Are you sure you want to delete this project? This action cannot be undone.").then(function (confirmed) {
+        if (confirmed) {
+          deleteForm.submit();
+        }
       });
     });
   }
