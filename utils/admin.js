@@ -17,33 +17,8 @@ export function startOfIstDay(date = new Date()) {
   return fromIstParts({ year: parts.year, month: parts.month, day: parts.day });
 }
 
-export function startOfIstWeek(date = new Date()) {
-  const parts = toIstDateParts(date);
-  const start = fromIstParts({ year: parts.year, month: parts.month, day: parts.day });
-  const istDay = new Date(start.getTime() + IST_OFFSET_MINUTES * 60000).getUTCDay();
-  const diff = (istDay + 6) % 7;
-  start.setUTCDate(start.getUTCDate() - diff);
-  return start;
-}
-
-export function startOfIstMonth(date = new Date()) {
-  const parts = toIstDateParts(date);
-  return fromIstParts({ year: parts.year, month: parts.month, day: 1 });
-}
-
 export function normalizeQuery(value) {
   return String(value || "").trim();
 }
 
-export function formatOrderStatus(status) {
-  const labels = {
-    pending: "Pending", assigned: "Assigned", in_progress: "In Progress",
-    review: "Waiting for Review", revision: "Revision Requested",
-    completed: "Completed", cancelled: "Cancelled",
-  };
-  return labels[status] || status || "Unknown";
-}
 
-export function formatBooleanStatus(value, trueLabel = "Enabled", falseLabel = "Disabled") {
-  return value ? trueLabel : falseLabel;
-}

@@ -20,7 +20,7 @@
       </span>
       <span class="project-header__meta-divider"></span>
       <span class="project-header__meta-item">
-        Client: <strong><%= project.client?.name || project.clientName || "" %></strong>
+        Client: <strong><%= project.clientRef?.name || project.client?.name || project.clientName || "" %></strong>
       </span>
       <% if (project.dueDate) { %>
         <span class="project-header__meta-divider"></span>
@@ -56,18 +56,18 @@
           <h3 class="detail-group__title">Client</h3>
           <div class="detail-row">
             <span class="detail-row__label">Name</span>
-            <span class="detail-row__value"><%= project.client?.name || project.clientName || "" %></span>
+            <span class="detail-row__value"><%= project.clientRef?.name || project.client?.name || project.clientName || "" %></span>
           </div>
-          <% if (project.client?.email) { %>
+          <% if (project.clientRef?.channelName) { %>
           <div class="detail-row">
-            <span class="detail-row__label">Email</span>
-            <span class="detail-row__value"><%= project.client.email %></span>
+            <span class="detail-row__label">Channel</span>
+            <span class="detail-row__value"><%= project.clientRef.channelName %></span>
           </div>
           <% } %>
-          <% if (project.client?.phone) { %>
+          <% if (project.clientRef?.channelUrl) { %>
           <div class="detail-row">
-            <span class="detail-row__label">Phone</span>
-            <span class="detail-row__value"><%= project.client.phone %></span>
+            <span class="detail-row__label">Channel URL</span>
+            <span class="detail-row__value"><a href="<%= project.clientRef.channelUrl %>" target="_blank" rel="noopener"><%= project.clientRef.channelUrl.length > 40 ? project.clientRef.channelUrl.slice(0,40) + "..." : project.clientRef.channelUrl %></a></span>
           </div>
           <% } %>
         </div>
@@ -98,6 +98,10 @@
                 <%= formatStatus(project.status) %>
               </span>
             </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Received</span>
+            <span class="detail-row__value"><%= project.receivedDate ? new Date(project.receivedDate).toLocaleDateString("en-IN") : new Date(project.createdAt).toLocaleDateString("en-IN") %></span>
           </div>
           <div class="detail-row">
             <span class="detail-row__label">Created</span>

@@ -62,6 +62,7 @@ const timelineEntrySchema = new mongoose.Schema(
 const projectSchema = new mongoose.Schema(
   {
     client: { type: clientSchema, default: () => ({ name: "" }) },
+    clientRef: { type: mongoose.Schema.Types.ObjectId, ref: "Client", default: null },
     projectName: { type: String, required: true, trim: true },
     assignedEditor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     driveLink: { type: String, default: "" },
@@ -91,6 +92,7 @@ const projectSchema = new mongoose.Schema(
     ownerAdmin: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     completedAt: { type: Date, default: null },
+    receivedDate: { type: Date, default: Date.now },
   },
   { timestamps: true },
 );

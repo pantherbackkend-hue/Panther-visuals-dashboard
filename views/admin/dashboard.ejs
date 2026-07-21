@@ -83,7 +83,7 @@
           <div class="deadline-item">
             <div class="deadline-item__info">
               <strong><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></strong>
-              <span class="muted"><%= project.clientName %></span>
+              <span class="muted"><%= project.clientRef?.name || project.client?.name || project.clientName || "" %></span>
             </div>
             <div class="deadline-item__meta">
               <span class="priority-dot priority-dot--<%= project.priority %>"></span>
@@ -160,6 +160,7 @@
             <th>Priority</th>
             <th>Status</th>
             <th>Amount</th>
+            <th>Received</th>
             <th>Due</th>
           </tr>
         </thead>
@@ -173,6 +174,7 @@
               <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span style="text-transform:capitalize"><%= project.priority %></span></td>
               <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
               <td><%= formatMoney(project.paymentAmount) %></td>
+              <td><%= project.receivedDate ? new Date(project.receivedDate).toLocaleDateString("en-IN") : new Date(project.createdAt).toLocaleDateString("en-IN") %></td>
               <td style="<%= isOverdue ? 'color:var(--danger);font-weight:600' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></td>
             </tr>
           <% }) %>

@@ -4,34 +4,52 @@
   <div>
     <p class="eyebrow">Reference library</p>
     <h1>My Assets</h1>
-    <p class="muted">Original drive links and reference files for your projects.</p>
+    <p class="muted">Reference assets for clients you have projects for. Managed by admin.</p>
   </div>
 </section>
 
-<% if (projects.length === 0) { %>
-  <div class="card admin-panel"><p class="muted">No projects assigned to you yet.</p></div>
+<% if (!clientAssets || clientAssets.length === 0) { %>
+  <div class="card admin-panel"><p class="muted">No assets available. Reference assets appear here when clients have assets added by the admin.</p></div>
 <% } else { %>
-  <div class="editor-cards">
-    <% projects.forEach(function(p) { %>
-      <article class="card project-card">
-        <div class="project-card__head">
-          <h3 class="project-card__name"><%= p.projectName %></h3>
-          <span class="tag tag--<%= (function(s){var c={pending_assignment:"pending",assigned:"info",ongoing:"warning",submitted:"ok",completed:"ok"};return c[s]||"muted"})(p.status) %>"><%= (function(s){var l={pending_assignment:"Pending Assignment",assigned:"Assigned",ongoing:"Ongoing",submitted:"Submitted",completed:"Completed"};return l[s]||s})(p.status) %></span>
+  <% var hasAnyAssets = false; %>
+  <% clientAssets.forEach(function(item) { %>
+    <% var client = item.client; %>
+    <% if (!client.assets || client.assets.length === 0) return; %>
+    <% hasAnyAssets = true; %>
+    <div class="card admin-panel" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <h2 class="h2 mt-0 mb-0"><%= client.name %></h2>
+          <% if (client.channelName) { %><p class="muted mt-0 mb-0 text-sm"><%= client.channelName %></p><% } %>
         </div>
-        <% if (p.driveLink) { %>
-          <div class="project-card__meta" style="margin-bottom:0">
-            <span><strong>Original Drive Link:</strong></span>
-          </div>
-          <div class="asset-link-row">
-            <a href="<%= p.driveLink %>" target="_blank" rel="noopener" class="asset-link"><%= p.driveLink.length > 70 ? p.driveLink.slice(0, 70) + "..." : p.driveLink %></a>
-            <button class="quick-action-btn btn-copy-asset" data-link="<%= p.driveLink %>">Copy</button>
-          </div>
-        <% } else { %>
-          <p class="muted" style="margin:0">No drive link provided.</p>
-        <% } %>
-      </article>
-    <% }) %>
-  </div>
+        <div class="flex gap-4 flex-wrap">
+          <% item.statuses.forEach(function(s) { %>
+            <span class="tag tag--<%= getBadgeColor(s) %> text-xs"><%= formatStatus(s) %></span>
+          <% }) %>
+        </div>
+      </div>
+      <div class="editor-cards">
+        <% client.assets.forEach(function(asset) { %>
+          <article class="card project-card">
+            <div class="project-card__head">
+              <h3 class="project-card__name"><%= asset.label || "Asset" %></h3>
+              <% if (asset.isDefault) { %><span class="tag tag--ok" style="font-size:10px">Default</span><% } %>
+            </div>
+            <% if (asset.description) { %>
+              <p class="muted text-sm mt-0 mb-0"><%= asset.description %></p>
+            <% } %>
+            <div class="asset-link-row" style="margin-top:8px">
+              <a href="<%= asset.driveLink %>" target="_blank" rel="noopener" class="asset-link"><%= asset.driveLink.length > 60 ? asset.driveLink.slice(0, 60) + "..." : asset.driveLink %></a>
+              <button class="quick-action-btn btn-copy-asset" data-link="<%= asset.driveLink %>">Copy</button>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </div>
+  <% }); %>
+  <% if (!hasAnyAssets) { %>
+    <div class="card admin-panel"><p class="muted">Your assigned clients do not have any reference assets yet.</p></div>
+  <% } %>
 <% } %>
 
 <script>
@@ -47,7 +65,6 @@
             setTimeout(function () { btn.textContent = "Copy"; }, 2000);
           });
         } else {
-          // Fallback
           var ta = document.createElement("textarea");
           ta.value = link;
           ta.style.position = "fixed";

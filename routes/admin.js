@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
 import { Project } from "../models/Project.js";
+import { Client } from "../models/Client.js";
 import { User } from "../models/User.js";
 import { Notification } from "../models/Notification.js";
 import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability } from "../utils/workflow.js";
@@ -45,6 +46,7 @@ adminRouter.get("/", async (req, res) => {
     User.countDocuments({ role: "editor" }),
     Project.find()
       .populate("assignedEditor", "name email")
+      .populate("clientRef", "name channelName channelUrl email")
       .sort({ priority: -1, createdAt: -1 })
       .limit(10)
       .lean(),
@@ -87,8 +89,9 @@ adminRouter.get("/", async (req, res) => {
       dueDate: { $gte: now, $ne: null },
       status: { $nin: ["completed"] },
     })
-      .select("projectName clientName dueDate priority assignedEditor")
+      .select("projectName client dueDate priority assignedEditor clientRef")
       .populate("assignedEditor", "name")
+      .populate("clientRef", "name channelName channelUrl email")
       .sort({ dueDate: 1 })
       .limit(5)
       .lean(),
@@ -118,7 +121,7 @@ adminRouter.get("/", async (req, res) => {
 
   const workflowProjects = allProjects.map((p) => ({
     ...p,
-    clientName: p.client?.name || p.clientName || "",
+    clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
     paymentAmount: p.payment?.amount || 0,
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
@@ -228,6 +231,7 @@ adminRouter.get("/workspace", async (req, res) => {
     Project.countDocuments({ status: "completed", completedAt: { $gte: istStart } }),
     Project.find()
       .populate("assignedEditor", "name email availability")
+      .populate("clientRef", "name channelName channelUrl email")
       .sort({ priority: -1, createdAt: -1 })
       .lean(),
     User.find({ role: "editor", isActive: true })
@@ -253,7 +257,7 @@ adminRouter.get("/workspace", async (req, res) => {
 
   const projects = allProjects.map((p) => ({
     ...p,
-    clientName: p.client?.name || p.clientName || "",
+    clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
     latestVersion: p.submissions && p.submissions.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
@@ -514,6 +518,7 @@ adminRouter.get("/profits", async (req, res) => {
       .populate("assignedEditor", "name email")
       .populate("ownerAdmin", "name email")
       .populate("createdBy", "name")
+      .populate("clientRef", "name channelName channelUrl email")
       .sort({ "payment.paidAt": -1 })
       .lean();
 
@@ -523,7 +528,7 @@ adminRouter.get("/profits", async (req, res) => {
       const earnings = clientAmount - editorAmount;
       return {
         ...p,
-        clientName: p.client?.name || p.clientName || "",
+        clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
         clientAmount,
         editorAmount,
         earnings,
@@ -585,6 +590,617 @@ adminRouter.post("/editors/:id/delete", async (req, res) => {
     console.error("Editor delete error:", err);
     req.flash("error", "Something went wrong.");
     return res.redirect("/admin/editors");
+  }
+});
+
+// --- Clients ---
+
+function formatDate(d) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
+}
+
+adminRouter.get("/clients", async (req, res) => {
+  try {
+    const search = String(req.query.q || "").trim().toLowerCase();
+    const filter = {};
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { channelName: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const clients = await Client.find(filter).sort({ name: 1 }).lean();
+
+    const projectCounts = await Project.aggregate([
+      { $match: { clientRef: { $ne: null } } },
+      { $group: { _id: "$clientRef", count: { $sum: 1 } } },
+    ]);
+    const countMap = {};
+    for (const c of projectCounts) {
+      countMap[String(c._id)] = c.count;
+    }
+
+    const rows = clients.map((c) => ({
+      ...c,
+      projectCount: countMap[String(c._id)] || 0,
+      assetCount: c.assets?.length || 0,
+      driveLinkCount: c.driveLinks?.length || 0,
+    }));
+
+    res.render("admin/clients/index", {
+      pageTitle: "Manage Clients",
+      activeSection: "clients",
+      clients: rows,
+      search,
+    });
+  } catch (err) {
+    console.error("Clients list error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin");
+  }
+});
+
+adminRouter.get("/clients/new", async (req, res) => {
+  res.render("admin/clients/form", {
+    pageTitle: "New Client",
+    activeSection: "clients",
+    mode: "create",
+    client: null,
+  });
+});
+
+adminRouter.post("/clients", async (req, res) => {
+  try {
+    const { name, channelName, channelUrl, email, notes, assets: formAssets } = req.body;
+
+    if (!name || !String(name).trim()) {
+      req.flash("error", "Client name is required.");
+      return res.redirect("/admin/clients/new");
+    }
+
+    const existing = await Client.findOne({ name: { $regex: `^${String(name).trim()}$`, $options: "i" } });
+    if (existing) {
+      req.flash("error", "A client with this name already exists.");
+      return res.redirect("/admin/clients/new");
+    }
+
+    var assetData = [];
+    if (formAssets && Array.isArray(formAssets)) {
+      var defaultIdx = -1;
+      for (var i = 0; i < formAssets.length; i++) {
+        var a = formAssets[i];
+        if (!a || !a.driveLink || !String(a.driveLink).trim()) continue;
+        assetData.push({
+          label: String(a.label || "").trim(),
+          driveLink: String(a.driveLink).trim(),
+          description: String(a.description || "").trim(),
+        });
+        if (a.isDefault === "on" || a.isDefault === true) defaultIdx = assetData.length - 1;
+      }
+      if (assetData.length === 1) {
+        assetData[0].isDefault = true;
+      } else if (assetData.length > 1 && defaultIdx === -1) {
+        assetData[0].isDefault = true;
+      } else if (defaultIdx >= 0) {
+        assetData[defaultIdx].isDefault = true;
+      }
+    }
+
+    await Client.create({
+      name: String(name).trim(),
+      channelName: String(channelName || "").trim(),
+      channelUrl: String(channelUrl || "").trim(),
+      email: String(email || "").trim().toLowerCase(),
+      notes: String(notes || "").trim(),
+      assets: assetData,
+      createdBy: req.user._id,
+    });
+
+    req.flash("success", "Client created.");
+    return res.redirect("/admin/clients");
+  } catch (err) {
+    console.error("Client create error:", err);
+    if (err.code === 11000) {
+      req.flash("error", "A client with this name already exists.");
+    } else {
+      req.flash("error", err.message || "Could not create client.");
+    }
+    return res.redirect("/admin/clients/new");
+  }
+});
+
+adminRouter.get("/clients/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id).lean();
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const projects = await Project.find({ clientRef: client._id })
+      .populate("assignedEditor", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const projectRows = projects.map((p) => ({
+      _id: p._id,
+      projectName: p.projectName,
+      status: p.status,
+      statusLabel: formatStatus(p.status),
+      badgeColor: getBadgeColor(p.status),
+      assignedEditorName: p.assignedEditor?.name || "Unassigned",
+      createdAt: formatDate(p.createdAt),
+      paymentStatus: p.payment?.status || "pending",
+    }));
+
+    const recentProjects = projectRows.slice(0, 5);
+
+    const allProjectRefs = await Project.countDocuments({
+      $or: [
+        { clientRef: client._id },
+        { "client.name": client.name, clientRef: null },
+      ],
+    });
+
+    res.render("admin/clients/show", {
+      pageTitle: client.name,
+      activeSection: "clients",
+      client,
+      projects: projectRows,
+      recentProjects,
+      totalProjects: allProjectRefs,
+      formatDate,
+      formatStatus,
+      getBadgeColor,
+      formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
+    });
+  } catch (err) {
+    console.error("Client show error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/clients");
+  }
+});
+
+adminRouter.get("/clients/:id/edit", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id).lean();
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    res.render("admin/clients/form", {
+      pageTitle: `Edit ${client.name}`,
+      activeSection: "clients",
+      mode: "edit",
+      client,
+    });
+  } catch (err) {
+    console.error("Client edit form error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/clients");
+  }
+});
+
+adminRouter.post("/clients/:id/edit", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const { name, channelName, channelUrl, email, notes, assets: formAssets } = req.body;
+
+    if (!name || !String(name).trim()) {
+      req.flash("error", "Client name is required.");
+      return res.redirect(`/admin/clients/${id}/edit`);
+    }
+
+    const conflict = await Client.findOne({
+      _id: { $ne: client._id },
+      name: { $regex: `^${String(name).trim()}$`, $options: "i" },
+    });
+    if (conflict) {
+      req.flash("error", "A client with this name already exists.");
+      return res.redirect(`/admin/clients/${id}/edit`);
+    }
+
+    client.name = String(name).trim();
+    client.channelName = String(channelName || "").trim();
+    client.channelUrl = String(channelUrl || "").trim();
+    client.email = String(email || "").trim().toLowerCase();
+    client.notes = String(notes || "").trim();
+
+    if (formAssets && Array.isArray(formAssets)) {
+      var assetData = [];
+      var defaultIdx = -1;
+      for (var i = 0; i < formAssets.length; i++) {
+        var a = formAssets[i];
+        if (!a || !a.driveLink || !String(a.driveLink).trim()) continue;
+        var entry = {
+          label: String(a.label || "").trim(),
+          driveLink: String(a.driveLink).trim(),
+          description: String(a.description || "").trim(),
+        };
+        if (a._id && mongoose.isValidObjectId(a._id)) entry._id = a._id;
+        if (a.isDefault === "on" || a.isDefault === true) defaultIdx = assetData.length;
+        assetData.push(entry);
+      }
+      if (assetData.length === 1) {
+        assetData[0].isDefault = true;
+      } else if (assetData.length > 1 && defaultIdx === -1) {
+        assetData[0].isDefault = true;
+      } else if (defaultIdx >= 0) {
+        assetData[defaultIdx].isDefault = true;
+      }
+      client.assets = assetData;
+    }
+
+    await client.save();
+
+    req.flash("success", "Client updated.");
+    return res.redirect(`/admin/clients/${id}`);
+  } catch (err) {
+    console.error("Client update error:", err);
+    if (err.code === 11000) {
+      req.flash("error", "A client with this name already exists.");
+    } else {
+      req.flash("error", err.message || "Could not update client.");
+    }
+    return res.redirect(`/admin/clients/${req.params.id}/edit`);
+  }
+});
+
+adminRouter.post("/clients/:id/delete", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const referenced = await Project.countDocuments({
+      $or: [
+        { clientRef: client._id },
+        { "client.name": client.name, clientRef: null },
+      ],
+    });
+    if (referenced > 0) {
+      req.flash("error", `Cannot delete "${client.name}" because ${referenced} project(s) reference this client. Remove the project references first.`);
+      return res.redirect("/admin/clients");
+    }
+
+    await Client.deleteOne({ _id: client._id });
+
+    req.flash("success", "Client deleted.");
+    return res.redirect("/admin/clients");
+  } catch (err) {
+    console.error("Client delete error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/clients");
+  }
+});
+
+// --- Drive Link management ---
+
+adminRouter.post("/clients/:id/drive-links", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const { label, url } = req.body;
+    if (!url || !String(url).trim()) {
+      req.flash("error", "Drive link URL is required.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    client.driveLinks.push({
+      label: String(label || "").trim(),
+      url: String(url).trim(),
+    });
+
+    await client.save();
+
+    req.flash("success", "Drive link added.");
+    return res.redirect(`/admin/clients/${id}`);
+  } catch (err) {
+    console.error("Drive link add error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+adminRouter.post("/clients/:id/drive-links/:linkId/edit", async (req, res) => {
+  try {
+    const { id, linkId } = req.params;
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(linkId)) {
+      req.flash("error", "Invalid request.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const link = client.driveLinks.id(linkId);
+    if (!link) {
+      req.flash("error", "Drive link not found.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    const { label, url } = req.body;
+    link.label = String(label || "").trim();
+    if (url && String(url).trim()) {
+      link.url = String(url).trim();
+    }
+
+    await client.save();
+
+    req.flash("success", "Drive link updated.");
+    return res.redirect(`/admin/clients/${id}`);
+  } catch (err) {
+    console.error("Drive link edit error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+adminRouter.post("/clients/:id/drive-links/:linkId/delete", async (req, res) => {
+  try {
+    const { id, linkId } = req.params;
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(linkId)) {
+      req.flash("error", "Invalid request.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const link = client.driveLinks.id(linkId);
+    if (!link) {
+      req.flash("error", "Drive link not found.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    link.deleteOne();
+    await client.save();
+
+    req.flash("success", "Drive link deleted.");
+    return res.redirect(`/admin/clients/${id}`);
+  } catch (err) {
+    console.error("Drive link delete error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+// --- Asset management ---
+
+adminRouter.post("/clients/:id/assets", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const { label, driveLink, description } = req.body;
+    if (!driveLink || !String(driveLink).trim()) {
+      req.flash("error", "Asset drive link URL is required.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    const isDefault = client.assets.length === 0;
+    client.assets.push({
+      label: String(label || "").trim(),
+      driveLink: String(driveLink).trim(),
+      description: String(description || "").trim(),
+      isDefault,
+    });
+
+    await client.save();
+
+    req.flash("success", "Reference asset added.");
+    return res.redirect(`/admin/clients/${id}#assets`);
+  } catch (err) {
+    console.error("Asset add error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+adminRouter.post("/clients/:id/assets/:assetId/edit", async (req, res) => {
+  try {
+    const { id, assetId } = req.params;
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(assetId)) {
+      req.flash("error", "Invalid request.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const asset = client.assets.id(assetId);
+    if (!asset) {
+      req.flash("error", "Asset not found.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    const { label, driveLink, description } = req.body;
+    asset.label = String(label || "").trim();
+    if (driveLink && String(driveLink).trim()) {
+      asset.driveLink = String(driveLink).trim();
+    }
+    asset.description = String(description || "").trim();
+
+    await client.save();
+
+    req.flash("success", "Reference asset updated.");
+    return res.redirect(`/admin/clients/${id}#assets`);
+  } catch (err) {
+    console.error("Asset edit error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+adminRouter.post("/clients/:id/assets/:assetId/delete", async (req, res) => {
+  try {
+    const { id, assetId } = req.params;
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(assetId)) {
+      req.flash("error", "Invalid request.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const asset = client.assets.id(assetId);
+    if (!asset) {
+      req.flash("error", "Asset not found.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    const wasDefault = asset.isDefault;
+    asset.deleteOne();
+    await client.save();
+
+    if (wasDefault && client.assets.length > 0) {
+      client.assets[0].isDefault = true;
+      await client.save();
+    }
+
+    req.flash("success", "Reference asset deleted.");
+    return res.redirect(`/admin/clients/${id}#assets`);
+  } catch (err) {
+    console.error("Asset delete error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+adminRouter.post("/clients/:id/assets/:assetId/default", async (req, res) => {
+  try {
+    const { id, assetId } = req.params;
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(assetId)) {
+      req.flash("error", "Invalid request.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const asset = client.assets.id(assetId);
+    if (!asset) {
+      req.flash("error", "Asset not found.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    for (const a of client.assets) {
+      a.isDefault = false;
+    }
+    asset.isDefault = true;
+    await client.save();
+
+    req.flash("success", "Default reference asset updated.");
+    return res.redirect(`/admin/clients/${id}#assets`);
+  } catch (err) {
+    console.error("Asset default error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
+  }
+});
+
+adminRouter.post("/clients/:id/drive-links/:linkId/default", async (req, res) => {
+  try {
+    const { id, linkId } = req.params;
+    if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(linkId)) {
+      req.flash("error", "Invalid request.");
+      return res.redirect("/admin/clients");
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      req.flash("error", "Client not found.");
+      return res.redirect("/admin/clients");
+    }
+
+    const link = client.driveLinks.id(linkId);
+    if (!link) {
+      req.flash("error", "Drive link not found.");
+      return res.redirect(`/admin/clients/${id}`);
+    }
+
+    for (const dl of client.driveLinks) {
+      dl.isDefault = false;
+    }
+    link.isDefault = true;
+    await client.save();
+
+    req.flash("success", "Default drive link updated.");
+    return res.redirect(`/admin/clients/${id}`);
+  } catch (err) {
+    console.error("Drive link default error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect(`/admin/clients/${req.params.id}`);
   }
 });
 

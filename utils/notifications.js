@@ -1,5 +1,4 @@
 import { Notification } from "../models/Notification.js";
-import { Project } from "../models/Project.js";
 import { getIO } from "../socket/index.js";
 
 export async function createNotification({
@@ -68,18 +67,6 @@ export async function notifyProjectCreated(project, adminUser) {
   });
 }
 
-export async function notifyProjectCreatedOwner(project, ownerUser) {
-  return createNotification({
-    recipient: ownerUser?._id,
-    recipientRole: "owner",
-    project: project._id,
-    title: `Project "${project.projectName}" created by owner`,
-    message: `Client: ${project.client?.name || project.clientName}`,
-    type: "project_created",
-    actionUrl: `/admin/projects/${project._id}`,
-  });
-}
-
 export async function notifyProjectAssigned(project, editor) {
   return createNotification({
     recipient: editor._id,
@@ -111,18 +98,6 @@ export async function notifyFeedbackAdded(project, feedback, adminUser) {
     message: feedback.comment ? `V${feedback.versionRef}: ${feedback.comment}` : `Admin provided feedback for version ${feedback.versionRef}`,
     type: "feedback_added",
     actionUrl: `/editor/projects/${project._id}`,
-  });
-}
-
-export async function notifyStatusChange(project, fromStatus, toStatus, actor) {
-  return createNotification({
-    recipient: actor?._id,
-    recipientRole: actor?.role === "editor" ? "admin" : "editor",
-    project: project._id,
-    title: `Project "${project.projectName}" updated`,
-    message: `Status changed: ${fromStatus} → ${toStatus}`,
-    type: "status_change",
-    actionUrl: `/${actor?.role === "editor" ? "editor" : "admin"}/projects/${project._id}`,
   });
 }
 

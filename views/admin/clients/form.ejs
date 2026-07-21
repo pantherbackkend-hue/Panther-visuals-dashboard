@@ -1,0 +1,134 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Client management</p>
+    <h1><%= mode === "create" ? "New Client" : "Edit Client" %></h1>
+  </div>
+  <a class="btn btn--outline" href="/admin/clients">Back to Clients</a>
+</section>
+
+<div class="card admin-panel" style="max-width:680px">
+  <form method="post" action="<%= mode === "create" ? "/admin/clients" : "/admin/clients/" + client._id + "/edit" %>" class="admin-form">
+    <div class="form-group">
+      <label for="name">Client Name *</label>
+      <input id="name" name="name" type="text" required value="<%= client?.name || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="channelName">Channel Name</label>
+      <input id="channelName" name="channelName" type="text" value="<%= client?.channelName || "" %>" placeholder="e.g. YouTube, Instagram, Referral" />
+      <p class="form-help">Where did this client come from?</p>
+    </div>
+
+    <div class="form-group">
+      <label for="channelUrl">Channel URL</label>
+      <input id="channelUrl" name="channelUrl" type="url" value="<%= client?.channelUrl || "" %>" placeholder="https://..." />
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" value="<%= client?.email || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="4"><%= client?.notes || "" %></textarea>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
+      <h2 class="h2">Reference Assets</h2>
+      <p class="muted text-sm mb-16">Add brand guidelines, style guides, or reference files.</p>
+
+      <div id="assets-container">
+        <% if (mode === "edit" && client.assets && client.assets.length > 0) { %>
+          <% client.assets.forEach(function(asset, idx) { %>
+            <div class="asset-form-row" data-index="<%= idx %>">
+              <input type="hidden" name="assets[<%= idx %>][_id]" value="<%= asset._id %>" />
+              <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border-light)">
+                <div style="flex:1;min-width:0">
+                  <input type="text" name="assets[<%= idx %>][label]" value="<%= asset.label || "" %>" placeholder="Asset name" style="font-size:13px;padding:6px 10px;width:100%;margin-bottom:4px;border:1px solid var(--border);border-radius:6px" />
+                  <input type="url" name="assets[<%= idx %>][driveLink]" value="<%= asset.driveLink %>" placeholder="Google Drive URL *" required style="font-size:13px;padding:6px 10px;width:100%;margin-bottom:4px;border:1px solid var(--border);border-radius:6px" />
+                  <input type="text" name="assets[<%= idx %>][description]" value="<%= asset.description || "" %>" placeholder="Description (optional)" style="font-size:13px;padding:6px 10px;width:100%;border:1px solid var(--border);border-radius:6px" />
+                </div>
+                <div style="flex:0 0 auto;display:flex;gap:4px;padding-top:4px;align-items:center">
+                  <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap">
+                    <input type="checkbox" name="assets[<%= idx %>][isDefault]" value="on" <%= asset.isDefault ? "checked" : "" %> onchange="onDefaultChange(this)" />
+                    Default
+                  </label>
+                  <button type="button" class="quick-action-btn quick-action-btn--danger" onclick="removeAssetRow(this)" style="font-size:11px;padding:2px 8px">Remove</button>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+
+      <button type="button" class="btn btn--outline btn--small" onclick="addAssetRow()">+ Add Asset</button>
+    </div>
+
+    <div class="form-actions">
+      <a class="btn btn--outline" href="/admin/clients">Cancel</a>
+      <button class="btn" type="submit"><%= mode === "create" ? "Create Client" : "Save Changes" %></button>
+    </div>
+  </form>
+</div>
+
+<script>
+var assetCounter = <%= (mode === "edit" && client.assets ? client.assets.length : 0) %>;
+
+function addAssetRow() {
+  var idx = assetCounter++;
+  var html = '<div class="asset-form-row" data-index="' + idx + '">' +
+    '<input type="hidden" name="assets[' + idx + '][_id]" value="" />' +
+    '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border-light)">' +
+      '<div style="flex:1;min-width:0">' +
+        '<input type="text" name="assets[' + idx + '][label]" placeholder="Asset name" style="font-size:13px;padding:6px 10px;width:100%;margin-bottom:4px;border:1px solid var(--border);border-radius:6px" />' +
+        '<input type="url" name="assets[' + idx + '][driveLink]" placeholder="Google Drive URL *" required style="font-size:13px;padding:6px 10px;width:100%;margin-bottom:4px;border:1px solid var(--border);border-radius:6px" />' +
+        '<input type="text" name="assets[' + idx + '][description]" placeholder="Description (optional)" style="font-size:13px;padding:6px 10px;width:100%;border:1px solid var(--border);border-radius:6px" />' +
+      '</div>' +
+      '<div style="flex:0 0 auto;display:flex;gap:4px;padding-top:4px;align-items:center">' +
+        '<label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap">' +
+          '<input type="checkbox" name="assets[' + idx + '][isDefault]" value="on" onchange="onDefaultChange(this)" /> Default' +
+        '</label>' +
+        '<button type="button" class="quick-action-btn quick-action-btn--danger" onclick="removeAssetRow(this)" style="font-size:11px;padding:2px 8px">Remove</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+  document.getElementById('assets-container').insertAdjacentHTML('beforeend', html);
+}
+
+function removeAssetRow(btn) {
+  var row = btn.closest('.asset-form-row');
+  row.parentNode.removeChild(row);
+  reindexAssets();
+}
+
+function reindexAssets() {
+  var rows = document.querySelectorAll('#assets-container .asset-form-row');
+  rows.forEach(function(row, i) {
+    row.dataset.index = i;
+    var inputs = row.querySelectorAll('input');
+    inputs.forEach(function(input) {
+      var name = input.getAttribute('name');
+      if (name) {
+        input.setAttribute('name', name.replace(/\[\d+\]/, '[' + i + ']'));
+      }
+    });
+  });
+  assetCounter = rows.length;
+}
+
+function onDefaultChange(changed) {
+  if (!changed.checked) return;
+  var rows = document.querySelectorAll('#assets-container .asset-form-row');
+  rows.forEach(function(row) {
+    var cb = row.querySelector('input[type="checkbox"][name$="[isDefault]"]');
+    if (cb && cb !== changed) cb.checked = false;
+  });
+}
+</script>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

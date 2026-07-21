@@ -1,6 +1,15 @@
 <%- include("../../partials/header", { pageTitle }) %>
 <%- include("../partials/layout-start", { activeSection }) %>
 
+<style>
+.combobox-list li.is-highlighted { background: var(--primary); color: #fff; }
+.combobox-list li:hover { background: var(--bg-hover); }
+.combobox-input:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+.combobox-list li:last-child { border-bottom: none !important; }
+.combobox-toggle { position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);display:flex;align-items:center;justify-content:center;min-height:auto;width:auto;border-radius:4px;transition:color 0.1s }
+.combobox-toggle:hover { color:var(--text) }
+</style>
+
 <section class="admin-page-head">
   <div>
     <p class="eyebrow">Project management</p>
@@ -11,20 +20,74 @@
 
 <div class="card admin-panel">
   <form method="post" action="<%= mode === "create" ? "/admin/projects" : "/admin/projects/" + project._id + "/edit" %>" class="admin-form">
+
+    <% if (mode === "create") { %>
+    <div class="form-group">
+      <label>Client Type</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;padding:8px 0">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="clientMode" value="existing" checked onchange="toggleClientMode()" /> Existing Client
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="clientMode" value="new" onchange="toggleClientMode()" /> New Client
+        </label>
+      </div>
+    </div>
+
+    <div id="existingClientSection">
+      <div class="form-group">
+        <label for="clientComboInput">Select Client</label>
+        <div class="combobox-container" style="position:relative">
+          <input type="text" id="clientComboInput" class="combobox-input" placeholder="Search or select a client..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="clientListbox" autofocus style="width:100%;padding:8px 32px 8px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text);box-sizing:border-box" />
+          <button type="button" id="comboToggleBtn" class="combobox-toggle" tabindex="-1" aria-label="Toggle client list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <input type="hidden" name="clientId" id="clientId" value="" />
+          <ul id="clientListbox" class="combobox-list" role="listbox" aria-label="Clients" style="display:none;position:absolute;z-index:100;width:100%;max-height:240px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none;margin:2px 0 0;padding:0;box-sizing:border-box"></ul>
+        </div>
+      </div>
+      <div id="existingClientInfo" style="display:none;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <p style="margin:0"><strong>Channel:</strong> <span id="infoChannelName">—</span></p>
+        <p style="margin:4px 0 0"><strong>Channel URL:</strong> <a href="#" id="infoChannelUrl" target="_blank" rel="noopener" style="display:none"></a><span id="infoChannelUrlText">—</span></p>
+      </div>
+      <div id="assetSelectGroup" style="display:none;margin-bottom:16px">
+        <div class="form-group">
+          <label for="assetSelect">Reference Asset <span class="muted">(pre-fills drive link)</span></label>
+          <select id="assetSelect" onchange="document.getElementById('driveLink').value=this.value">
+            <option value="">— Select an asset —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="newClientSection" style="display:none">
+      <div class="form-group">
+        <label for="clientName">Client Name *</label>
+        <input id="clientName" name="clientName" type="text" required />
+      </div>
+      <div class="form-group">
+        <label for="clientEmail">Client Email</label>
+        <input id="clientEmail" name="clientEmail" type="email" />
+      </div>
+      <div class="form-group">
+        <label for="channelName">Channel Name</label>
+        <input id="channelName" name="channelName" type="text" placeholder="e.g. YouTube, Instagram, Referral" />
+      </div>
+      <div class="form-group">
+        <label for="channelUrl">Channel URL</label>
+        <input id="channelUrl" name="channelUrl" type="url" placeholder="https://..." />
+      </div>
+    </div>
+    <% } else { %>
     <div class="form-group">
       <label for="clientName">Client Name *</label>
-      <input id="clientName" name="clientName" type="text" required value="<%= project?.client?.name || project?.clientName || "" %>" />
+      <input id="clientName" name="clientName" type="text" required value="<%= project?.clientRef?.name || project?.client?.name || project?.clientName || "" %>" />
     </div>
-
     <div class="form-group">
       <label for="clientEmail">Client Email</label>
-      <input id="clientEmail" name="clientEmail" type="email" value="<%= project?.client?.email || "" %>" />
+      <input id="clientEmail" name="clientEmail" type="email" value="<%= project?.clientRef?.email || project?.client?.email || "" %>" />
     </div>
+    <% } %>
 
-    <div class="form-group">
-      <label for="clientPhone">Client Phone</label>
-      <input id="clientPhone" name="clientPhone" type="text" value="<%= project?.client?.phone || "" %>" />
-    </div>
+    <input id="clientPhone" name="clientPhone" type="hidden" value="" />
 
     <div class="form-group">
       <label for="projectName">Project Name *</label>
@@ -110,6 +173,12 @@
     </div>
 
     <div class="form-group">
+      <label for="receivedDate">Received Date</label>
+      <input id="receivedDate" name="receivedDate" type="date" value="<%= project?.receivedDate ? new Date(project.receivedDate).toISOString().split("T")[0] : (mode === "create" ? new Date().toISOString().split("T")[0] : "") %>" />
+      <p class="form-help">Date the project was received. Defaults to today. Admin/Owner may select any past date.</p>
+    </div>
+
+    <div class="form-group">
       <label for="driveLink">Drive Link</label>
       <input id="driveLink" name="driveLink" type="url" placeholder="https://drive.google.com/..." value="<%= project?.driveLink || "" %>" />
     </div>
@@ -127,6 +196,258 @@
 </div>
 
 <script>
+var clientsData = <%- JSON.stringify(clients || []) %>;
+var selectedClientId = null;
+
+// ── Combobox ──
+
+var comboInput = document.getElementById('clientComboInput');
+var comboList = document.getElementById('clientListbox');
+var clientIdHidden = document.getElementById('clientId');
+var filteredClients = [];
+var highlightIdx = -1;
+
+function buildList(items) {
+  comboList.innerHTML = '';
+  if (items.length === 0) {
+    var li = document.createElement('li');
+    li.textContent = 'No clients found.';
+    li.style.cssText = 'padding:8px 12px;color:var(--muted);font-style:italic';
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-disabled', 'true');
+    comboList.appendChild(li);
+    return;
+  }
+  items.forEach(function(c, i) {
+    var li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', 'false');
+    li.dataset.index = i;
+    li.dataset.id = c._id;
+    li.textContent = c.name || '(untitled)';
+    li.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-light)';
+    li.addEventListener('click', function() { selectClient(c); });
+    li.addEventListener('mouseenter', function() { setHighlight(i); });
+    comboList.appendChild(li);
+  });
+}
+
+function setHighlight(idx) {
+  var items = comboList.querySelectorAll('[role="option"]');
+  items.forEach(function(el, i) {
+    var isHL = i === idx;
+    el.classList.toggle('is-highlighted', isHL);
+    el.style.background = isHL ? 'var(--bg-hover)' : (i % 2 === 0 ? 'transparent' : 'var(--bg)');
+    el.setAttribute('aria-selected', String(isHL));
+  });
+  highlightIdx = idx;
+}
+
+function selectClient(client) {
+  if (!client) return;
+  selectedClientId = client._id || '';
+  clientIdHidden.value = client._id || '';
+  comboInput.value = client.name || '';
+  closeComboList();
+
+  document.getElementById('clientName').value = client.name || '';
+  document.getElementById('clientEmail').value = client.email || '';
+  document.getElementById('infoChannelName').textContent = client.channelName || '—';
+  var urlEl = document.getElementById('infoChannelUrl');
+  var urlText = document.getElementById('infoChannelUrlText');
+  if (client.channelUrl) {
+    urlEl.href = client.channelUrl;
+    urlEl.textContent = client.channelUrl;
+    urlEl.style.display = '';
+    urlText.style.display = 'none';
+  } else {
+    urlEl.style.display = 'none';
+    urlText.textContent = '—';
+    urlText.style.display = '';
+  }
+  if (client.channelName || client.channelUrl) {
+    document.getElementById('existingClientInfo').style.display = '';
+  } else {
+    document.getElementById('existingClientInfo').style.display = 'none';
+  }
+
+  // Asset auto-select
+  var assets = client.assets || [];
+  var defaultAsset = assets.find(function(a) { return a.isDefault; });
+  var singleAsset = assets.length === 1 ? assets[0] : null;
+  var chosenAsset = defaultAsset || singleAsset || null;
+
+  var assetGroup = document.getElementById('assetSelectGroup');
+  var dlInput = document.getElementById('driveLink');
+
+  if (assets.length > 1 && !chosenAsset) {
+    var as = document.getElementById('assetSelect');
+    as.innerHTML = '<option value="">— Select an asset —</option>';
+    assets.forEach(function(a) {
+      var opt = document.createElement('option');
+      opt.value = a.driveLink;
+      opt.textContent = (a.label || 'Asset') + (a.isDefault ? ' (Default)' : '');
+      as.appendChild(opt);
+    });
+    assetGroup.style.display = '';
+    dlInput.value = '';
+  } else {
+    assetGroup.style.display = 'none';
+    if (chosenAsset) {
+      dlInput.value = chosenAsset.driveLink;
+    } else {
+      dlInput.value = '';
+    }
+  }
+}
+
+function closeComboList() {
+  if (comboList.style.display === 'none') return;
+  comboList.style.display = 'none';
+  comboInput.setAttribute('aria-expanded', 'false');
+}
+
+function openComboList() {
+  if (comboList.style.display === 'block') return;
+  filteredClients = clientsData.filter(function(c) { return c && c._id; });
+  buildList(filteredClients);
+  comboList.style.display = 'block';
+  comboInput.setAttribute('aria-expanded', 'true');
+  setHighlight(0);
+}
+
+comboInput.addEventListener('focus', function() {
+  if (!selectedClientId) openComboList();
+});
+
+comboInput.addEventListener('input', function() {
+  var q = this.value.toLowerCase().trim();
+  if (q === '' && !selectedClientId) {
+    filteredClients = clientsData.filter(function(c) { return c && c._id; });
+  } else {
+    filteredClients = clientsData.filter(function(c) {
+      return c && c._id && c.name && c.name.toLowerCase().includes(q);
+    });
+  }
+  if (q === '' && !selectedClientId) {
+    selectedClientId = null;
+    clientIdHidden.value = '';
+    document.getElementById('existingClientInfo').style.display = 'none';
+    document.getElementById('assetSelectGroup').style.display = 'none';
+  }
+  buildList(filteredClients);
+  comboList.style.display = 'block';
+  comboInput.setAttribute('aria-expanded', 'true');
+  setHighlight(0);
+});
+
+comboInput.addEventListener('keydown', function(e) {
+  var items = comboList.querySelectorAll('[role="option"]:not([aria-disabled])');
+  if (comboList.style.display === 'none') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      openComboList();
+      return;
+    }
+  }
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      if (items.length === 0) return;
+      var next = Math.min(highlightIdx + 1, items.length - 1);
+      setHighlight(next);
+      items[next].scrollIntoView({ block: 'nearest' });
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      if (items.length === 0) return;
+      var prev = Math.max(highlightIdx - 1, 0);
+      setHighlight(prev);
+      items[prev].scrollIntoView({ block: 'nearest' });
+      break;
+    case 'Enter':
+      e.preventDefault();
+      if (highlightIdx >= 0 && highlightIdx < filteredClients.length) {
+        selectClient(filteredClients[highlightIdx]);
+      }
+      break;
+    case 'Tab':
+      if (comboList.style.display !== 'none') {
+        if (highlightIdx >= 0 && highlightIdx < filteredClients.length) {
+          selectClient(filteredClients[highlightIdx]);
+        } else {
+          closeComboList();
+        }
+      }
+      break;
+    case 'Escape':
+      e.preventDefault();
+      closeComboList();
+      if (!selectedClientId) {
+        comboInput.value = '';
+      } else {
+        var sel = clientsData.find(function(c) { return String(c._id) === selectedClientId; });
+        if (sel) comboInput.value = sel.name;
+      }
+      break;
+  }
+});
+
+comboInput.addEventListener('blur', function() {
+  setTimeout(function() {
+    if (!comboList.contains(document.activeElement)) {
+      closeComboList();
+    }
+  }, 150);
+});
+
+document.addEventListener('click', function(e) {
+  var container = document.querySelector('.combobox-container');
+  if (container && !container.contains(e.target)) {
+    if (e.target.tagName === 'LABEL' && e.target.getAttribute('for') === 'clientComboInput') return;
+    closeComboList();
+    if (!selectedClientId) {
+      comboInput.value = '';
+    } else {
+      var sel = clientsData.find(function(c) { return String(c._id) === selectedClientId; });
+      if (sel) comboInput.value = sel.name;
+    }
+  }
+});
+
+// ── Toggle button ──
+
+var toggleBtn = document.getElementById('comboToggleBtn');
+if (toggleBtn) {
+  toggleBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    comboInput.focus();
+    if (comboList.style.display === 'none') {
+      openComboList();
+    } else {
+      closeComboList();
+    }
+  });
+}
+
+// ── Client mode toggle ──
+
+function toggleClientMode() {
+  var mode = document.querySelector('input[name="clientMode"]:checked').value;
+  document.getElementById('existingClientSection').style.display = mode === 'existing' ? '' : 'none';
+  document.getElementById('newClientSection').style.display = mode === 'new' ? '' : 'none';
+  document.getElementById('clientName').required = mode === 'new';
+  if (mode === 'new') {
+    selectedClientId = null;
+    clientIdHidden.value = '';
+    comboInput.value = '';
+    document.getElementById('existingClientInfo').style.display = 'none';
+    document.getElementById('assetSelectGroup').style.display = 'none';
+  }
+}
+
+// ── Owner assignment toggle ──
+
 function toggleOwnerAssignment() {
   var radios = document.querySelectorAll('input[name="ownerAssignment"]');
   var selected;
@@ -138,7 +459,7 @@ function toggleOwnerAssignment() {
   if (adminGroup) adminGroup.style.display = selected === 'admin' ? '' : 'none';
   if (editorGroup) editorGroup.style.display = selected === 'direct' ? '' : (selected === '' ? '' : 'none');
 }
-<%= currentUser.role === 'owner' && mode === 'create' ? 'toggleOwnerAssignment();' : '' %>
+<%= (currentUser.role === 'owner' && mode === 'create') ? 'toggleOwnerAssignment();' : '' %>
 </script>
 
 <%- include("../partials/layout-end") %>

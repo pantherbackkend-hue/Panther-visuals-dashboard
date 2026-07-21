@@ -1,0 +1,218 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Client profile</p>
+    <h1><%= client.name %></h1>
+    <% if (client.channelName) { %><p class="muted"><%= client.channelName %></p><% } %>
+  </div>
+  <div class="admin-actions">
+    <a class="btn btn--outline" href="/admin/clients">Back</a>
+    <a class="btn btn--outline" href="/admin/clients/<%= client._id %>/edit">Edit</a>
+    <form method="post" action="/admin/clients/<%= client._id %>/delete" class="inline" onsubmit="return confirm('Delete client &quot;<%= client.name %>&quot;? This cannot be undone if no projects reference this client.')">
+      <button class="btn btn--danger" type="submit">Delete</button>
+    </form>
+  </div>
+</section>
+
+<div class="admin-grid--two">
+  <div class="card" style="margin:0">
+    <h2 class="h2 mt-0">Client Details</h2>
+    <div class="admin-detail-grid">
+      <div><span>Name</span><strong><%= client.name %></strong></div>
+      <% if (client.channelName) { %><div><span>Channel Name</span><strong><%= client.channelName %></strong></div><% } %>
+      <% if (client.channelUrl) { %><div><span>Channel URL</span><strong><a href="<%= client.channelUrl %>" target="_blank" rel="noopener"><%= client.channelUrl %></a></strong></div><% } %>
+      <% if (client.email) { %><div><span>Email</span><strong><%= client.email %></strong></div><% } %>
+      <div><span>Created</span><strong><%= new Date(client.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
+      <div><span>Total Projects</span><strong><a href="#projects"><%= totalProjects %></a></strong></div>
+    </div>
+    <% if (client.notes) { %>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <h3 class="h3">Notes</h3>
+        <p style="white-space:pre-wrap"><%= client.notes %></p>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="card" style="margin:0" id="assets">
+    <h2 class="h2 mt-0">Reference Assets</h2>
+    <% if (client.assets && client.assets.length > 0) { %>
+      <div style="margin-bottom:16px">
+        <% client.assets.forEach(function(asset, idx) { %>
+          <div class="asset-link-row" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border-light)">
+            <div style="flex:1;min-width:0">
+              <strong><%= asset.label || "Asset " + (idx + 1) %></strong>
+              <br>
+              <a href="<%= asset.driveLink %>" target="_blank" rel="noopener" class="asset-link"><%= asset.driveLink.length > 60 ? asset.driveLink.slice(0, 60) + "..." : asset.driveLink %></a>
+              <% if (asset.description) { %>
+                <br><span class="muted text-sm"><%= asset.description %></span>
+              <% } %>
+              <br><span class="muted text-xs">Created: <%= new Date(asset.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+            </div>
+            <div class="flex gap-4">
+              <% if (!asset.isDefault) { %>
+                <form method="post" action="/admin/clients/<%= client._id %>/assets/<%= asset._id %>/default" class="inline">
+                  <button class="quick-action-btn" type="submit">Set Default</button>
+                </form>
+              <% } else { %>
+                <span class="tag tag--ok" style="font-size:10px">Default</span>
+              <% } %>
+              <button class="quick-action-btn" onclick="editAsset('<%= asset._id %>', '<%= (asset.label || "").replace(/'/g, "\\'") %>', '<%= (asset.driveLink || "").replace(/'/g, "\\'") %>', '<%= (asset.description || "").replace(/'/g, "\\'") %>')">Edit</button>
+              <form method="post" action="/admin/clients/<%= client._id %>/assets/<%= asset._id %>/delete" class="inline" onsubmit="return confirm('Delete this reference asset?')">
+                <button class="quick-action-btn quick-action-btn--danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="muted">No reference assets yet. Add brand guidelines, style guides, or reference files.</p>
+    <% } %>
+
+    <details style="margin-top:12px">
+      <summary class="btn btn--outline btn--small" style="cursor:pointer">+ Add Reference Asset</summary>
+      <form method="post" action="/admin/clients/<%= client._id %>/assets" class="admin-form full-width" style="margin-top:12px">
+        <div class="form-group">
+          <label for="assetLabel">Asset Name</label>
+          <input type="text" id="assetLabel" name="label" placeholder="e.g. Brand Guidelines, Logo Kit" />
+        </div>
+        <div class="form-group">
+          <label for="assetDriveLink">Google Drive URL *</label>
+          <input type="url" id="assetDriveLink" name="driveLink" placeholder="https://drive.google.com/..." required />
+        </div>
+        <div class="form-group">
+          <label for="assetDescription">Description <span class="muted">(optional)</span></label>
+          <textarea id="assetDescription" name="description" rows="2" placeholder="Brief description of this asset"></textarea>
+        </div>
+        <button class="btn btn--small" type="submit">Add Asset</button>
+      </form>
+    </details>
+  </div>
+</div>
+
+<div class="card admin-panel" id="projects">
+  <h2 class="h2 mt-0">Recent Projects</h2>
+  <% if (recentProjects.length === 0) { %>
+    <p class="muted">No projects yet for this client.</p>
+  <% } else { %>
+    <div style="overflow-x:auto">
+      <table class="table" role="table">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Status</th>
+            <th scope="col">Editor</th>
+            <th scope="col">Created</th>
+            <th scope="col">Payment</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentProjects.forEach(function(p) { %>
+            <tr>
+              <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
+              <td><span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span></td>
+              <td><%= p.assignedEditorName %></td>
+              <td><%= p.createdAt %></td>
+              <td>
+                <% if (p.paymentStatus === "paid") { %>
+                  <span class="tag tag--ok">Paid</span>
+                <% } else if (p.paymentStatus === "pending") { %>
+                  <span class="tag tag--pending">Pending</span>
+                <% } else { %>
+                  <span class="muted">—</span>
+                <% } %>
+              </td>
+              <td><a class="btn btn--small btn--outline" href="/admin/projects/<%= p._id %>">View</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% if (projects.length > 5) { %>
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;font-size:14px;color:var(--primary)">All Projects (<%= projects.length %>)</summary>
+        <div style="overflow-x:auto;margin-top:12px">
+          <table class="table" role="table">
+            <thead>
+              <tr>
+                <th scope="col">Project</th>
+                <th scope="col">Status</th>
+                <th scope="col">Editor</th>
+                <th scope="col">Created</th>
+                <th scope="col">Payment</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% projects.forEach(function(p) { %>
+                <tr>
+                  <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
+                  <td><span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span></td>
+                  <td><%= p.assignedEditorName %></td>
+                  <td><%= p.createdAt %></td>
+                  <td>
+                    <% if (p.paymentStatus === "paid") { %>
+                      <span class="tag tag--ok">Paid</span>
+                    <% } else if (p.paymentStatus === "pending") { %>
+                      <span class="tag tag--pending">Pending</span>
+                    <% } else { %>
+                      <span class="muted">—</span>
+                    <% } %>
+                  </td>
+                  <td><a class="btn btn--small btn--outline" href="/admin/projects/<%= p._id %>">View</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    <% } %>
+  <% } %>
+</div>
+
+<div id="edit-asset-dialog" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-asset-title">
+  <div class="confirm-dialog" style="max-width:480px">
+    <p id="edit-asset-title" style="font-weight:600;margin-bottom:16px">Edit Reference Asset</p>
+    <form method="post" id="edit-asset-form">
+      <div class="form-group">
+        <label for="editAssetLabel">Asset Name</label>
+        <input type="text" id="editAssetLabel" name="label" />
+      </div>
+      <div class="form-group">
+        <label for="editAssetDriveLink">Google Drive URL *</label>
+        <input type="url" id="editAssetDriveLink" name="driveLink" required />
+      </div>
+      <div class="form-group">
+        <label for="editAssetDescription">Description <span class="muted">(optional)</span></label>
+        <textarea id="editAssetDescription" name="description" rows="2"></textarea>
+      </div>
+      <div class="confirm-dialog__actions">
+        <button type="button" class="btn btn--outline" onclick="closeEditAsset()">Cancel</button>
+        <button class="btn" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function editAsset(assetId, label, driveLink, description) {
+  document.getElementById('edit-asset-form').action = '/admin/clients/<%= client._id %>/assets/' + assetId + '/edit';
+  document.getElementById('editAssetLabel').value = label;
+  document.getElementById('editAssetDriveLink').value = driveLink;
+  document.getElementById('editAssetDescription').value = description;
+  document.getElementById('edit-asset-dialog').classList.add('is-visible');
+}
+
+function closeEditAsset() {
+  document.getElementById('edit-asset-dialog').classList.remove('is-visible');
+}
+
+document.getElementById('edit-asset-dialog').addEventListener('click', function(e) {
+  if (e.target === this) closeEditAsset();
+});
+</script>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

@@ -39,14 +39,6 @@ const TIMELINE_ACTIONS = {
   completed: "Completed",
 };
 
-const NOTIFICATION_TYPES = {
-  assigned: "project_assigned",
-  ongoing: "project_accepted",
-  submitted: "submitted",
-  ongoing__from_submitted: "feedback_added",
-  completed: "completed",
-};
-
 export function isValidStatus(status) {
   return STATUSES.includes(status);
 }
@@ -73,13 +65,6 @@ export function getTimelineAction(fromStatus, toStatus) {
   if (TIMELINE_ACTIONS[key]) return TIMELINE_ACTIONS[key];
   if (TIMELINE_ACTIONS[toStatus]) return TIMELINE_ACTIONS[toStatus];
   return "Updated";
-}
-
-export function getNotificationType(fromStatus, toStatus) {
-  const key = `${toStatus}__from_${fromStatus}`;
-  if (NOTIFICATION_TYPES[key]) return NOTIFICATION_TYPES[key];
-  if (NOTIFICATION_TYPES[toStatus]) return NOTIFICATION_TYPES[toStatus];
-  return "status_change";
 }
 
 export function formatStatus(status) {
@@ -112,11 +97,6 @@ export function getDashboardCounts(projects) {
   return counts;
 }
 
-export function getPriorityWeight(priority) {
-  const weights = { low: 0, medium: 1, high: 2, urgent: 3 };
-  return weights[priority] || 1;
-}
-
 export async function updateEditorAvailability(editorId, UserModel, ProjectModel) {
   if (!editorId || !UserModel || !ProjectModel) return;
   const activeCount = await ProjectModel.countDocuments({
@@ -140,4 +120,4 @@ export async function updateEditorAvailability(editorId, UserModel, ProjectModel
   }
 }
 
-export { STATUSES, TRANSITIONS };
+

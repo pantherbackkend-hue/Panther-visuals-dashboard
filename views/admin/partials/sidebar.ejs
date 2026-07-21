@@ -2,14 +2,16 @@
   <a class="admin-sidebar__link <%= activeSection === "workspace" ? "is-active" : "" %>" href="/admin/workspace">Workspace</a>
   <a class="admin-sidebar__link <%= activeSection === "dashboard" ? "is-active" : "" %>" href="/admin">Dashboard</a>
   <a class="admin-sidebar__link <%= activeSection === "editors" ? "is-active" : "" %>" href="/admin/editors">Editors</a>
-  <a class="admin-sidebar__link <%= activeSection === "assets" ? "is-active" : "" %>" href="/admin/assets">Manage Assets</a>
+  <a class="admin-sidebar__link <%= activeSection === "assets" ? "is-active" : "" %>" href="/admin/clients">Assets</a>
   <a class="admin-sidebar__link <%= activeSection === "projects" ? "is-active" : "" %>" href="/admin/projects">Projects</a>
   <a class="admin-sidebar__link <%= activeSection === "clients" ? "is-active" : "" %>" href="/admin/clients">Clients</a>
   <% if (currentUser && (currentUser.role === "admin" || currentUser.role === "owner")) { %>
     <a class="admin-sidebar__link <%= activeSection === "profits" ? "is-active" : "" %>" href="/admin/profits">Earnings</a>
   <% } %>
-  <% if (currentUser && currentUser.role === "admin") { %>
+  <% if (currentUser && (currentUser.role === "admin" || currentUser.role === "owner")) { %>
     <a class="admin-sidebar__link <%= activeSection === "analytics" ? "is-active" : "" %>" href="/admin/analytics">Analytics</a>
+  <% } %>
+  <% if (currentUser && currentUser.role === "admin") { %>
     <a class="admin-sidebar__link <%= activeSection === "users" ? "is-active" : "" %>" href="/admin/users">All Users</a>
   <% } %>
 </nav>

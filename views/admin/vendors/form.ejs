@@ -7,7 +7,7 @@
 </section>
 
 <div class="card" style="max-width:600px">
-  <form method="post" action="<%= mode === 'create' ? '/admin/editors' : '/admin/editors/' + vendor._id + '?_method=PUT' %>">
+  <form method="post" action="<%= mode === 'create' ? '/admin/editors' : '/admin/editors/' + vendor._id + '/edit' %>">
     <div class="form-group">
       <label for="name">Name</label>
       <input type="text" id="name" name="name" value="<%= vendor?.name || '' %>" required>

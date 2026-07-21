@@ -64,6 +64,7 @@
           <tr>
             <th scope="col">Project</th>
             <th scope="col">Client</th>
+            <th scope="col">Channel</th>
             <th scope="col">Owner</th>
             <th scope="col">JR Admin</th>
             <th scope="col">Editor</th>
@@ -81,6 +82,7 @@
             <tr class="ledger-row" data-search="<%= (p.projectName + ' ' + p.clientName + ' ' + (p.assignedEditor?.name || '') + ' ' + (p.ownerAdmin?.name || '') + ' ' + (p.createdBy?.name || '')).toLowerCase() %>" data-paid="<%= p.paidAtFormatted %>" data-earnings="<%= p.earnings %>" data-editor="<%= pEditorName %>">
               <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
               <td><%= p.clientName %></td>
+              <td><%= p.clientRef?.channelName || "—" %></td>
               <td><%= p.createdBy?.name || "—" %></td>
               <td><%= p.ownerAdmin?.name || "—" %></td>
               <td><%= p.assignedEditor?.name || "—" %></td>

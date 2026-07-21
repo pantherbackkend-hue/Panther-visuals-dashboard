@@ -18,7 +18,7 @@ authRouter.get("/signup", (req, res) => {
 authRouter.post("/signup", requireDb, async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
-    const safeRole = "editor";
+    const safeRole = "client";
 
     if (!name || !email || !password) {
       req.flash("error", "All fields are required.");

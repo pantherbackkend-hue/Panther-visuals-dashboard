@@ -28,6 +28,7 @@
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
+            <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Payable Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
           </div>
@@ -55,6 +56,7 @@
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
+            <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Payable Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
           </div>
@@ -83,6 +85,7 @@
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
+            <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Payable Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
           </div>

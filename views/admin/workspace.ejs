@@ -87,6 +87,7 @@
       <div>
         <a href="/admin/projects/<%= project._id %>" class="admin-link fw-semibold text-sm"><%= project.projectName %></a>
         <p class="muted text-sm mt-0 mb-0"><%= project.clientName %></p>
+        <% if (project.clientRef?.channelName) { %><p class="muted text-xs mt-0 mb-0"><%= project.clientRef.channelName %></p><% } %>
         <% if (project.ownerAssignmentLabel) { %>
           <span class="tag tag--info" style="font-size:10px;margin-top:2px"><%= project.ownerAssignmentLabel %></span>
         <% } %>
@@ -106,6 +107,7 @@
       <% if (project.latestVersion) { %>
         <span><strong>Latest:</strong> V<%= project.latestVersion %></span>
       <% } %>
+      <span><strong>Received:</strong> <%= project.receivedDate ? new Date(project.receivedDate).toLocaleDateString("en-IN") : new Date(project.createdAt).toLocaleDateString("en-IN") %></span>
       <span><strong>Updated:</strong> <%= new Date(project.updatedAt).toLocaleDateString("en-IN") %></span>
     </div>
 

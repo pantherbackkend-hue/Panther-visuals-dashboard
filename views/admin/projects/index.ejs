@@ -65,6 +65,7 @@
             <th scope="col">Status</th>
             <th scope="col">Amount</th>
             <th scope="col">Due</th>
+            <th scope="col">Received</th>
             <th scope="col">Created</th>
             <% if (currentUser.role === "owner") { %><th scope="col">Assignment</th><% } %>
           </tr>
@@ -82,6 +83,7 @@
               <td class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
                 <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>
               </td>
+              <td><%= project.receivedDate ? new Date(project.receivedDate).toLocaleDateString("en-IN") : new Date(project.createdAt).toLocaleDateString("en-IN") %></td>
               <td><%= new Date(project.createdAt).toLocaleDateString("en-IN") %></td>
               <% if (currentUser.role === "owner") { %>
                 <td><%= project.ownerAssignmentLabel || '<span class="muted">Standard</span>' %></td>
