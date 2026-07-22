@@ -67,6 +67,66 @@ ownerRouter.get("/analytics", async (req, res) => {
   }
 });
 
+ownerRouter.get("/payment-status", async (req, res) => {
+  try {
+    const projects = await Project.find({ status: "completed" })
+      .populate("assignedEditor", "name email")
+      .populate("ownerAdmin", "name email")
+      .populate("clientRef", "name channelName channelUrl email")
+      .sort({ completedAt: -1 })
+      .lean();
+
+    const jrAdminPayments = projects.filter((p) => p.ownerAssignment === "admin");
+    const editorPayments = projects.filter((p) => p.ownerAssignment === "direct");
+
+    const jrAdminPending = jrAdminPayments.filter((p) => !p.payment || p.payment.status === "pending");
+    const jrAdminPaid = jrAdminPayments.filter((p) => p.payment?.status === "paid");
+    const editorPending = editorPayments.filter((p) => !p.payment || p.payment.status === "pending");
+    const editorPaid = editorPayments.filter((p) => p.payment?.status === "paid");
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const paidThisMonth = projects.filter(
+      (p) => p.payment?.status === "paid" && p.payment?.paidAt && new Date(p.payment.paidAt) >= startOfMonth
+    ).length;
+
+    const outstandingAmount = [...jrAdminPending, ...editorPending].reduce(
+      (sum, p) => sum + (p.payment?.editorAmount || 0), 0
+    );
+
+    function fmt(p) {
+      return {
+        ...p,
+        clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
+        receivedDate: p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : new Date(p.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }),
+        completedDate: p.completedAt ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
+        paymentAmount: p.payment?.editorAmount || 0,
+        paymentStatus: p.payment?.status === "paid" ? "Paid" : "Pending",
+        paymentBadge: p.payment?.status === "paid" ? "ok" : "pending",
+      };
+    }
+
+    res.render("admin/payment-status", {
+      pageTitle: "Payment Status",
+      activeSection: "payment-status",
+      jrAdminPending: jrAdminPending.map(fmt),
+      jrAdminPaid: jrAdminPaid.map(fmt),
+      editorPending: editorPending.map(fmt),
+      editorPaid: editorPaid.map(fmt),
+      pendingJrAdminCount: jrAdminPending.length,
+      pendingEditorCount: editorPending.length,
+      paidThisMonth,
+      outstandingAmount,
+      formatMoney,
+      formatStatus,
+    });
+  } catch (err) {
+    console.error("Payment status error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin");
+  }
+});
+
 ownerRouter.get("/users", async (req, res) => {
   try {
     const users = await User.find()

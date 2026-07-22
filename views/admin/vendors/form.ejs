@@ -17,12 +17,24 @@
       <input type="email" id="email" name="email" value="<%= vendor?.email || '' %>" required <%= mode === 'edit' ? 'readonly' : '' %>>
     </div>
     <div class="form-group">
+      <label for="contactNumber">Contact Number</label>
+      <input type="tel" id="contactNumber" name="contactNumber" value="<%= vendor?.contactNumber || '' %>" placeholder="+91 98765 43210">
+    </div>
+    <div class="form-group">
+      <label for="specialization">Field <span class="muted">(specialization)</span></label>
+      <input type="text" id="specialization" name="specialization" value="<%= vendor?.specialization || '' %>" placeholder="e.g. Long Form, Short Form, Motion Graphics, Podcast" required>
+    </div>
+    <div class="form-group">
       <label for="password"><%= mode === "create" ? "Password" : "New Password (leave blank to keep current)" %></label>
-      <input type="password" id="password" name="password" <%= mode === 'create' ? 'required' : '' %>>
+      <input type="password" id="password" name="password" <%= mode === 'create' ? 'required' : '' %> minlength="6">
     </div>
     <div class="form-group">
       <label for="upiId">UPI ID <span class="muted">(for payments)</span></label>
       <input type="text" id="upiId" name="upiId" value="<%= vendor?.upiId || '' %>" placeholder="editor@upi">
+    </div>
+    <div class="form-group">
+      <label for="notes">Notes <span class="muted">(optional)</span></label>
+      <textarea id="notes" name="notes" rows="3"><%= vendor?.notes || '' %></textarea>
     </div>
     <div class="form-actions">
       <a class="btn btn--outline" href="/admin/editors">Cancel</a>

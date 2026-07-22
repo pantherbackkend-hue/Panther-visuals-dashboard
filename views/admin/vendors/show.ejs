@@ -24,10 +24,19 @@
     <table class="table table--details">
       <tr><td>Status</td><td><span class="tag tag--<%= vendor.isActive === false ? 'danger' : 'ok' %>"><%= vendor.isActive === false ? "Disabled" : "Active" %></span></td></tr>
       <tr><td>Role</td><td><%= vendor.role %></td></tr>
+      <tr><td>Field</td><td><%= vendor.specialization || "—" %></td></tr>
+      <tr><td>Contact</td><td><%= vendor.contactNumber || '<span class="muted">Not set</span>' %></td></tr>
       <tr><td>UPI ID</td><td><%= vendor.upiId || '<span class="muted">Not set</span>' %></td></tr>
+      <tr><td>Availability</td><td><span class="tag tag--<%= vendor.availability === 'available' ? 'ok' : vendor.availability === 'busy' ? 'warning' : 'danger' %>"><%= vendor.availability %></span></td></tr>
       <tr><td>Joined</td><td><%= vendor.createdAt?.toLocaleDateString?.() || "" %></td></tr>
     </table>
   </div>
+  <% if (vendor.notes) { %>
+  <div class="card">
+    <h3>Notes</h3>
+    <p class="text-sm"><%= vendor.notes %></p>
+  </div>
+  <% } %>
 </div>
 
 <%- include("../partials/layout-end") %>

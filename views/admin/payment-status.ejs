@@ -1,0 +1,106 @@
+<%- include("../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Payment Tracking</p>
+    <h1>Payment Status</h1>
+  </div>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric">
+    <p class="muted small">Pending JR Admin Payments</p>
+    <h2 style="color:var(--warning)"><%= pendingJrAdminCount %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Pending Editor Payments</p>
+    <h2 style="color:var(--warning)"><%= pendingEditorCount %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Paid This Month</p>
+    <h2 style="color:var(--success)"><%= paidThisMonth %></h2>
+  </article>
+  <article class="card admin-metric">
+    <p class="muted small">Outstanding Payments</p>
+    <h2 style="color:var(--danger)"><%= formatMoney(outstandingAmount) %></h2>
+  </article>
+</section>
+
+<% if (jrAdminPending.length === 0 && jrAdminPaid.length === 0 && editorPending.length === 0 && editorPaid.length === 0) { %>
+  <div class="card admin-panel">
+    <p class="muted">No completed projects yet. Records appear automatically after a project is completed.</p>
+  </div>
+<% } else { %>
+
+<% function renderTable(rows, assigneeLabel) { %>
+  <div style="overflow-x:auto">
+    <table class="table" role="table">
+      <thead>
+        <tr>
+          <th scope="col">Project</th>
+          <th scope="col">Client</th>
+          <th scope="col">Channel</th>
+          <th scope="col"><%= assigneeLabel %></th>
+          <th scope="col">Received</th>
+          <th scope="col">Completed</th>
+          <th scope="col">Payment Amount</th>
+          <th scope="col">Payment Status</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function(p) { %>
+          <tr>
+            <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
+            <td><%= p.clientName %></td>
+            <td><%= p.clientRef?.channelName || "—" %></td>
+            <td><%= p.ownerAdmin?.name || p.assignedEditor?.name || "—" %></td>
+            <td><%= p.receivedDate %></td>
+            <td><%= p.completedDate %></td>
+            <td><%= formatMoney(p.paymentAmount) %></td>
+            <td><span class="tag tag--<%= p.paymentBadge %>"><%= p.paymentStatus %></span></td>
+            <td><a class="btn btn--outline btn--small" href="/admin/projects/<%= p._id %>">Open Project</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<% if (jrAdminPending.length > 0 || jrAdminPaid.length > 0) { %>
+<div class="card admin-panel">
+  <h2 class="h2 mt-0">JR Admin Payments</h2>
+
+  <% if (jrAdminPending.length > 0) { %>
+    <h3 class="h3">Pending Payments <span class="tag tag--pending"><%= jrAdminPending.length %></span></h3>
+    <%- renderTable(jrAdminPending, "JR Admin") %>
+  <% } %>
+
+  <% if (jrAdminPaid.length > 0) { %>
+    <h3 class="h3">Paid Payments <span class="tag tag--ok"><%= jrAdminPaid.length %></span></h3>
+    <%- renderTable(jrAdminPaid, "JR Admin") %>
+  <% } %>
+</div>
+<% } %>
+
+<% if (editorPending.length > 0 || editorPaid.length > 0) { %>
+<div class="card admin-panel">
+  <h2 class="h2 mt-0">Editor Payments</h2>
+
+  <% if (editorPending.length > 0) { %>
+    <h3 class="h3">Pending Payments <span class="tag tag--pending"><%= editorPending.length %></span></h3>
+    <%- renderTable(editorPending, "Editor") %>
+  <% } %>
+
+  <% if (editorPaid.length > 0) { %>
+    <h3 class="h3">Paid Payments <span class="tag tag--ok"><%= editorPaid.length %></span></h3>
+    <%- renderTable(editorPaid, "Editor") %>
+  <% } %>
+</div>
+<% } %>
+
+<% } %>
+
+<%- include("./partials/layout-end") %>
+<%- include("../partials/footer") %>

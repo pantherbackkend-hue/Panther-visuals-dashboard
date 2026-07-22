@@ -214,62 +214,37 @@ adminRouter.get("/", async (req, res) => {
 });
 
 adminRouter.get("/workspace", async (req, res) => {
-  const istStart = startOfIstDay();
-
-  const [
-    pendingAssignment,
-    working,
-    review,
-    completedToday,
-    allProjects,
-    editors,
-    recentActivity,
-  ] = await Promise.all([
-    Project.countDocuments({ status: "pending_assignment" }),
-    Project.countDocuments({ status: "ongoing" }),
-    Project.countDocuments({ status: "submitted" }),
-    Project.countDocuments({ status: "completed", completedAt: { $gte: istStart } }),
+  const [allProjects, editors] = await Promise.all([
     Project.find()
       .populate("assignedEditor", "name email availability")
       .populate("clientRef", "name channelName channelUrl email")
       .sort({ priority: -1, createdAt: -1 })
       .lean(),
     User.find({ role: "editor", isActive: true })
-      .select("name email availability")
+      .select("name email availability specialization")
       .sort({ name: 1 })
       .lean(),
-    Project.aggregate([
-      { $match: { "activityTimeline.0": { $exists: true } } },
-      { $unwind: "$activityTimeline" },
-      { $sort: { "activityTimeline.createdAt": -1 } },
-      { $limit: 10 },
-      {
-        $project: {
-          _id: 0,
-          projectName: 1,
-          action: "$activityTimeline.action",
-          userName: "$activityTimeline.userName",
-          createdAt: "$activityTimeline.createdAt",
-        },
-      },
-    ]),
   ]);
 
-  const projects = allProjects.map((p) => ({
+  const formatted = allProjects.map((p) => ({
     ...p,
     clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
-    latestVersion: p.submissions && p.submissions.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
+    latestVersion: p.submissions?.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
     ownerAssignmentLabel: p.ownerAssignment === "admin" ? "Via JR Admin" : p.ownerAssignment === "direct" ? "Direct to Editor" : null,
   }));
+
+  const myProjects = formatted.filter((p) => ["pending_assignment", "assigned"].includes(p.status));
+  const ongoing = formatted.filter((p) => ["ongoing", "submitted"].includes(p.status));
+  const completed = formatted.filter((p) => p.status === "completed").sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
 
   const activeCounts = await Project.aggregate([
     { $match: { status: { $in: ["assigned", "ongoing"] }, assignedEditor: { $ne: null } } },
     { $group: { _id: "$assignedEditor", count: { $sum: 1 } } },
   ]);
   const countMap = {};
-  for (const c of activeCounts) { countMap[String(c._id)] = c.count; }
+  for (const c of activeCounts) countMap[String(c._id)] = c.count;
   const editorsWithCounts = editors.map((e) => ({
     ...e,
     activeCount: countMap[String(e._id)] || 0,
@@ -278,10 +253,13 @@ adminRouter.get("/workspace", async (req, res) => {
   res.render("admin/workspace", {
     pageTitle: "Workspace",
     activeSection: "workspace",
-    metrics: { pendingAssignment, working, review, completedToday },
-    projects,
+    myProjects,
+    ongoing,
+    completed,
     editors: editorsWithCounts,
-    recentActivity,
+    currentTab: req.query.tab || "my",
+    formatStatus,
+    formatMoney,
   });
 });
 
@@ -369,17 +347,40 @@ adminRouter.post("/workspace/assign", async (req, res) => {
 // --- Editors ---
 
 adminRouter.get("/editors", async (req, res) => {
-  const editors = await User.find({ role: "editor" }).sort({ name: 1 }).lean();
+  const search = String(req.query?.search || "").trim();
+
+  const filter = { role: "editor" };
+  if (search) {
+    const regex = { $regex: search, $options: "i" };
+    filter.$or = [
+      { name: regex },
+      { email: regex },
+      { specialization: regex },
+      { contactNumber: regex },
+    ];
+  }
+
+  const editors = await User.find(filter).sort({ name: 1 }).lean();
+
+  const activeStatuses = ["assigned", "ongoing", "submitted"];
+  const workloadMap = {};
+  const workloadDocs = await Project.aggregate([
+    { $match: { assignedEditor: { $ne: null }, status: { $in: activeStatuses } } },
+    { $group: { _id: "$assignedEditor", count: { $sum: 1 } } },
+  ]);
+  for (const w of workloadDocs) workloadMap[String(w._id)] = w.count;
 
   const rows = editors.map((editor) => ({
     ...editor,
     statusLabel: editor.isActive === false ? "Disabled" : "Active",
+    workload: workloadMap[String(editor._id)] || 0,
   }));
 
   res.render("admin/vendors/index", {
     pageTitle: "Manage Editors",
     activeSection: "editors",
     vendors: rows,
+    search,
   });
 });
 
@@ -397,19 +398,29 @@ adminRouter.post("/editors", async (req, res) => {
     const name = normalizeQuery(req.body?.name);
     const email = normalizeQuery(req.body?.email).toLowerCase();
     const password = String(req.body?.password || "");
+    const contactNumber = normalizeQuery(req.body?.contactNumber);
+    const specialization = normalizeQuery(req.body?.specialization) || "General Editor";
+    const upiId = normalizeQuery(req.body?.upiId);
+    const notes = normalizeQuery(req.body?.notes);
 
     if (!name || !email || !password) {
       req.flash("error", "Name, email, and password are required.");
       return res.redirect("/admin/editors/new");
     }
 
+    if (password.length < 6) {
+      req.flash("error", "Password must be at least 6 characters long.");
+      return res.redirect("/admin/editors/new");
+    }
+
     const existing = await User.findOne({ email });
     if (existing) { req.flash("error", "That email already exists."); return res.redirect("/admin/editors/new"); }
 
-    const upiId = normalizeQuery(req.body?.upiId);
-
     const passwordHash = await bcrypt.hash(password, 10);
-    const editor = await User.create({ name, email, passwordHash, role: "editor", isActive: true, upiId });
+    const editor = await User.create({
+      name, email, passwordHash, role: "editor", isActive: true,
+      contactNumber, specialization, upiId, notes,
+    });
 
     req.flash("success", "Editor created.");
     return res.redirect("/admin/editors");
@@ -463,6 +474,10 @@ adminRouter.post("/editors/:id/edit", async (req, res) => {
     const name = normalizeQuery(req.body?.name);
     const email = normalizeQuery(req.body?.email).toLowerCase();
     const password = String(req.body?.password || "");
+    const contactNumber = normalizeQuery(req.body?.contactNumber);
+    const specialization = normalizeQuery(req.body?.specialization) || "General Editor";
+    const notes = normalizeQuery(req.body?.notes);
+    const upiId = normalizeQuery(req.body?.upiId);
     const activeState = String(req.body?.isActive || "1");
 
     if (!name || !email) { req.flash("error", "Name and email are required."); return res.redirect(`/admin/editors/${id}/edit`); }
@@ -470,12 +485,19 @@ adminRouter.post("/editors/:id/edit", async (req, res) => {
     const conflict = await User.findOne({ email, _id: { $ne: editor._id } });
     if (conflict) { req.flash("error", "That email already exists."); return res.redirect(`/admin/editors/${id}/edit`); }
 
-    const upiId = normalizeQuery(req.body?.upiId);
-
     editor.name = name;
     editor.email = email;
+    editor.contactNumber = contactNumber;
+    editor.specialization = specialization;
+    editor.notes = notes;
     editor.upiId = upiId;
-    if (password) editor.passwordHash = await bcrypt.hash(password, 10);
+    if (password) {
+      if (password.length < 6) {
+        req.flash("error", "Password must be at least 6 characters long.");
+        return res.redirect(`/admin/editors/${id}/edit`);
+      }
+      editor.passwordHash = await bcrypt.hash(password, 10);
+    }
 
     if (activeState === "0") { editor.isActive = false; editor.disabledAt = new Date(); }
     else { editor.isActive = true; editor.disabledAt = null; }
@@ -581,6 +603,12 @@ adminRouter.post("/editors/:id/delete", async (req, res) => {
 
     const editor = await User.findOne({ _id: id, role: "editor" });
     if (!editor) { req.flash("error", "Editor not found."); return res.redirect("/admin/editors"); }
+
+    const activeProjects = await Project.countDocuments({ assignedEditor: id, status: { $in: ["assigned", "ongoing", "submitted"] } });
+    if (activeProjects > 0) {
+      req.flash("error", `Cannot delete: Editor has ${activeProjects} active project(s). Reassign or complete them first.`);
+      return res.redirect("/admin/editors");
+    }
 
     await User.deleteOne({ _id: editor._id });
 

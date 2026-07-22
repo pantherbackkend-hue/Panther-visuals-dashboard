@@ -12,6 +12,21 @@
   </div>
 </section>
 
+<div class="card admin-panel admin-toolbar">
+  <div class="admin-filter-bar">
+    <label style="flex:1;min-width:200px">
+      <span class="sr-only">Search editors</span>
+      <form method="get" action="/admin/editors" style="display:flex;gap:8px">
+        <input id="searchInput" name="search" type="search" placeholder="Search by name, email, field, contact..." value="<%= search || '' %>" style="flex:1" />
+        <button class="btn btn--small" type="submit">Search</button>
+        <% if (search) { %>
+          <a class="btn btn--small btn--outline" href="/admin/editors">Clear</a>
+        <% } %>
+      </form>
+    </label>
+  </div>
+</div>
+
 <div class="card admin-panel">
   <div style="overflow-x:auto">
     <table class="table">
@@ -19,6 +34,9 @@
         <tr>
           <th>Name</th>
           <th>Email</th>
+          <th>Contact</th>
+          <th>Field</th>
+          <th>Workload</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -28,6 +46,9 @@
           <tr>
             <td><%= v.name %></td>
             <td><%= v.email %></td>
+            <td><%= v.contactNumber || "—" %></td>
+            <td><%= v.specialization || "—" %></td>
+            <td><span class="tag tag--<%= v.workload === 0 ? 'ok' : v.workload <= 2 ? 'warning' : 'danger' %>"><%= v.workload %></span></td>
             <td><span class="tag tag--<%= v.isActive === false ? 'danger' : 'ok' %>"><%= v.statusLabel %></span></td>
             <td>
               <div class="admin-actions">
@@ -44,7 +65,7 @@
           </tr>
         <% }) %>
           <% if (vendors.length === 0) { %>
-            <tr><td colspan="4" class="muted">No editors found.</td></tr>
+            <tr><td colspan="7" class="muted">No editors found.<%= search ? ' Try a different search term.' : '' %></td></tr>
         <% } %>
       </tbody>
     </table>
