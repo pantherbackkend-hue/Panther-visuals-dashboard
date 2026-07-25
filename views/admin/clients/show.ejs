@@ -10,8 +10,8 @@
   <div class="admin-actions">
     <a class="btn btn--outline" href="/admin/clients">Back</a>
     <a class="btn btn--outline" href="/admin/clients/<%= client._id %>/edit">Edit</a>
-    <form method="post" action="/admin/clients/<%= client._id %>/delete" class="inline" onsubmit="return confirm('Delete client &quot;<%= client.name %>&quot;? This cannot be undone if no projects reference this client.')">
-      <button class="btn btn--danger" type="submit">Delete</button>
+    <form method="post" action="/admin/clients/<%= client._id %>/delete" class="inline">
+      <button class="btn btn--danger" type="button" id="deleteClientBtn" data-name="<%= client.name %>">Delete</button>
     </form>
   </div>
 </section>
@@ -211,6 +211,13 @@ function closeEditAsset() {
 
 document.getElementById('edit-asset-dialog').addEventListener('click', function(e) {
   if (e.target === this) closeEditAsset();
+});
+
+document.getElementById('deleteClientBtn').addEventListener('click', function() {
+  var name = this.getAttribute('data-name');
+  if (confirm('Delete client "' + name + '"? This cannot be undone if no projects reference this client.')) {
+    this.closest('form').submit();
+  }
 });
 </script>
 

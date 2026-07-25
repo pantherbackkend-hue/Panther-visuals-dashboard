@@ -196,7 +196,7 @@
 </div>
 
 <script>
-var clientsData = <%- JSON.stringify(clients || []) %>;
+var clientsData = <%- JSON.stringify(clients || []).replace(/<\//g, '<\\/') %>;
 var selectedClientId = null;
 
 // ── Combobox ──

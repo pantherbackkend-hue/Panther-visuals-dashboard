@@ -1,0 +1,82 @@
+<%- include("../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Panther Corporation</p>
+    <h1>My Projects</h1>
+  </div>
+</section>
+
+<div class="editor-tabs" role="tablist" aria-label="Project tabs">
+  <button type="button" class="editor-tab<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab="ongoing" role="tab" aria-selected="<%= currentTab === 'ongoing' ? 'true' : 'false' %>" aria-controls="tab-panel-ongoing">Ongoing <span class="editor-tab-count"><%= ongoing.length %></span></button>
+  <button type="button" class="editor-tab<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab="completed" role="tab" aria-selected="<%= currentTab === 'completed' ? 'true' : 'false' %>" aria-controls="tab-panel-completed">Completed <span class="editor-tab-count"><%= completed.length %></span></button>
+</div>
+
+<div class="editor-tab-content<%= currentTab === 'ongoing' ? ' is-active' : '' %>" data-tab-panel="ongoing" id="tab-panel-ongoing" role="tabpanel" aria-label="Ongoing">
+  <% if (ongoing.length === 0) { %>
+    <div class="card admin-panel"><p class="muted">No ongoing projects.</p></div>
+  <% } else { %>
+    <div class="editor-cards">
+      <% ongoing.forEach(function(p) { %>
+        <article class="card project-card">
+          <div class="project-card__head">
+            <h3 class="project-card__name"><%= p.projectName %></h3>
+            <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
+          </div>
+          <div class="project-card__meta">
+            <span><strong>Editor:</strong> <%= p.editorName %></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
+            <span><strong>Created:</strong> <%= new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
+            <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<div class="editor-tab-content<%= currentTab === 'completed' ? ' is-active' : '' %>" data-tab-panel="completed" id="tab-panel-completed" role="tabpanel" aria-label="Completed">
+  <% if (completed.length === 0) { %>
+    <div class="card admin-panel"><p class="muted">No completed projects.</p></div>
+  <% } else { %>
+    <div class="editor-cards">
+      <% completed.forEach(function(p) { %>
+        <article class="card project-card">
+          <div class="project-card__head">
+            <h3 class="project-card__name"><%= p.projectName %></h3>
+            <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
+          </div>
+          <div class="project-card__meta">
+            <span><strong>Editor:</strong> <%= p.editorName %></span>
+            <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
+            <span><strong>Created:</strong> <%= new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
+            <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+(function() {
+  var tabs = document.querySelectorAll('.editor-tab');
+  var panels = document.querySelectorAll('[data-tab-panel]');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var tabName = this.getAttribute('data-tab');
+      tabs.forEach(function(t) { t.classList.remove('is-active'); t.setAttribute('aria-selected', 'false'); });
+      this.classList.add('is-active');
+      this.setAttribute('aria-selected', 'true');
+      panels.forEach(function(p) {
+        p.classList.toggle('is-active', p.getAttribute('data-tab-panel') === tabName);
+      });
+      var params = new URLSearchParams(window.location.search);
+      params.set('tab', tabName);
+      window.history.replaceState({}, '', '?' + params.toString());
+    });
+  });
+})();
+</script>
+
+<%- include("../partials/footer") %>

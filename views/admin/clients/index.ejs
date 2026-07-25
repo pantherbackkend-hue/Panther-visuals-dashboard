@@ -53,8 +53,8 @@
                 <div class="admin-actions">
                   <a class="btn btn--small btn--outline" href="/admin/clients/<%= c._id %>">View</a>
                   <a class="btn btn--small btn--outline" href="/admin/clients/<%= c._id %>/edit">Edit</a>
-                  <form method="post" action="/admin/clients/<%= c._id %>/delete" class="inline" onsubmit="return confirm('Delete client &quot;<%= c.name %>&quot;? This cannot be undone if no projects reference this client.')">
-                    <button class="btn btn--small btn--danger" type="submit">Delete</button>
+                  <form method="post" action="/admin/clients/<%= c._id %>/delete" class="inline delete-client-form">
+                    <button class="btn btn--small btn--danger delete-client-btn" type="button" data-name="<%= c.name %>">Delete</button>
                   </form>
                 </div>
               </td>
@@ -66,5 +66,15 @@
   <% } %>
 </div>
 
+<script>
+document.querySelectorAll('.delete-client-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var name = this.getAttribute('data-name');
+    if (confirm('Delete client "' + name + '"? This cannot be undone if no projects reference this client.')) {
+      this.closest('form').submit();
+    }
+  });
+});
+</script>
 <%- include("../partials/layout-end") %>
 <%- include("../../partials/footer") %>

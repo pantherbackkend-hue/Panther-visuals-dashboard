@@ -761,86 +761,92 @@ workflowRouter.post(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
-
-    const project = await Project.findById(id);
-    if (!project) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/admin/projects");
-    }
-
-    const {
-      clientName,
-      clientEmail,
-      clientPhone,
-      projectName,
-      driveLink,
-      priority,
-      dueDate,
-      notes,
-      paymentAmount,
-      clientAmount,
-      editorAmount,
-    } = req.body;
-
-    const canAdminEditOwnerProject = req.user.role === "admin" && project.ownerAssignment && project.status === "pending_assignment";
-    const canEditDetails = req.user.role === "owner" || !project.ownerAssignment || canAdminEditOwnerProject;
-
-    if (canEditDetails) {
-      if (!clientName || !clientName.trim()) {
-        req.flash("error", "Client name is required.");
-        return res.redirect(`/admin/projects/${id}/edit`);
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
       }
-      if (!projectName || !projectName.trim()) {
-        req.flash("error", "Project name is required.");
-        return res.redirect(`/admin/projects/${id}/edit`);
+
+      const project = await Project.findById(id);
+      if (!project) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/admin/projects");
       }
+
+      const {
+        clientName,
+        clientEmail,
+        clientPhone,
+        projectName,
+        driveLink,
+        priority,
+        dueDate,
+        notes,
+        paymentAmount,
+        clientAmount,
+        editorAmount,
+      } = req.body;
+
+      const canAdminEditOwnerProject = req.user.role === "admin" && project.ownerAssignment && project.status === "pending_assignment";
+      const canEditDetails = req.user.role === "owner" || !project.ownerAssignment || canAdminEditOwnerProject;
+
+      if (canEditDetails) {
+        if (!clientName || !clientName.trim()) {
+          req.flash("error", "Client name is required.");
+          return res.redirect(`/admin/projects/${id}/edit`);
+        }
+        if (!projectName || !projectName.trim()) {
+          req.flash("error", "Project name is required.");
+          return res.redirect(`/admin/projects/${id}/edit`);
+        }
+      }
+
+      if (canEditDetails) {
+        project.client = {
+          name: String(clientName || project.client?.name || "").trim(),
+          email: String(clientEmail || project.client?.email || "").trim(),
+          phone: String(clientPhone || project.client?.phone || "").trim(),
+        };
+        project.projectName = String(projectName || project.projectName || "").trim();
+        project.driveLink = String(driveLink || project.driveLink || "").trim();
+        project.priority = priority || project.priority || "medium";
+        project.dueDate = dueDate || project.dueDate || null;
+        project.notes = String(notes || project.notes || "").trim();
+      }
+
+      if (req.user.role === "owner") {
+        const ca = Number(clientAmount);
+        project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
+        project.payment.amount = project.payment.clientAmount;
+      } else if (project.ownerAssignment) {
+        const ea = Number(editorAmount);
+        project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
+      } else {
+        const pa = Number(paymentAmount);
+        project.payment.amount = isNaN(pa) ? 0 : pa;
+        project.payment.clientAmount = project.payment.amount;
+      }
+
+      project.activityTimeline.push({
+        action: "Updated",
+        user: req.user._id,
+        userName: req.user.name,
+        previousStatus: project.status,
+        newStatus: project.status,
+        notes: "Project details updated",
+      });
+
+      await project.save();
+      await broadcastDashboardUpdate(project);
+
+      req.flash("success", "Project updated.");
+      return res.redirect(`/admin/projects/${id}`);
+    } catch (err) {
+      console.error("Project edit error:", err);
+      req.flash("error", "Something went wrong. Please try again.");
+      return res.redirect(`/admin/projects/${req.params.id}/edit`);
     }
-
-    if (canEditDetails) {
-      project.client = {
-        name: String(clientName || project.client?.name || "").trim(),
-        email: String(clientEmail || project.client?.email || "").trim(),
-        phone: String(clientPhone || project.client?.phone || "").trim(),
-      };
-      project.projectName = String(projectName || project.projectName || "").trim();
-      project.driveLink = String(driveLink || project.driveLink || "").trim();
-      project.priority = priority || project.priority || "medium";
-      project.dueDate = dueDate || project.dueDate || null;
-      project.notes = String(notes || project.notes || "").trim();
-    }
-
-    if (req.user.role === "owner") {
-      const ca = Number(clientAmount);
-      project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
-      project.payment.amount = project.payment.clientAmount;
-    } else if (project.ownerAssignment) {
-      const ea = Number(editorAmount);
-      project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
-    } else {
-      const pa = Number(paymentAmount);
-      project.payment.amount = isNaN(pa) ? 0 : pa;
-      project.payment.clientAmount = project.payment.amount;
-    }
-
-    project.activityTimeline.push({
-      action: "Updated",
-      user: req.user._id,
-      userName: req.user.name,
-      previousStatus: project.status,
-      newStatus: project.status,
-      notes: "Project details updated",
-    });
-
-    await project.save();
-    await broadcastDashboardUpdate(project);
-
-    req.flash("success", "Project updated.");
-    return res.redirect(`/admin/projects/${id}`);
   },
 );
 
@@ -892,35 +898,41 @@ workflowRouter.get(
   requireAuth,
   requireEditor,
   async (req, res) => {
-    const editorId = req.user._id;
+    try {
+      const editorId = req.user._id;
 
-    const projects = await Project.find({ assignedEditor: editorId })
-      .populate("clientRef", "name channelName channelUrl email")
-      .sort({ priority: -1, createdAt: -1 })
-      .lean();
+      const projects = await Project.find({ assignedEditor: editorId })
+        .populate("clientRef", "name channelName channelUrl email")
+        .sort({ priority: -1, createdAt: -1 })
+        .lean();
 
-    const formatted = projects.map((p) => ({
-      ...p,
-      clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
-      paymentAmount: p.payment?.amount || 0,
-      statusLabel: formatStatus(p.status),
-      badgeColor: getBadgeColor(p.status),
-    }));
+      const formatted = projects.map((p) => ({
+        ...p,
+        clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
+        paymentAmount: p.payment?.amount || 0,
+        statusLabel: formatStatus(p.status),
+        badgeColor: getBadgeColor(p.status),
+      }));
 
-    const assignedProjects = formatted.filter((p) => p.status === "assigned");
-    const ongoingProjects = formatted.filter((p) => p.status === "ongoing" || p.status === "submitted");
-    const completedProjects = formatted.filter((p) => p.status === "completed");
+      const assignedProjects = formatted.filter((p) => p.status === "assigned");
+      const ongoingProjects = formatted.filter((p) => p.status === "ongoing" || p.status === "submitted");
+      const completedProjects = formatted.filter((p) => p.status === "completed");
 
-    res.render("editor/projects/index", {
-      pageTitle: "My Projects",
-      activeSection: "projects",
-      currentTab: req.query.tab || "assigned",
-      assigned: assignedProjects,
-      ongoing: ongoingProjects,
-      completed: completedProjects,
-      formatStatus,
-      formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
-    });
+      res.render("editor/projects/index", {
+        pageTitle: "My Projects",
+        activeSection: "projects",
+        currentTab: req.query.tab || "assigned",
+        assigned: assignedProjects,
+        ongoing: ongoingProjects,
+        completed: completedProjects,
+        formatStatus,
+        formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
+      });
+    } catch (err) {
+      console.error("Editor projects error:", err);
+      req.flash("error", "Something went wrong.");
+      return res.redirect("/editor/projects");
+    }
   },
 );
 
@@ -932,34 +944,40 @@ workflowRouter.get(
   requireAuth,
   requireEditor,
   async (req, res) => {
-    const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) {
-      req.flash("error", "Project not found.");
+    try {
+      const { id } = req.params;
+      if (!mongoose.isValidObjectId(id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/editor/projects");
+      }
+
+      const project = await Project.findById(id)
+        .populate("assignedEditor", "name email")
+        .populate("feedback.createdBy", "name")
+        .populate("clientRef", "name channelName channelUrl email")
+        .lean();
+
+      if (!project || String(project.assignedEditor?._id || project.assignedEditor) !== String(req.user._id)) {
+        req.flash("error", "Project not found.");
+        return res.redirect("/editor/projects");
+      }
+
+      const allowedTransitions = getAllowedTransitions(project.status);
+
+      res.render("editor/projects/show", {
+        pageTitle: `${project.projectName} - Project Details`,
+        activeSection: "projects",
+        project,
+        allowedTransitions,
+        formatStatus,
+        getBadgeColor,
+        formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
+      });
+    } catch (err) {
+      console.error("Editor project detail error:", err);
+      req.flash("error", "Something went wrong.");
       return res.redirect("/editor/projects");
     }
-
-    const project = await Project.findById(id)
-      .populate("assignedEditor", "name email")
-      .populate("feedback.createdBy", "name")
-      .populate("clientRef", "name channelName channelUrl email")
-      .lean();
-
-    if (!project || String(project.assignedEditor?._id || project.assignedEditor) !== String(req.user._id)) {
-      req.flash("error", "Project not found.");
-      return res.redirect("/editor/projects");
-    }
-
-    const allowedTransitions = getAllowedTransitions(project.status);
-
-    res.render("editor/projects/show", {
-      pageTitle: `${project.projectName} - Project Details`,
-      activeSection: "projects",
-      project,
-      allowedTransitions,
-      formatStatus,
-      getBadgeColor,
-      formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
-    });
   },
 );
 
@@ -1161,42 +1179,48 @@ workflowRouter.get(
   requireAuth,
   requireEditor,
   async (req, res) => {
-    const editorId = req.user._id;
+    try {
+      const editorId = req.user._id;
 
-    const projects = await Project.find({ assignedEditor: editorId })
-      .populate("clientRef", "name channelName channelUrl email assets")
-      .sort({ createdAt: -1 })
-      .lean();
+      const projects = await Project.find({ assignedEditor: editorId })
+        .populate("clientRef", "name channelName channelUrl email assets")
+        .sort({ createdAt: -1 })
+        .lean();
 
-    const clientMap = {};
-    for (const p of projects) {
-      if (!p.clientRef) continue;
-      const cid = String(p.clientRef._id);
-      if (!clientMap[cid]) {
-        clientMap[cid] = {
-          client: p.clientRef,
-          statuses: [],
-          seen: {},
-        };
+      const clientMap = {};
+      for (const p of projects) {
+        if (!p.clientRef) continue;
+        const cid = String(p.clientRef._id);
+        if (!clientMap[cid]) {
+          clientMap[cid] = {
+            client: p.clientRef,
+            statuses: [],
+            seen: {},
+          };
+        }
+        if (!clientMap[cid].seen[p.status]) {
+          clientMap[cid].seen[p.status] = true;
+          clientMap[cid].statuses.push(p.status);
+        }
       }
-      if (!clientMap[cid].seen[p.status]) {
-        clientMap[cid].seen[p.status] = true;
-        clientMap[cid].statuses.push(p.status);
-      }
+
+      const clientAssets = Object.values(clientMap).map((entry) => ({
+        client: entry.client,
+        statuses: entry.statuses,
+      }));
+
+      res.render("editor/assets", {
+        pageTitle: "My Assets",
+        activeSection: "assets",
+        clientAssets,
+        formatStatus,
+        getBadgeColor,
+      });
+    } catch (err) {
+      console.error("Editor assets error:", err);
+      req.flash("error", "Something went wrong.");
+      return res.redirect("/editor/projects");
     }
-
-    const clientAssets = Object.values(clientMap).map((entry) => ({
-      client: entry.client,
-      statuses: entry.statuses,
-    }));
-
-    res.render("editor/assets", {
-      pageTitle: "My Assets",
-      activeSection: "assets",
-      clientAssets,
-      formatStatus,
-      getBadgeColor,
-    });
   },
 );
 
@@ -1356,6 +1380,12 @@ workflowRouter.post(
       return res.status(404).json({ error: "Notification not found." });
     }
 
+    const isRecipient = notif.recipient && String(notif.recipient) === String(req.user._id);
+    const isRoleMatch = notif.recipientRole && notif.recipientRole === req.user.role;
+    if (!isRecipient && !isRoleMatch) {
+      return res.status(403).json({ error: "Forbidden." });
+    }
+
     notif.read = true;
     notif.readAt = new Date();
     await notif.save();
@@ -1442,6 +1472,57 @@ workflowRouter.get(
 
     const count = await Notification.countDocuments(query);
     res.json({ count });
+  },
+);
+
+// --- Client: My Projects ---
+
+workflowRouter.get(
+  "/projects",
+  requireDb,
+  requireAuth,
+  async (req, res) => {
+    try {
+      const userEmail = req.user.email.toLowerCase().trim();
+      const clientRecord = await Client.findOne({ email: userEmail }).lean();
+      let projects = [];
+      if (clientRecord) {
+        projects = await Project.find({ clientRef: clientRecord._id })
+          .populate("assignedEditor", "name")
+          .sort({ createdAt: -1 })
+          .lean();
+      } else {
+        projects = await Project.find({ "client.email": userEmail })
+          .populate("assignedEditor", "name")
+          .sort({ createdAt: -1 })
+          .lean();
+      }
+      const formatted = projects.map((p) => ({
+        _id: p._id,
+        projectName: p.projectName,
+        status: p.status,
+        statusLabel: formatStatus(p.status),
+        badgeColor: getBadgeColor(p.status),
+        editorName: p.assignedEditor?.name || "Unassigned",
+        createdAt: p.createdAt,
+        dueDate: p.dueDate,
+        priority: p.priority,
+      }));
+      const ongoing = formatted.filter((p) => ["assigned", "ongoing", "submitted"].includes(p.status));
+      const completed = formatted.filter((p) => p.status === "completed");
+      res.render("client/projects", {
+        pageTitle: "My Projects",
+        activeSection: "projects",
+        ongoing,
+        completed,
+        currentTab: req.query.tab || "ongoing",
+        formatStatus,
+      });
+    } catch (err) {
+      console.error("Client projects error:", err);
+      req.flash("error", "Could not load your projects.");
+      return res.redirect("/");
+    }
   },
 );
 

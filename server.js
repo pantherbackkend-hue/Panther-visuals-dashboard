@@ -1,6 +1,5 @@
 import express from "express";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import session from "express-session";
 import flash from "connect-flash";
 import path from "path";
@@ -35,21 +34,7 @@ process.on("uncaughtException", (err) => {
 });
 
 const app = express();
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const disableRateLimit = process.env.DISABLE_RATE_LIMIT === "true";
-
 app.use(helmet({ contentSecurityPolicy: false }));
-
-if (!disableRateLimit) {
-  app.use(limiter);
-}
 
 const port = Number(process.env.PORT || 3000);
 

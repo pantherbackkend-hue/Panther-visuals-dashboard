@@ -21,23 +21,24 @@ function formatMoney(value) {
 }
 
 adminRouter.get("/", async (req, res) => {
-  const now = new Date();
-  const istStart = startOfIstDay();
+  try {
+    const now = new Date();
+    const istStart = startOfIstDay();
 
-  const [
-    totalEditors,
-    allProjects,
-    editors,
-    projectsToday,
-    pendingAssignmentCount,
-    assignedCount,
-    workingCount,
-    submittedCount,
-    completedProjectCount,
-    waitingPaymentCount,
-    paidCount,
-    editorsAvailable,
-    editorsBusy,
+    const [
+      totalEditors,
+      allProjects,
+      editors,
+      projectsToday,
+      pendingAssignmentCount,
+      assignedCount,
+      workingCount,
+      submittedCount,
+      completedProjectCount,
+      waitingPaymentCount,
+      paidCount,
+      editorsAvailable,
+      editorsBusy,
     editorsLeave,
     recentNotifications,
     recentActivity,
@@ -211,6 +212,11 @@ adminRouter.get("/", async (req, res) => {
     formatMoney,
     formatStatus,
   });
+  } catch (err) {
+    console.error("Dashboard error:", err);
+    req.flash("error", "Failed to load dashboard.");
+    return res.redirect("/");
+  }
 });
 
 adminRouter.get("/workspace", async (req, res) => {
