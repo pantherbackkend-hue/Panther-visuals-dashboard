@@ -51,8 +51,7 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.success) {
-          sucEl.textContent = "Profile updated.";
-          sucEl.classList.add("is-visible");
+          location.reload();
         } else {
           errEl.textContent = data.error || "Failed to update.";
           errEl.classList.add("is-visible");

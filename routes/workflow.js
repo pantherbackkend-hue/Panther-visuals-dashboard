@@ -35,6 +35,20 @@ function escapeRegex(str) {
   return str.replace(/[/\-\\^$*+?.()|[\]{}]/g, "\\$&");
 }
 
+async function getProjectFormData(req) {
+  const editors = await User.find({ role: "editor", isActive: true })
+    .sort({ name: 1 })
+    .lean();
+
+  const admins = req.user.role === "owner"
+    ? await User.find({ role: "admin", isActive: true }).sort({ name: 1 }).lean()
+    : [];
+
+  const clients = await Client.find().sort({ name: 1 }).lean();
+
+  return { editors, admins, clients, formatStatus };
+}
+
 // --- Admin: Create project ---
 
 workflowRouter.get(
@@ -43,25 +57,14 @@ workflowRouter.get(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    const editors = await User.find({ role: "editor", isActive: true })
-      .sort({ name: 1 })
-      .lean();
-
-    const admins = req.user.role === "owner"
-      ? await User.find({ role: "admin", isActive: true }).sort({ name: 1 }).lean()
-      : [];
-
-    const clients = await Client.find().sort({ name: 1 }).lean();
+    const formData = await getProjectFormData(req);
 
     res.render("admin/projects/form", {
       pageTitle: "Create Project",
       activeSection: "projects",
       mode: "create",
       project: null,
-      editors,
-      admins,
-      clients,
-      formatStatus,
+      ...formData,
     });
   },
 );
@@ -735,22 +738,14 @@ workflowRouter.get(
       return res.redirect("/admin/projects");
     }
 
-    const editors = await User.find({ role: "editor", isActive: true })
-      .sort({ name: 1 })
-      .lean();
-
-    const admins = req.user.role === "owner"
-      ? await User.find({ role: "admin", isActive: true }).sort({ name: 1 }).lean()
-      : [];
+    const formData = await getProjectFormData(req);
 
     res.render("admin/projects/form", {
       pageTitle: `Edit ${project.projectName}`,
       activeSection: "projects",
       mode: "edit",
       project,
-      editors,
-      admins,
-      formatStatus,
+      ...formData,
     });
   },
 );
@@ -815,17 +810,24 @@ workflowRouter.post(
         project.notes = String(notes || project.notes || "").trim();
       }
 
-      if (req.user.role === "owner") {
-        const ca = Number(clientAmount);
-        project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
-        project.payment.amount = project.payment.clientAmount;
-      } else if (project.ownerAssignment) {
-        const ea = Number(editorAmount);
-        project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
-      } else {
-        const pa = Number(paymentAmount);
-        project.payment.amount = isNaN(pa) ? 0 : pa;
-        project.payment.clientAmount = project.payment.amount;
+      if (project.payment?.status !== "paid") {
+        if (req.user.role === "owner") {
+          const ca = Number(clientAmount);
+          project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
+          project.payment.amount = project.payment.clientAmount;
+          const ea = Number(editorAmount);
+          if (!isNaN(ea)) project.payment.editorAmount = ea;
+        } else if (project.ownerAssignment) {
+          const pa = Number(paymentAmount);
+          project.payment.clientAmount = isNaN(pa) ? (project.payment.clientAmount || 0) : pa;
+          project.payment.amount = project.payment.clientAmount;
+          const ea = Number(editorAmount);
+          project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
+        } else {
+          const pa = Number(paymentAmount);
+          project.payment.amount = isNaN(pa) ? 0 : pa;
+          project.payment.clientAmount = project.payment.amount;
+        }
       }
 
       project.activityTimeline.push({
@@ -843,7 +845,15 @@ workflowRouter.post(
       req.flash("success", "Project updated.");
       return res.redirect(`/admin/projects/${id}`);
     } catch (err) {
-      console.error("Project edit error:", err);
+      console.error("========== PROJECT EDIT ERROR ==========");
+      console.error("Error name:", err.name);
+      console.error("Error message:", err.message);
+      if (err.errors) {
+        for (const [field, e] of Object.entries(err.errors)) {
+          console.error(`  Field "${field}":`, e.message, e.kind, e.value);
+        }
+      }
+      console.error("Stack trace:", err.stack);
       req.flash("error", "Something went wrong. Please try again.");
       return res.redirect(`/admin/projects/${req.params.id}/edit`);
     }
@@ -1259,10 +1269,16 @@ workflowRouter.post(
 
       await editor.save();
 
+      if (req.accepts("json")) {
+        return res.json({ success: true });
+      }
       req.flash("success", "Profile updated.");
       return res.redirect("/editor/profile");
     } catch (err) {
       console.error("Profile update error:", err);
+      if (req.accepts("json")) {
+        return res.json({ success: false, error: err.message || "Failed to update profile." });
+      }
       req.flash("error", err.message || "Failed to update profile.");
       return res.redirect("/editor/profile");
     }
