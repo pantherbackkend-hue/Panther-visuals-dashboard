@@ -68,7 +68,6 @@
           </div>
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
-            <% if (p.clientRef?.channelName) { %><span><strong>Channel:</strong> <%= p.clientRef.channelName %></span><% } %>
             <span><strong>Editor:</strong> <% if (p.assignedEditor?.name) { %><%= p.assignedEditor.name %><% } else { %><span style="color:var(--warning)">Unassigned</span><% } %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
@@ -127,7 +126,6 @@
           </div>
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
-            <% if (p.clientRef?.channelName) { %><span><strong>Channel:</strong> <%= p.clientRef.channelName %></span><% } %>
             <span><strong>Editor:</strong> <%= p.assignedEditor?.name || "Unassigned" %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
@@ -171,7 +169,6 @@
           </div>
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
-            <% if (p.clientRef?.channelName) { %><span><strong>Channel:</strong> <%= p.clientRef.channelName %></span><% } %>
             <span><strong>Editor:</strong> <%= p.assignedEditor?.name || "Unassigned" %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>

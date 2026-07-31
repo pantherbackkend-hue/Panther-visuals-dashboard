@@ -58,18 +58,6 @@
             <span class="detail-row__label">Name</span>
             <span class="detail-row__value"><%= project.clientRef?.name || project.client?.name || project.clientName || "" %></span>
           </div>
-          <% if (project.clientRef?.channelName) { %>
-          <div class="detail-row">
-            <span class="detail-row__label">Channel</span>
-            <span class="detail-row__value"><%= project.clientRef.channelName %></span>
-          </div>
-          <% } %>
-          <% if (project.clientRef?.channelUrl) { %>
-          <div class="detail-row">
-            <span class="detail-row__label">Channel URL</span>
-            <span class="detail-row__value"><a href="<%= project.clientRef.channelUrl %>" target="_blank" rel="noopener"><%= project.clientRef.channelUrl.length > 40 ? project.clientRef.channelUrl.slice(0,40) + "..." : project.clientRef.channelUrl %></a></span>
-          </div>
-          <% } %>
         </div>
         <div class="detail-group">
           <h3 class="detail-group__title">Project</h3>

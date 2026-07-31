@@ -47,7 +47,7 @@ adminRouter.get("/", async (req, res) => {
     User.countDocuments({ role: "editor" }),
     Project.find()
       .populate("assignedEditor", "name email")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .sort({ priority: -1, createdAt: -1 })
       .limit(10)
       .lean(),
@@ -92,7 +92,7 @@ adminRouter.get("/", async (req, res) => {
     })
       .select("projectName client dueDate priority assignedEditor clientRef")
       .populate("assignedEditor", "name")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .sort({ dueDate: 1 })
       .limit(5)
       .lean(),
@@ -223,7 +223,7 @@ adminRouter.get("/workspace", async (req, res) => {
   const [allProjects, editors] = await Promise.all([
     Project.find()
       .populate("assignedEditor", "name email availability")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .sort({ priority: -1, createdAt: -1 })
       .lean(),
     User.find({ role: "editor", isActive: true })
@@ -546,7 +546,7 @@ adminRouter.get("/profits", async (req, res) => {
       .populate("assignedEditor", "name email")
       .populate("ownerAdmin", "name email")
       .populate("createdBy", "name")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .sort({ "payment.paidAt": -1 })
       .lean();
 
@@ -640,14 +640,13 @@ adminRouter.get("/clients", async (req, res) => {
     const filter = {};
 
     if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { channelName: { $regex: search, $options: "i" } },
-      ];
+      filter.name = { $regex: search, $options: "i" };
     }
 
-    const clients = await Client.find(filter).sort({ name: 1 }).lean();
+    const clients = await Client.find(filter)
+      .populate("createdBy", "name")
+      .sort({ name: 1 })
+      .lean();
 
     const projectCounts = await Project.aggregate([
       { $match: { clientRef: { $ne: null } } },
@@ -689,7 +688,7 @@ adminRouter.get("/clients/new", async (req, res) => {
 
 adminRouter.post("/clients", async (req, res) => {
   try {
-    const { name, channelName, channelUrl, email, notes, assets: formAssets } = req.body;
+    const { name, referenceAssets, notes, assets: formAssets } = req.body;
 
     if (!name || !String(name).trim()) {
       req.flash("error", "Client name is required.");
@@ -726,9 +725,7 @@ adminRouter.post("/clients", async (req, res) => {
 
     await Client.create({
       name: String(name).trim(),
-      channelName: String(channelName || "").trim(),
-      channelUrl: String(channelUrl || "").trim(),
-      email: String(email || "").trim().toLowerCase(),
+      referenceAssets: String(referenceAssets || "").trim(),
       notes: String(notes || "").trim(),
       assets: assetData,
       createdBy: req.user._id,
@@ -846,7 +843,7 @@ adminRouter.post("/clients/:id/edit", async (req, res) => {
       return res.redirect("/admin/clients");
     }
 
-    const { name, channelName, channelUrl, email, notes, assets: formAssets } = req.body;
+    const { name, referenceAssets, notes, assets: formAssets } = req.body;
 
     if (!name || !String(name).trim()) {
       req.flash("error", "Client name is required.");
@@ -863,9 +860,7 @@ adminRouter.post("/clients/:id/edit", async (req, res) => {
     }
 
     client.name = String(name).trim();
-    client.channelName = String(channelName || "").trim();
-    client.channelUrl = String(channelUrl || "").trim();
-    client.email = String(email || "").trim().toLowerCase();
+    client.referenceAssets = String(referenceAssets || "").trim();
     client.notes = String(notes || "").trim();
 
     if (formAssets && Array.isArray(formAssets)) {

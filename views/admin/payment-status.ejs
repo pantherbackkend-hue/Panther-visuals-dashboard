@@ -40,7 +40,6 @@
         <tr>
           <th scope="col">Project</th>
           <th scope="col">Client</th>
-          <th scope="col">Channel</th>
           <th scope="col"><%= assigneeLabel %></th>
           <th scope="col">Received</th>
           <th scope="col">Completed</th>
@@ -54,7 +53,6 @@
           <tr>
             <td><a class="admin-link" href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></td>
             <td><%= p.clientName %></td>
-            <td><%= p.clientRef?.channelName || "—" %></td>
             <td><%= p.ownerAdmin?.name || p.assignedEditor?.name || "—" %></td>
             <td><%= p.receivedDate %></td>
             <td><%= p.completedDate %></td>

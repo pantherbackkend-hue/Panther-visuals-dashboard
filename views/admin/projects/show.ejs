@@ -153,8 +153,6 @@
     <h2 class="h2 mt-0">Overview</h2>
   <div class="admin-detail-grid">
     <div><span>Drive Link</span><strong><% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 60 ? project.driveLink.slice(0,60) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %></strong></div>
-    <% if (project.clientRef?.channelName || project.client?.channelName) { %><div><span>Channel Name</span><strong><%= project.clientRef?.channelName || project.client?.channelName || "" %></strong></div><% } %>
-    <% if (project.clientRef?.channelUrl) { %><div><span>Channel URL</span><strong><a href="<%= project.clientRef.channelUrl %>" target="_blank" rel="noopener"><%= project.clientRef.channelUrl.length > 50 ? project.clientRef.channelUrl.slice(0,50) + "..." : project.clientRef.channelUrl %></a></strong></div><% } %>
     <div><span>Created by</span><strong><%= project.createdBy?.name || "System" %></strong></div>
     <div><span>Received</span><strong><%= project.receivedDate ? new Date(project.receivedDate).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : new Date(project.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
     <div><span>Created</span><strong><%= new Date(project.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>

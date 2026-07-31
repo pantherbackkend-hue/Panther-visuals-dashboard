@@ -17,19 +17,9 @@
     </div>
 
     <div class="form-group">
-      <label for="channelName">Channel Name</label>
-      <input id="channelName" name="channelName" type="text" value="<%= client?.channelName || "" %>" placeholder="e.g. YouTube, Instagram, Referral" />
-      <p class="form-help">Where did this client come from?</p>
-    </div>
-
-    <div class="form-group">
-      <label for="channelUrl">Channel URL</label>
-      <input id="channelUrl" name="channelUrl" type="url" value="<%= client?.channelUrl || "" %>" placeholder="https://..." />
-    </div>
-
-    <div class="form-group">
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" value="<%= client?.email || "" %>" />
+      <label for="referenceAssets">Reference Assets</label>
+      <textarea id="referenceAssets" name="referenceAssets" rows="3" placeholder="Brand guidelines, style guide links, logo kit links, etc."><%= client?.referenceAssets || "" %></textarea>
+      <p class="form-help">Key reference materials the team should review before starting work.</p>
     </div>
 
     <div class="form-group">
@@ -38,8 +28,8 @@
     </div>
 
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
-      <h2 class="h2">Reference Assets</h2>
-      <p class="muted text-sm mb-16">Add brand guidelines, style guides, or reference files.</p>
+      <h2 class="h2">Asset Library</h2>
+      <p class="muted text-sm mb-16">Add brand guidelines, style guides, or reference files with drive links.</p>
 
       <div id="assets-container">
         <% if (mode === "edit" && client.assets && client.assets.length > 0) { %>

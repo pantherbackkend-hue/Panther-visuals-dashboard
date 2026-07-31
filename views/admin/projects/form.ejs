@@ -2,12 +2,21 @@
 <%- include("../partials/layout-start", { activeSection }) %>
 
 <style>
-.combobox-list li.is-highlighted { background: var(--primary); color: #fff; }
-.combobox-list li:hover { background: var(--bg-hover); }
+.combobox-container { position: relative; }
 .combobox-input:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+.combobox-list { display: none; position: absolute; z-index: 100; width: 100%; max-height: 240px; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); list-style: none; margin: 2px 0 0; padding: 4px 0; box-sizing: border-box; box-shadow: var(--shadow-md); }
+.combobox-list li { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-light); border-radius: 4px; margin: 0 2px; color: var(--text); }
 .combobox-list li:last-child { border-bottom: none !important; }
-.combobox-toggle { position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);display:flex;align-items:center;justify-content:center;min-height:auto;width:auto;border-radius:4px;transition:color 0.1s }
-.combobox-toggle:hover { color:var(--text) }
+.combobox-list li:hover, .combobox-list li.is-highlighted { background: var(--primary-soft); color: var(--text); }
+.combobox-list li.is-highlighted .combo-client-name, .combobox-list li:hover .combo-client-name { color: var(--primary); }
+.combobox-list li.is-selected { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
+.combobox-list li.is-selected .combo-client-name { color: var(--primary); font-weight: 600; }
+.combobox-list .combo-client-name { display: block; font-weight: 500; }
+.combobox-list .combo-proj-count { display: block; font-size: 12px; color: var(--muted); }
+.combobox-list .combo-empty { padding: 12px; color: var(--muted); font-style: italic; cursor: default; }
+.combobox-list .combo-empty:hover { background: transparent; }
+.combobox-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: var(--muted); display: flex; align-items: center; justify-content: center; min-height: auto; width: auto; border-radius: 4px; transition: color 0.1s; }
+.combobox-toggle:hover { color: var(--text); }
 </style>
 
 <section class="admin-page-head">
@@ -37,16 +46,16 @@
     <div id="existingClientSection">
       <div class="form-group">
         <label for="clientComboInput">Select Client</label>
-        <div class="combobox-container" style="position:relative">
+        <div class="combobox-container">
           <input type="text" id="clientComboInput" class="combobox-input" placeholder="Search or select a client..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="clientListbox" autofocus style="width:100%;padding:8px 32px 8px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text);box-sizing:border-box" />
           <button type="button" id="comboToggleBtn" class="combobox-toggle" tabindex="-1" aria-label="Toggle client list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <input type="hidden" name="clientId" id="clientId" value="" />
-          <ul id="clientListbox" class="combobox-list" role="listbox" aria-label="Clients" style="display:none;position:absolute;z-index:100;width:100%;max-height:240px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);list-style:none;margin:2px 0 0;padding:0;box-sizing:border-box"></ul>
+          <ul id="clientListbox" class="combobox-list" role="listbox" aria-label="Clients"></ul>
         </div>
       </div>
       <div id="existingClientInfo" style="display:none;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
-        <p style="margin:0"><strong>Channel:</strong> <span id="infoChannelName">—</span></p>
-        <p style="margin:4px 0 0"><strong>Channel URL:</strong> <a href="#" id="infoChannelUrl" target="_blank" rel="noopener" style="display:none"></a><span id="infoChannelUrlText">—</span></p>
+        <p style="margin:0"><strong>Selected client:</strong> <span id="infoClientName">—</span></p>
+        <p style="margin:4px 0 0"><strong>Projects:</strong> <span id="infoClientProjects">—</span></p>
       </div>
       <div id="assetSelectGroup" style="display:none;margin-bottom:16px">
         <div class="form-group">
@@ -64,16 +73,12 @@
         <input id="clientName" name="clientName" type="text" required />
       </div>
       <div class="form-group">
-        <label for="clientEmail">Client Email</label>
-        <input id="clientEmail" name="clientEmail" type="email" />
+        <label for="clientReferenceAssets">Reference Assets</label>
+        <textarea id="clientReferenceAssets" name="clientReferenceAssets" rows="2" placeholder="Brand guidelines, style guide links, etc."></textarea>
       </div>
       <div class="form-group">
-        <label for="channelName">Channel Name</label>
-        <input id="channelName" name="channelName" type="text" placeholder="e.g. YouTube, Instagram, Referral" />
-      </div>
-      <div class="form-group">
-        <label for="channelUrl">Channel URL</label>
-        <input id="channelUrl" name="channelUrl" type="url" placeholder="https://..." />
+        <label for="clientNotes">Notes</label>
+        <textarea id="clientNotes" name="clientNotes" rows="2" placeholder="Anything the team should know about this client"></textarea>
       </div>
     </div>
     <% } else { %>
@@ -81,13 +86,7 @@
       <label for="clientName">Client Name *</label>
       <input id="clientName" name="clientName" type="text" required value="<%= project?.clientRef?.name || project?.client?.name || project?.clientName || "" %>" />
     </div>
-    <div class="form-group">
-      <label for="clientEmail">Client Email</label>
-      <input id="clientEmail" name="clientEmail" type="email" value="<%= project?.clientRef?.email || project?.client?.email || "" %>" />
-    </div>
     <% } %>
-
-    <input id="clientPhone" name="clientPhone" type="hidden" value="" />
 
     <div class="form-group">
       <label for="projectName">Project Name *</label>
@@ -211,8 +210,8 @@ function buildList(items) {
   comboList.innerHTML = '';
   if (items.length === 0) {
     var li = document.createElement('li');
-    li.textContent = 'No clients found.';
-    li.style.cssText = 'padding:8px 12px;color:var(--muted);font-style:italic';
+    li.className = 'combo-empty';
+    li.textContent = 'No clients found. Create a new client.';
     li.setAttribute('role', 'option');
     li.setAttribute('aria-disabled', 'true');
     comboList.appendChild(li);
@@ -224,8 +223,19 @@ function buildList(items) {
     li.setAttribute('aria-selected', 'false');
     li.dataset.index = i;
     li.dataset.id = c._id;
-    li.textContent = c.name || '(untitled)';
-    li.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border-light)';
+    li.dataset.projectCount = c.projectCount || 0;
+    if (selectedClientId && String(c._id) === selectedClientId) {
+      li.classList.add('is-selected');
+      li.setAttribute('aria-selected', 'true');
+    }
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'combo-client-name';
+    nameSpan.textContent = c.name || '(untitled)';
+    var countSpan = document.createElement('span');
+    countSpan.className = 'combo-proj-count';
+    countSpan.textContent = (c.projectCount || 0) === 1 ? '1 Project' : (c.projectCount || 0) + ' Projects';
+    li.appendChild(nameSpan);
+    li.appendChild(countSpan);
     li.addEventListener('click', function() { selectClient(c); });
     li.addEventListener('mouseenter', function() { setHighlight(i); });
     comboList.appendChild(li);
@@ -233,43 +243,26 @@ function buildList(items) {
 }
 
 function setHighlight(idx) {
-  var items = comboList.querySelectorAll('[role="option"]');
+  var items = comboList.querySelectorAll('[role="option"]:not([aria-disabled])');
   items.forEach(function(el, i) {
     var isHL = i === idx;
     el.classList.toggle('is-highlighted', isHL);
-    el.style.background = isHL ? 'var(--bg-hover)' : (i % 2 === 0 ? 'transparent' : 'var(--bg)');
-    el.setAttribute('aria-selected', String(isHL));
+    el.setAttribute('aria-selected', String(isHL || el.classList.contains('is-selected')));
   });
   highlightIdx = idx;
 }
 
 function selectClient(client) {
   if (!client) return;
-  selectedClientId = client._id || '';
+  selectedClientId = String(client._id || '');
   clientIdHidden.value = client._id || '';
   comboInput.value = client.name || '';
   closeComboList();
 
   document.getElementById('clientName').value = client.name || '';
-  document.getElementById('clientEmail').value = client.email || '';
-  document.getElementById('infoChannelName').textContent = client.channelName || '—';
-  var urlEl = document.getElementById('infoChannelUrl');
-  var urlText = document.getElementById('infoChannelUrlText');
-  if (client.channelUrl) {
-    urlEl.href = client.channelUrl;
-    urlEl.textContent = client.channelUrl;
-    urlEl.style.display = '';
-    urlText.style.display = 'none';
-  } else {
-    urlEl.style.display = 'none';
-    urlText.textContent = '—';
-    urlText.style.display = '';
-  }
-  if (client.channelName || client.channelUrl) {
-    document.getElementById('existingClientInfo').style.display = '';
-  } else {
-    document.getElementById('existingClientInfo').style.display = 'none';
-  }
+  document.getElementById('infoClientName').textContent = client.name || '—';
+  document.getElementById('infoClientProjects').textContent = (client.projectCount || 0) === 1 ? '1' : String(client.projectCount || 0);
+  document.getElementById('existingClientInfo').style.display = '';
 
   // Asset auto-select
   var assets = client.assets || [];

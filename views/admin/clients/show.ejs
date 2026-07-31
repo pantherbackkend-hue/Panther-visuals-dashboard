@@ -5,7 +5,6 @@
   <div>
     <p class="eyebrow">Client profile</p>
     <h1><%= client.name %></h1>
-    <% if (client.channelName) { %><p class="muted"><%= client.channelName %></p><% } %>
   </div>
   <div class="admin-actions">
     <a class="btn btn--outline" href="/admin/clients">Back</a>
@@ -21,22 +20,15 @@
     <h2 class="h2 mt-0">Client Details</h2>
     <div class="admin-detail-grid">
       <div><span>Name</span><strong><%= client.name %></strong></div>
-      <% if (client.channelName) { %><div><span>Channel Name</span><strong><%= client.channelName %></strong></div><% } %>
-      <% if (client.channelUrl) { %><div><span>Channel URL</span><strong><a href="<%= client.channelUrl %>" target="_blank" rel="noopener"><%= client.channelUrl %></a></strong></div><% } %>
-      <% if (client.email) { %><div><span>Email</span><strong><%= client.email %></strong></div><% } %>
+      <div><span>Reference Assets</span><strong style="white-space:pre-wrap"><%= client.referenceAssets || '<span class="muted">—</span>' %></strong></div>
+      <div><span>Notes</span><strong style="white-space:pre-wrap"><%= client.notes || '<span class="muted">—</span>' %></strong></div>
       <div><span>Created</span><strong><%= new Date(client.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
       <div><span>Total Projects</span><strong><a href="#projects"><%= totalProjects %></a></strong></div>
     </div>
-    <% if (client.notes) { %>
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-        <h3 class="h3">Notes</h3>
-        <p style="white-space:pre-wrap"><%= client.notes %></p>
-      </div>
-    <% } %>
   </div>
 
   <div class="card" style="margin:0" id="assets">
-    <h2 class="h2 mt-0">Reference Assets</h2>
+    <h2 class="h2 mt-0">Asset Library</h2>
     <% if (client.assets && client.assets.length > 0) { %>
       <div style="margin-bottom:16px">
         <% client.assets.forEach(function(asset, idx) { %>

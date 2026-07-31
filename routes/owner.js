@@ -72,7 +72,7 @@ ownerRouter.get("/payment-status", async (req, res) => {
     const projects = await Project.find({ status: "completed" })
       .populate("assignedEditor", "name email")
       .populate("ownerAdmin", "name email")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .sort({ completedAt: -1 })
       .lean();
 

@@ -38,15 +38,12 @@ export async function seedTestData() {
 
   const client = await Client.create({
     name: "Test Client Inc",
-    channelName: "TestChannel",
-    channelUrl: "https://youtube.com/test",
-    email: "client@test.com",
     notes: "Test client notes",
     createdBy: owner._id,
   });
 
   const standardProject = await Project.create({
-    client: { name: "Test Client Inc", email: "client@test.com" },
+    client: { name: "Test Client Inc" },
     clientRef: client._id,
     projectName: "Test Standard Project",
     driveLink: "https://drive.google.com/test",
@@ -65,7 +62,7 @@ export async function seedTestData() {
   });
 
   const ownerProjectViaAdmin = await Project.create({
-    client: { name: "Owner Client Corp", email: "ownerclient@test.com" },
+    client: { name: "Owner Client Corp" },
     projectName: "Owner Project via Admin",
     driveLink: "https://drive.google.com/owner",
     priority: "high",
@@ -85,7 +82,7 @@ export async function seedTestData() {
   });
 
   const directAssignProject = await Project.create({
-    client: { name: "Direct Client Ltd", email: "direct@test.com" },
+    client: { name: "Direct Client Ltd" },
     projectName: "Direct Assign Project",
     driveLink: "https://drive.google.com/direct",
     priority: "urgent",
@@ -115,7 +112,7 @@ export async function seedTestData() {
   });
 
   const ongoingProject = await Project.create({
-    client: { name: "Ongoing Client", email: "ongoing@test.com" },
+    client: { name: "Ongoing Client" },
     projectName: "Ongoing Project",
     driveLink: "https://drive.google.com/ongoing",
     priority: "medium",
@@ -152,7 +149,7 @@ export async function seedTestData() {
   });
 
   const submittedProject = await Project.create({
-    client: { name: "Submitted Client", email: "submitted@test.com" },
+    client: { name: "Submitted Client" },
     projectName: "Submitted Project",
     driveLink: "https://drive.google.com/submitted",
     priority: "high",
@@ -201,7 +198,7 @@ export async function seedTestData() {
   });
 
   const completedProject = await Project.create({
-    client: { name: "Completed Client", email: "completed@test.com" },
+    client: { name: "Completed Client" },
     projectName: "Completed Project",
     driveLink: "https://drive.google.com/completed",
     priority: "low",
@@ -258,7 +255,7 @@ export async function seedTestData() {
   });
 
   const paidProject = await Project.create({
-    client: { name: "Paid Client", email: "paid@test.com" },
+    client: { name: "Paid Client" },
     projectName: "Paid Project",
     driveLink: "https://drive.google.com/paid",
     priority: "medium",

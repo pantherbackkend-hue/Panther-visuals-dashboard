@@ -48,7 +48,6 @@ async function migrate() {
       const src = group[0].client;
       client = await Client.create({
         name: displayName,
-        email: src.email?.trim().toLowerCase() || "",
         notes: src.notes || "",
         createdBy: group[0].createdBy || undefined,
       });

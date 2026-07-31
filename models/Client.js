@@ -16,12 +16,11 @@ const assetSchema = new mongoose.Schema({
 const clientSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    channelName: { type: String, default: "", trim: true },
-    channelUrl: { type: String, default: "", trim: true },
-    email: { type: String, default: "", trim: true, lowercase: true },
+    referenceAssets: { type: String, default: "" },
     notes: { type: String, default: "" },
     driveLinks: { type: [driveLinkSchema], default: [] },
     assets: { type: [assetSchema], default: [] },
+    projects: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }],
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },

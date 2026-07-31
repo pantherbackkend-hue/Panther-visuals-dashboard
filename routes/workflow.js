@@ -46,7 +46,21 @@ async function getProjectFormData(req) {
 
   const clients = await Client.find().sort({ name: 1 }).lean();
 
-  return { editors, admins, clients, formatStatus };
+  const projectCounts = await Project.aggregate([
+    { $match: { clientRef: { $ne: null } } },
+    { $group: { _id: "$clientRef", count: { $sum: 1 } } },
+  ]);
+  const countMap = {};
+  for (const c of projectCounts) {
+    countMap[String(c._id)] = c.count;
+  }
+
+  const clientsWithCounts = clients.map((c) => ({
+    ...c,
+    projectCount: countMap[String(c._id)] || 0,
+  }));
+
+  return { editors, admins, clients: clientsWithCounts, formatStatus };
 }
 
 // --- Admin: Create project ---
@@ -78,8 +92,8 @@ workflowRouter.post(
     try {
       const {
         clientName,
-        clientEmail,
-        clientPhone,
+        clientReferenceAssets,
+        clientNotes,
         projectName,
         assignedEditor,
         driveLink,
@@ -93,8 +107,6 @@ workflowRouter.post(
         editorAmount,
         clientMode,
         clientId,
-        channelName,
-        channelUrl,
         receivedDate,
       } = req.body;
 
@@ -141,12 +153,31 @@ workflowRouter.post(
       const isOwnerAssignAdmin = ownerAssignment === "admin";
       const isOwnerAssignDirect = ownerAssignment === "direct";
 
+      let client = null;
+      if (clientMode === "existing" && clientId && mongoose.isValidObjectId(clientId)) {
+        client = await Client.findById(clientId);
+        if (!client) {
+          req.flash("error", "Selected client not found.");
+          return res.redirect("/admin/projects/new");
+        }
+      } else {
+        client = await Client.findOne({ name: { $regex: `^${escapeRegex(clientName.trim())}$`, $options: "i" } });
+        if (!client) {
+          client = await Client.create({
+            name: clientName.trim(),
+            referenceAssets: String(clientReferenceAssets || "").trim(),
+            notes: String(clientNotes || "").trim(),
+            createdBy: req.user._id,
+          });
+          if (driveLink && String(driveLink).trim()) {
+            client.driveLinks.push({ label: "Project", url: String(driveLink).trim() });
+          }
+        }
+      }
+
       const project = await Project.create({
-        client: {
-          name: clientName.trim(),
-          email: String(clientEmail || "").trim(),
-          phone: String(clientPhone || "").trim(),
-        },
+        client: { name: client.name },
+        clientRef: client._id,
         projectName: projectName.trim(),
         assignedEditor: isOwnerAssignDirect && assignedEditor ? assignedEditor : (assignedEditor || null),
         driveLink: String(driveLink || "").trim(),
@@ -161,26 +192,8 @@ workflowRouter.post(
         createdBy: req.user._id,
       });
 
-      if (clientMode === "existing" && clientId && mongoose.isValidObjectId(clientId)) {
-        project.clientRef = clientId;
-      } else {
-        let newClient = await Client.findOne({ name: { $regex: `^${escapeRegex(clientName.trim())}$`, $options: "i" } });
-        if (!newClient) {
-          newClient = await Client.create({
-            name: clientName.trim(),
-            channelName: String(channelName || "").trim(),
-            channelUrl: String(channelUrl || "").trim(),
-            email: String(clientEmail || "").trim().toLowerCase(),
-            notes: String(notes || "").trim(),
-            createdBy: req.user._id,
-          });
-        }
-        project.clientRef = newClient._id;
-        if (driveLink && String(driveLink).trim()) {
-          newClient.driveLinks.push({ label: "Project", url: String(driveLink).trim() });
-          await newClient.save();
-        }
-      }
+      client.projects.push(project._id);
+      await client.save();
 
       project.activityTimeline.push({
         action: "Project Created",
@@ -263,7 +276,7 @@ workflowRouter.get(
     const projects = await Project.find(match)
       .populate("assignedEditor", "name email")
       .populate("createdBy", "name")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .sort({ priority: -1, createdAt: -1 })
       .lean();
 
@@ -321,7 +334,7 @@ workflowRouter.get(
     const project = await Project.findById(id)
       .populate("assignedEditor", "name email availability upiId")
       .populate("createdBy", "name")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .lean();
 
     if (!project) {
@@ -730,7 +743,7 @@ workflowRouter.get(
 
     const project = await Project.findById(id)
       .populate("assignedEditor", "name email")
-      .populate("clientRef", "name channelName channelUrl email")
+      .populate("clientRef", "name")
       .lean();
 
     if (!project) {
@@ -771,8 +784,6 @@ workflowRouter.post(
 
       const {
         clientName,
-        clientEmail,
-        clientPhone,
         projectName,
         driveLink,
         priority,
@@ -800,8 +811,6 @@ workflowRouter.post(
       if (canEditDetails) {
         project.client = {
           name: String(clientName || project.client?.name || "").trim(),
-          email: String(clientEmail || project.client?.email || "").trim(),
-          phone: String(clientPhone || project.client?.phone || "").trim(),
         };
         project.projectName = String(projectName || project.projectName || "").trim();
         project.driveLink = String(driveLink || project.driveLink || "").trim();
@@ -886,6 +895,10 @@ workflowRouter.post(
         await updateEditorAvailability(editorId, User, Project);
       }
 
+      if (project.clientRef) {
+        await Client.updateOne({ _id: project.clientRef }, { $pull: { projects: project._id } });
+      }
+
       await Notification.deleteMany({ project: id });
       await Project.deleteOne({ _id: id });
       const allProjects = await Project.find().lean();
@@ -912,7 +925,7 @@ workflowRouter.get(
       const editorId = req.user._id;
 
       const projects = await Project.find({ assignedEditor: editorId })
-        .populate("clientRef", "name channelName channelUrl email")
+        .populate("clientRef", "name")
         .sort({ priority: -1, createdAt: -1 })
         .lean();
 
@@ -964,7 +977,7 @@ workflowRouter.get(
       const project = await Project.findById(id)
         .populate("assignedEditor", "name email")
         .populate("feedback.createdBy", "name")
-        .populate("clientRef", "name channelName channelUrl email")
+        .populate("clientRef", "name")
         .lean();
 
       if (!project || String(project.assignedEditor?._id || project.assignedEditor) !== String(req.user._id)) {
@@ -1193,7 +1206,7 @@ workflowRouter.get(
       const editorId = req.user._id;
 
       const projects = await Project.find({ assignedEditor: editorId })
-        .populate("clientRef", "name channelName channelUrl email assets")
+        .populate("clientRef", "name assets")
         .sort({ createdAt: -1 })
         .lean();
 
@@ -1298,7 +1311,7 @@ workflowRouter.get(
         assignedEditor: req.user._id,
         status: "completed",
       })
-        .populate("clientRef", "name channelName channelUrl email")
+        .populate("clientRef", "name")
         .sort({ completedAt: -1 })
         .lean();
 
@@ -1562,7 +1575,7 @@ workflowRouter.get(
         ],
       })
         .populate("assignedEditor", "name email")
-        .populate("clientRef", "name channelName channelUrl email")
+        .populate("clientRef", "name")
         .sort({ priority: -1, createdAt: -1 })
         .limit(8)
         .lean(),
