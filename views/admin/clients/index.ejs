@@ -45,7 +45,7 @@
             <tr>
               <td><strong><a class="admin-link" href="/admin/clients/<%= c._id %>"><%= c.name %></a></strong></td>
               <td><%= c.referenceAssets || '<span class="muted">—</span>' %></td>
-              <td><%= c.notes || '<span class="muted">—</span>' %></td>
+              <td><%- c.notes ? renderNotes(c.notes) : '<span class="muted">—</span>' %></td>
               <td><%= c.projectCount %></td>
               <td><%= c.createdBy?.name || '<span class="muted">—</span>' %></td>
               <td><%= new Date(c.createdAt).toLocaleDateString("en-IN") %></td>

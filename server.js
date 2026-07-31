@@ -12,6 +12,7 @@ import { adminRouter } from "./routes/admin.js";
 import { workflowRouter } from "./routes/workflow.js";
 import { ownerRouter } from "./routes/owner.js";
 import { initSocket } from "./socket/index.js";
+import { renderNotes } from "./utils/renderNotes.js";
 
 dotenv.config();
 
@@ -43,6 +44,8 @@ const __dirname = path.dirname(__filename);
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+
+app.locals.renderNotes = renderNotes;
 
 app.use(express.static(path.join(__dirname, "public")));
 

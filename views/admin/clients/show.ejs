@@ -21,7 +21,7 @@
     <div class="admin-detail-grid">
       <div><span>Name</span><strong><%= client.name %></strong></div>
       <div><span>Reference Assets</span><strong style="white-space:pre-wrap"><%= client.referenceAssets || '<span class="muted">—</span>' %></strong></div>
-      <div><span>Notes</span><strong style="white-space:pre-wrap"><%= client.notes || '<span class="muted">—</span>' %></strong></div>
+      <div><span>Notes</span><strong style="white-space:pre-wrap"><%- client.notes ? renderNotes(client.notes) : '<span class="muted">—</span>' %></strong></div>
       <div><span>Created</span><strong><%= new Date(client.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
       <div><span>Total Projects</span><strong><a href="#projects"><%= totalProjects %></a></strong></div>
     </div>

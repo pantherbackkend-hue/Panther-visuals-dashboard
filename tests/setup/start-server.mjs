@@ -70,6 +70,9 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+
+const { renderNotes } = await import("../../utils/renderNotes.js");
+app.locals.renderNotes = renderNotes;
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());

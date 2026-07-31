@@ -179,7 +179,7 @@
       <% } else { %><span class="muted">N/A</span><% } %>
     </strong></div>
     <% if (project.notes) { %>
-      <div style="grid-column:1/-1"><span>Notes</span><strong style="white-space:pre-wrap"><%= project.notes %></strong></div>
+      <div style="grid-column:1/-1"><span>Notes</span><strong style="white-space:pre-wrap"><%- renderNotes(project.notes) %></strong></div>
     <% } %>
   </div>
 </div>
@@ -316,7 +316,7 @@
                 — <%= formatStatus(entry.previousStatus) %> → <%= formatStatus(entry.newStatus) %>
               <% } %>
             </p>
-            <% if (entry.notes) { %><p class="timeline-notes"><%= entry.notes %></p><% } %>
+            <% if (entry.notes) { %><p class="timeline-notes"><%- renderNotes(entry.notes) %></p><% } %>
             <p class="timeline-date muted small"><%= new Date(entry.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></p>
           </div>
         </div>

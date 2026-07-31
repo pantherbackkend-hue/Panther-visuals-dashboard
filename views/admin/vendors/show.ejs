@@ -34,7 +34,7 @@
   <% if (vendor.notes) { %>
   <div class="card">
     <h3>Notes</h3>
-    <p class="text-sm"><%= vendor.notes %></p>
+    <p class="text-sm"><%- renderNotes(vendor.notes) %></p>
   </div>
   <% } %>
 </div>

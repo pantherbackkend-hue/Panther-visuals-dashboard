@@ -113,7 +113,7 @@
         <div class="detail-group detail-group--notes">
           <h3 class="detail-group__title">Notes</h3>
           <div class="detail-row detail-row--full detail-row--notes">
-            <span class="detail-row__value"><%= project.notes %></span>
+            <span class="detail-row__value"><%- renderNotes(project.notes) %></span>
           </div>
         </div>
         <% } %>
@@ -186,7 +186,7 @@
                     — <%= formatStatus(entry.previousStatus) %> → <%= formatStatus(entry.newStatus) %>
                   <% } %>
                 </p>
-                <% if (entry.notes) { %><p class="timeline-notes"><%= entry.notes %></p><% } %>
+                <% if (entry.notes) { %><p class="timeline-notes"><%- renderNotes(entry.notes) %></p><% } %>
                 <p class="timeline-date muted small"><%= new Date(entry.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></p>
               </div>
             </div>
