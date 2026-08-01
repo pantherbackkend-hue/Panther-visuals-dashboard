@@ -236,7 +236,7 @@ function buildList(items) {
     countSpan.textContent = (c.projectCount || 0) === 1 ? '1 Project' : (c.projectCount || 0) + ' Projects';
     li.appendChild(nameSpan);
     li.appendChild(countSpan);
-    li.addEventListener('click', function() { selectClient(c); });
+    li.addEventListener('mousedown', function(e) { e.preventDefault(); selectClient(c); });
     li.addEventListener('mouseenter', function() { setHighlight(i); });
     comboList.appendChild(li);
   });

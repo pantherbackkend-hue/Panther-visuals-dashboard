@@ -222,7 +222,7 @@ adminRouter.get("/", async (req, res) => {
 adminRouter.get("/workspace", async (req, res) => {
   const [allProjects, editors] = await Promise.all([
     Project.find()
-      .populate("assignedEditor", "name email availability")
+      .populate("assignedEditor", "name email availability specialization")
       .populate("clientRef", "name")
       .sort({ priority: -1, createdAt: -1 })
       .lean(),
@@ -231,6 +231,13 @@ adminRouter.get("/workspace", async (req, res) => {
       .sort({ name: 1 })
       .lean(),
   ]);
+
+  // Extract unique specializations from editors, sorted alphabetically
+  const specializations = [...new Set(
+    editors
+      .map((e) => e.specialization)
+      .filter((spec) => spec && String(spec).trim() !== "")
+  )].sort();
 
   const formatted = allProjects.map((p) => ({
     ...p,
@@ -263,6 +270,7 @@ adminRouter.get("/workspace", async (req, res) => {
     ongoing,
     completed,
     editors: editorsWithCounts,
+    specializations,
     currentTab: req.query.tab || "my",
     formatStatus,
     formatMoney,

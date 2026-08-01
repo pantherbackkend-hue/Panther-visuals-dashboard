@@ -44,6 +44,15 @@
       </select>
     </label>
     <label>
+      <span class="sr-only">Field</span>
+      <select id="fieldFilter" onchange="applyFilters()">
+        <option value="all">All Fields</option>
+        <% specializations.forEach(function(field) { %>
+          <option value="<%= field %>"><%= field %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>
       <span class="sr-only">Sort</span>
       <select id="sortFilter" onchange="applyFilters()">
         <option value="newest">Newest First</option>
@@ -61,7 +70,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% myProjects.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-specialization="<%= p.assignedEditor?.specialization || '' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -119,7 +128,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% ongoing.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-specialization="<%= p.assignedEditor?.specialization || '' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -162,7 +171,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% completed.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-specialization="<%= p.assignedEditor?.specialization || '' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -272,6 +281,7 @@ function showInlineError(el, msg) {
     var search = document.getElementById('searchInput').value.toLowerCase().trim();
     var priority = document.getElementById('priorityFilter').value;
     var editor = document.getElementById('editorFilter').value;
+    var field = document.getElementById('fieldFilter').value;
     var sort = document.getElementById('sortFilter').value;
     var activePanel = document.querySelector('.editor-tab-content.is-active');
     if (!activePanel) return;
@@ -284,6 +294,7 @@ function showInlineError(el, msg) {
       if (search && !card.dataset.search.includes(search)) match = false;
       if (priority !== 'all' && card.dataset.priority !== priority) match = false;
       if (editor !== 'all' && card.dataset.editor !== editor) match = false;
+      if (field !== 'all' && card.dataset.specialization !== field) match = false;
       card.style.display = match ? '' : 'none';
       if (match) visible.push(card);
     });
