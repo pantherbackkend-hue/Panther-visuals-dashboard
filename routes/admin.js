@@ -10,7 +10,7 @@ import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailabili
 import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
-import { normalizeQuery, startOfIstDay } from "../utils/admin.js";
+import { normalizeQuery, normalizeField, startOfIstDay } from "../utils/admin.js";
 
 export const adminRouter = express.Router();
 
@@ -219,6 +219,30 @@ adminRouter.get("/", async (req, res) => {
   }
 });
 
+function effectiveField(p) {
+  if (p.field && String(p.field).trim() !== "") return p.field;
+  if (p.assignedEditor?.specialization && String(p.assignedEditor.specialization).trim() !== "") {
+    return p.assignedEditor.specialization;
+  }
+  return "";
+}
+
+function computeFieldChips(projects) {
+  const counts = {};
+  let total = 0;
+  for (const p of projects) {
+    total++;
+    const field = effectiveField(p);
+    if (!field) continue;
+    counts[field] = (counts[field] || 0) + 1;
+  }
+  return {
+    total,
+    fields: Object.keys(counts).sort(),
+    counts,
+  };
+}
+
 adminRouter.get("/workspace", async (req, res) => {
   const [allProjects, editors] = await Promise.all([
     Project.find()
@@ -232,15 +256,9 @@ adminRouter.get("/workspace", async (req, res) => {
       .lean(),
   ]);
 
-  // Extract unique specializations from editors, sorted alphabetically
-  const specializations = [...new Set(
-    editors
-      .map((e) => e.specialization)
-      .filter((spec) => spec && String(spec).trim() !== "")
-  )].sort();
-
   const formatted = allProjects.map((p) => ({
     ...p,
+    effectiveField: effectiveField(p),
     clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
     latestVersion: p.submissions?.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
     statusLabel: formatStatus(p.status),
@@ -251,6 +269,13 @@ adminRouter.get("/workspace", async (req, res) => {
   const myProjects = formatted.filter((p) => ["pending_assignment", "assigned"].includes(p.status));
   const ongoing = formatted.filter((p) => ["ongoing", "submitted"].includes(p.status));
   const completed = formatted.filter((p) => p.status === "completed").sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
+
+  // Per-tab field chip counts derived from Project.field (not editor specialization)
+  const fieldChips = {
+    my: computeFieldChips(myProjects),
+    ongoing: computeFieldChips(ongoing),
+    completed: computeFieldChips(completed),
+  };
 
   const activeCounts = await Project.aggregate([
     { $match: { status: { $in: ["assigned", "ongoing"] }, assignedEditor: { $ne: null } } },
@@ -270,7 +295,7 @@ adminRouter.get("/workspace", async (req, res) => {
     ongoing,
     completed,
     editors: editorsWithCounts,
-    specializations,
+    fieldChips,
     currentTab: req.query.tab || "my",
     formatStatus,
     formatMoney,
@@ -318,6 +343,10 @@ adminRouter.post("/workspace/assign", async (req, res) => {
 
     const fromStatus = project.status;
     project.assignedEditor = editor._id;
+    // Default the field from the editor's specialization ONLY if the project has no field yet
+    if (!project.field || String(project.field).trim() === "") {
+      project.field = normalizeField(editor.specialization);
+    }
     project.status = "assigned";
 
     if (assetLink && typeof assetLink === "string" && assetLink.trim()) {
@@ -413,7 +442,7 @@ adminRouter.post("/editors", async (req, res) => {
     const email = normalizeQuery(req.body?.email).toLowerCase();
     const password = String(req.body?.password || "");
     const contactNumber = normalizeQuery(req.body?.contactNumber);
-    const specialization = normalizeQuery(req.body?.specialization) || "General Editor";
+    const specialization = normalizeField(req.body?.specialization) || "General Editor";
     const upiId = normalizeQuery(req.body?.upiId);
     const notes = normalizeQuery(req.body?.notes);
 
@@ -489,7 +518,7 @@ adminRouter.post("/editors/:id/edit", async (req, res) => {
     const email = normalizeQuery(req.body?.email).toLowerCase();
     const password = String(req.body?.password || "");
     const contactNumber = normalizeQuery(req.body?.contactNumber);
-    const specialization = normalizeQuery(req.body?.specialization) || "General Editor";
+    const specialization = normalizeField(req.body?.specialization) || "General Editor";
     const notes = normalizeQuery(req.body?.notes);
     const upiId = normalizeQuery(req.body?.upiId);
     const activeState = String(req.body?.isActive || "1");

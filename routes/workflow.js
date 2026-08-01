@@ -6,6 +6,7 @@ import { Notification } from "../models/Notification.js";
 import { User } from "../models/User.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin, requireEditor } from "../middleware/auth.js";
+import { normalizeField } from "../utils/admin.js";
 import {
   isValidStatus,
   canTransition,
@@ -96,6 +97,7 @@ workflowRouter.post(
         clientNotes,
         projectName,
         assignedEditor,
+        field,
         driveLink,
         priority,
         dueDate,
@@ -124,12 +126,14 @@ workflowRouter.post(
         return res.redirect("/admin/projects/new");
       }
 
+      let editorSpecialization = "";
       if (assignedEditor) {
         const editor = await User.findOne({ _id: assignedEditor, role: "editor" });
         if (!editor) {
           req.flash("error", "Selected editor not found.");
           return res.redirect("/admin/projects/new");
         }
+        editorSpecialization = editor.specialization || "";
         if (editor.availability === "on_leave") {
           req.flash("error", "Cannot assign project. Editor is on leave.");
           return res.redirect("/admin/projects/new");
@@ -145,6 +149,11 @@ workflowRouter.post(
           }
         }
       }
+
+      // Field default: explicit field input wins; otherwise inherit from editor's specialization
+      const projectField = field && String(field).trim() !== ""
+        ? normalizeField(field)
+        : (editorSpecialization ? normalizeField(editorSpecialization) : "");
 
       const ca = Number(clientAmount || paymentAmount) || 0;
       const ea = req.user.role === "owner" ? 0 : (Number(editorAmount) || 0);
@@ -180,6 +189,7 @@ workflowRouter.post(
         clientRef: client._id,
         projectName: projectName.trim(),
         assignedEditor: isOwnerAssignDirect && assignedEditor ? assignedEditor : (assignedEditor || null),
+        field: projectField,
         driveLink: String(driveLink || "").trim(),
         priority: priority || "medium",
         dueDate: dueDate || null,
@@ -517,6 +527,10 @@ workflowRouter.post(
       const previousEditorId = project.assignedEditor;
       const fromStatus = project.status;
       project.assignedEditor = editor._id;
+      // Default the field from the editor's specialization ONLY if the project has no field yet
+      if (!project.field || String(project.field).trim() === "") {
+        project.field = normalizeField(editor.specialization);
+      }
       project.status = "assigned";
 
       project.activityTimeline.push({
@@ -785,6 +799,7 @@ workflowRouter.post(
       const {
         clientName,
         projectName,
+        field,
         driveLink,
         priority,
         dueDate,
@@ -813,6 +828,7 @@ workflowRouter.post(
           name: String(clientName || project.client?.name || "").trim(),
         };
         project.projectName = String(projectName || project.projectName || "").trim();
+        project.field = normalizeField(field);
         project.driveLink = String(driveLink || project.driveLink || "").trim();
         project.priority = priority || project.priority || "medium";
         project.dueDate = dueDate || project.dueDate || null;

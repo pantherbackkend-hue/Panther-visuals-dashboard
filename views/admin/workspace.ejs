@@ -44,15 +44,6 @@
       </select>
     </label>
     <label>
-      <span class="sr-only">Field</span>
-      <select id="fieldFilter" onchange="applyFilters()">
-        <option value="all">All Fields</option>
-        <% specializations.forEach(function(field) { %>
-          <option value="<%= field %>"><%= field %></option>
-        <% }) %>
-      </select>
-    </label>
-    <label>
       <span class="sr-only">Sort</span>
       <select id="sortFilter" onchange="applyFilters()">
         <option value="newest">Newest First</option>
@@ -64,13 +55,29 @@
   </div>
 </div>
 
+<div class="card admin-panel" style="padding:12px 16px">
+  <% ["my", "ongoing", "completed"].forEach(function(tabKey) { %>
+  <div class="field-chips-row" data-chips-for="<%= tabKey %>" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;<%= currentTab === tabKey ? '' : 'display:none;' %>">
+    <span style="font-weight:600;font-size:13px;color:var(--muted);margin-right:8px">Field</span>
+    <button type="button" class="field-chip is-active" data-field="all" onclick="filterByField('all')" style="display:inline-block;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--primary-soft);color:var(--primary);cursor:pointer;font-size:13px;font-weight:500">
+      All (<%= fieldChips[tabKey].total %>)
+    </button>
+    <% fieldChips[tabKey].fields.forEach(function(field) { %>
+      <button type="button" class="field-chip" data-field="<%= field %>" onclick="filterByField('<%= field %>')" style="display:inline-block;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text);cursor:pointer;font-size:13px;transition:all 0.15s">
+        <%= field %> (<%= fieldChips[tabKey].counts[field] %>)
+      </button>
+    <% }) %>
+  </div>
+  <% }) %>
+</div>
+
 <div class="editor-tab-content<%= currentTab === 'my' ? ' is-active' : '' %>" data-tab-panel="my" id="tab-panel-my" role="tabpanel" aria-label="My Projects">
   <% if (myProjects.length === 0) { %>
     <div class="card admin-panel"><p class="muted">No pending projects.</p></div>
   <% } else { %>
     <div class="editor-cards">
       <% myProjects.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-specialization="<%= p.assignedEditor?.specialization || '' %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-field="<%= p.effectiveField || '' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -128,7 +135,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% ongoing.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-specialization="<%= p.assignedEditor?.specialization || '' %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-field="<%= p.effectiveField || '' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -171,7 +178,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% completed.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-specialization="<%= p.assignedEditor?.specialization || '' %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-field="<%= p.effectiveField || '' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -261,6 +268,7 @@ function showInlineError(el, msg) {
 }
 
 (function () {
+  var selectedField = 'all';
   var tabs = document.querySelectorAll(".editor-tab");
   var panels = document.querySelectorAll(".editor-tab-content");
 
@@ -273,15 +281,46 @@ function showInlineError(el, msg) {
       tab.setAttribute("aria-selected", "true");
       var panel = document.querySelector('[data-tab-panel="' + target + '"]');
       if (panel) panel.classList.add("is-active");
+      document.querySelectorAll('.field-chips-row').forEach(function (row) {
+        row.style.display = row.dataset.chipsFor === target ? 'flex' : 'none';
+      });
+      selectedField = 'all';
+      document.querySelectorAll('.field-chip').forEach(function (chip) {
+        if (chip.dataset.field === 'all') {
+          chip.classList.add('is-active');
+          chip.style.background = 'var(--primary-soft)';
+          chip.style.color = 'var(--primary)';
+        } else {
+          chip.classList.remove('is-active');
+          chip.style.background = 'var(--card)';
+          chip.style.color = 'var(--text)';
+        }
+      });
+      applyFilters();
       history.replaceState(null, "", "?tab=" + target);
     });
   });
+
+  window.filterByField = function(field) {
+    selectedField = field;
+    document.querySelectorAll('.field-chip').forEach(function(chip) {
+      if (chip.dataset.field === field) {
+        chip.classList.add('is-active');
+        chip.style.background = 'var(--primary-soft)';
+        chip.style.color = 'var(--primary)';
+      } else {
+        chip.classList.remove('is-active');
+        chip.style.background = 'var(--card)';
+        chip.style.color = 'var(--text)';
+      }
+    });
+    applyFilters();
+  };
 
   function applyFilters() {
     var search = document.getElementById('searchInput').value.toLowerCase().trim();
     var priority = document.getElementById('priorityFilter').value;
     var editor = document.getElementById('editorFilter').value;
-    var field = document.getElementById('fieldFilter').value;
     var sort = document.getElementById('sortFilter').value;
     var activePanel = document.querySelector('.editor-tab-content.is-active');
     if (!activePanel) return;
@@ -294,7 +333,7 @@ function showInlineError(el, msg) {
       if (search && !card.dataset.search.includes(search)) match = false;
       if (priority !== 'all' && card.dataset.priority !== priority) match = false;
       if (editor !== 'all' && card.dataset.editor !== editor) match = false;
-      if (field !== 'all' && card.dataset.specialization !== field) match = false;
+      if (selectedField !== 'all' && card.dataset.field !== selectedField) match = false;
       card.style.display = match ? '' : 'none';
       if (match) visible.push(card);
     });

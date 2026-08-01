@@ -126,10 +126,16 @@
       <select id="assignedEditor" name="assignedEditor">
         <option value="">— Unassigned —</option>
         <% editors.forEach((editor) => { %>
-          <option value="<%= editor._id %>" <%= project?.assignedEditor && String(project.assignedEditor._id || project.assignedEditor) === String(editor._id) ? "selected" : "" %>><%= editor.name %> (<%= editor.availability %>)</option>
+          <option value="<%= editor._id %>" data-specialization="<%= editor.specialization || '' %>" <%= project?.assignedEditor && String(project.assignedEditor._id || project.assignedEditor) === String(editor._id) ? "selected" : "" %>><%= editor.name %> (<%= editor.availability %>)</option>
         <% }) %>
       </select>
       <p class="form-help">Editors on leave or fully occupied cannot be assigned.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="projectField">Project Field</label>
+      <input id="projectField" name="field" type="text" value="<%= project?.field || '' %>" placeholder="e.g. Long Form, Shorts, Timeline, Motion Graphics..." />
+      <p class="form-help">Defaults to the selected editor's specialization. Can be overridden — changing the editor later will not overwrite this field.</p>
     </div>
 
     <% if (currentUser.role === "owner") { %>
@@ -438,6 +444,22 @@ function toggleClientMode() {
     document.getElementById('assetSelectGroup').style.display = 'none';
   }
 }
+
+// ── Project Field auto-populate ──
+
+(function () {
+  var editorSelect = document.getElementById('assignedEditor');
+  var fieldInput = document.getElementById('projectField');
+  if (!editorSelect || !fieldInput) return;
+
+  editorSelect.addEventListener('change', function () {
+    // Only auto-populate when the field is empty (never overwrite an existing/overridden value)
+    if (fieldInput.value && String(fieldInput.value).trim() !== '') return;
+    var selected = editorSelect.options[editorSelect.selectedIndex];
+    var spec = selected ? (selected.dataset.specialization || '') : '';
+    fieldInput.value = spec || '';
+  });
+})();
 
 // ── Owner assignment toggle ──
 

@@ -63,6 +63,11 @@ const projectSchema = new mongoose.Schema(
     clientRef: { type: mongoose.Schema.Types.ObjectId, ref: "Client", default: null },
     projectName: { type: String, required: true, trim: true },
     assignedEditor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    field: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     driveLink: { type: String, default: "" },
     priority: {
       type: String,
@@ -98,5 +103,7 @@ const projectSchema = new mongoose.Schema(
 projectSchema.index({ status: 1 });
 projectSchema.index({ assignedEditor: 1, status: 1 });
 projectSchema.index({ priority: 1, createdAt: -1 });
+projectSchema.index({ field: 1, status: 1 });
+projectSchema.index({ field: 1, assignedEditor: 1 });
 
 export const Project = mongoose.model("Project", projectSchema);

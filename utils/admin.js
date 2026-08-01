@@ -21,4 +21,43 @@ export function normalizeQuery(value) {
   return String(value || "").trim();
 }
 
+/**
+ * Normalizes a specialization or field value to a consistent format.
+ * - Trims whitespace
+ * - Collapses multiple spaces to single space
+ * - Converts to Title Case for consistent display
+ * - Handles common abbreviations (AI, VR, AR, UI, UX, ML)
+ * @param {string} value - The value to normalize
+ * @returns {string} - The normalized value
+ */
+export function normalizeField(value) {
+  if (!value || typeof value !== "string") return "";
+
+  // Step 1: Trim and collapse multiple spaces
+  const trimmed = value.trim().replace(/\s+/g, " ");
+
+  if (trimmed === "") return "";
+
+  // Step 2: Convert to Title Case, preserving certain abbreviations
+  const abbreviations = ["ai", "vr", "ar", "ui", "ux", "ml", "3d", "2d", "4k", "hd", "sd", "vfx", "cgi"];
+
+  return trimmed
+    .toLowerCase()
+    .split(" ")
+    .map((word) => {
+      if (abbreviations.includes(word.toLowerCase())) {
+        return word.toUpperCase();
+      }
+      // Handle hyphenated words (e.g., "long-form" -> "Long-Form")
+      if (word.includes("-")) {
+        return word
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+          .join("-");
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 
