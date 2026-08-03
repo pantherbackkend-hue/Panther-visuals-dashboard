@@ -45,6 +45,14 @@
         <option value="completed" <%= filter === "completed" ? "selected" : "" %>>Completed</option>
       </select>
     </label>
+    <label>
+      <span class="sr-only">Type</span>
+      <select name="type">
+        <option value="" <%= !typeFilter ? "selected" : "" %>>All Types</option>
+        <option value="Short" <%= typeFilter === "Short" ? "selected" : "" %>>Short</option>
+        <option value="Long" <%= typeFilter === "Long" ? "selected" : "" %>>Long</option>
+      </select>
+    </label>
     <button class="btn" type="submit">Apply</button>
     <a class="btn btn--outline" href="/admin/projects">Reset</a>
   </form>
@@ -60,6 +68,7 @@
           <tr>
             <th scope="col">Project</th>
             <th scope="col">Client</th>
+            <th scope="col">Type</th>
             <th scope="col">Editor</th>
             <th scope="col">Priority</th>
             <th scope="col">Status</th>
@@ -76,6 +85,7 @@
             <tr class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
               <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
               <td><%= project.clientName %></td>
+              <td><span class="tag tag--<%= (project.typeLabel || "Short") === "Short" ? "info" : "pending" %>"><%= project.typeLabel || "Short" %></span></td>
               <td><%= project.assignedEditor?.name || '<span class="muted">Unassigned</span>' %></td>
               <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></td>
               <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>

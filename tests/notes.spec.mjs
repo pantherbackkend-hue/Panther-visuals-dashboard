@@ -20,6 +20,7 @@ async function createProject(page, { projectName, clientName, clientNotes, notes
   await page.check('input[name="clientMode"][value="new"]');
   await page.fill("#clientName", clientName);
   await page.fill("#projectName", projectName);
+  await page.fill("#projectFilesLink", "https://drive.google.com/notes-files");
   if (clientNotes !== undefined) await page.fill("#clientNotes", clientNotes);
   if (notes !== undefined) await page.fill("#notes", notes);
   if (assignEditor) {

@@ -219,26 +219,17 @@ adminRouter.get("/", async (req, res) => {
   }
 });
 
-function effectiveField(p) {
-  if (p.field && String(p.field).trim() !== "") return p.field;
-  if (p.assignedEditor?.specialization && String(p.assignedEditor.specialization).trim() !== "") {
-    return p.assignedEditor.specialization;
-  }
-  return "";
-}
-
-function computeFieldChips(projects) {
-  const counts = {};
+function computeTypeChips(projects) {
+  const counts = { Short: 0, Long: 0 };
   let total = 0;
   for (const p of projects) {
     total++;
-    const field = effectiveField(p);
-    if (!field) continue;
-    counts[field] = (counts[field] || 0) + 1;
+    const type = p.type === "Long" ? "Long" : "Short";
+    counts[type] += 1;
   }
   return {
     total,
-    fields: Object.keys(counts).sort(),
+    types: ["Short", "Long"],
     counts,
   };
 }
@@ -258,7 +249,6 @@ adminRouter.get("/workspace", async (req, res) => {
 
   const formatted = allProjects.map((p) => ({
     ...p,
-    effectiveField: effectiveField(p),
     clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
     latestVersion: p.submissions?.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
     statusLabel: formatStatus(p.status),
@@ -270,11 +260,11 @@ adminRouter.get("/workspace", async (req, res) => {
   const ongoing = formatted.filter((p) => ["ongoing", "submitted"].includes(p.status));
   const completed = formatted.filter((p) => p.status === "completed").sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
 
-  // Per-tab field chip counts derived from Project.field (not editor specialization)
-  const fieldChips = {
-    my: computeFieldChips(myProjects),
-    ongoing: computeFieldChips(ongoing),
-    completed: computeFieldChips(completed),
+  // Per-tab project type chip counts derived from Project.type (not editor specialization)
+  const typeChips = {
+    my: computeTypeChips(myProjects),
+    ongoing: computeTypeChips(ongoing),
+    completed: computeTypeChips(completed),
   };
 
   const activeCounts = await Project.aggregate([
@@ -295,7 +285,7 @@ adminRouter.get("/workspace", async (req, res) => {
     ongoing,
     completed,
     editors: editorsWithCounts,
-    fieldChips,
+    typeChips,
     currentTab: req.query.tab || "my",
     formatStatus,
     formatMoney,
@@ -304,7 +294,7 @@ adminRouter.get("/workspace", async (req, res) => {
 
 adminRouter.post("/workspace/assign", async (req, res) => {
   try {
-    const { projectId, editorId, assetLink, price, notes } = req.body;
+    const { projectId, editorId, assetsFolderLink, price, notes } = req.body;
 
     if (!projectId || !mongoose.isValidObjectId(projectId)) {
       return res.status(400).json({ success: false, error: "Invalid project." });
@@ -349,8 +339,8 @@ adminRouter.post("/workspace/assign", async (req, res) => {
     }
     project.status = "assigned";
 
-    if (assetLink && typeof assetLink === "string" && assetLink.trim()) {
-      try { new URL(assetLink); project.driveLink = assetLink.trim(); } catch { /* ignore invalid URL */ }
+    if (assetsFolderLink && typeof assetsFolderLink === "string" && assetsFolderLink.trim()) {
+      try { new URL(assetsFolderLink); project.assetsFolderLink = assetsFolderLink.trim(); } catch { /* ignore invalid URL */ }
     }
 
     if (price && !isNaN(Number(price))) {

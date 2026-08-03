@@ -42,11 +42,11 @@ await User.create({ name: "Editor5", email: "editor5@test.com", passwordHash, ro
 
 const makeTL = (action, user, userName, from, to, notes = "") => ({ action, user, userName, previousStatus: from, newStatus: to, notes });
 
-const pStandard = await Project.create({ client: { name: "Test Client Inc" }, clientRef: client._id, projectName: "Standard Project", driveLink: "https://drive.google.com/standard", priority: "medium", payment: { amount: 5000, clientAmount: 5000 }, createdBy: admin._id, activityTimeline: [makeTL("Project Created", admin._id, "Test Admin", "", "pending_assignment")] });
+const pStandard = await Project.create({ client: { name: "Test Client Inc" }, clientRef: client._id, projectName: "Standard Project", assetsFolderLink: "https://drive.google.com/standard", projectFilesLink: "https://drive.google.com/standard-files", priority: "medium", payment: { amount: 5000, clientAmount: 5000 }, createdBy: admin._id, activityTimeline: [makeTL("Project Created", admin._id, "Test Admin", "", "pending_assignment")] });
 
-const pOwnerViaAdmin = await Project.create({ client: { name: "Owner Client" }, projectName: "Owner-Via-Admin Project", driveLink: "https://drive.google.com/owner", priority: "high", ownerAssignment: "admin", ownerAdmin: admin._id, payment: { amount: 10000, clientAmount: 10000, editorAmount: 2000 }, createdBy: owner._id, activityTimeline: [makeTL("Project Created", owner._id, "Test Owner", "", "pending_assignment")] });
+const pOwnerViaAdmin = await Project.create({ client: { name: "Owner Client" }, projectName: "Owner-Via-Admin Project", assetsFolderLink: "https://drive.google.com/owner", projectFilesLink: "https://drive.google.com/owner-files", priority: "high", ownerAssignment: "admin", ownerAdmin: admin._id, payment: { amount: 10000, clientAmount: 10000, editorAmount: 2000 }, createdBy: owner._id, activityTimeline: [makeTL("Project Created", owner._id, "Test Owner", "", "pending_assignment")] });
 
-const pDirect = await Project.create({ client: { name: "Direct Client" }, projectName: "Direct Assign Project", driveLink: "https://drive.google.com/direct", priority: "urgent", assignedEditor: editor._id, ownerAssignment: "direct", payment: { amount: 8000, clientAmount: 8000, editorAmount: 3000 }, createdBy: owner._id, activityTimeline: [
+const pDirect = await Project.create({ client: { name: "Direct Client" }, projectName: "Direct Assign Project", assetsFolderLink: "https://drive.google.com/direct", projectFilesLink: "https://drive.google.com/direct-files", priority: "urgent", assignedEditor: editor._id, ownerAssignment: "direct", payment: { amount: 8000, clientAmount: 8000, editorAmount: 3000 }, createdBy: owner._id, activityTimeline: [
   makeTL("Project Created", owner._id, "Test Owner", "", "pending_assignment"),
   makeTL("Assigned", owner._id, "Test Owner", "pending_assignment", "assigned")] });
 

@@ -62,6 +62,10 @@
         <div class="detail-group">
           <h3 class="detail-group__title">Project</h3>
           <div class="detail-row">
+            <span class="detail-row__label">Type</span>
+            <span class="detail-row__value"><span class="tag tag--<%= (project.type || "Short") === "Short" ? "info" : "pending" %>"><%= project.type || "Short" %></span></span>
+          </div>
+          <div class="detail-row">
             <span class="detail-row__label">Payable Amount</span>
             <span class="detail-row__value"><%= formatMoney(project.payment?.editorAmount || 0) %></span>
           </div>
@@ -103,9 +107,15 @@
         <div class="detail-group">
           <h3 class="detail-group__title">Source</h3>
           <div class="detail-row detail-row--full">
-            <span class="detail-row__label">Drive Link</span>
+            <span class="detail-row__label">Assets Folder Link</span>
             <span class="detail-row__value">
-              <% if (project.driveLink) { %><a href="<%= project.driveLink %>" target="_blank" rel="noopener"><%= project.driveLink.length > 40 ? project.driveLink.slice(0,40) + "..." : project.driveLink %></a><% } else { %><span class="muted">Not provided</span><% } %>
+              <% if (project.assetsFolderLink) { %><a href="<%= project.assetsFolderLink %>" target="_blank" rel="noopener"><%= project.assetsFolderLink.length > 40 ? project.assetsFolderLink.slice(0,40) + "..." : project.assetsFolderLink %></a><% } else { %><span class="muted">Not provided</span><% } %>
+            </span>
+          </div>
+          <div class="detail-row detail-row--full">
+            <span class="detail-row__label">Project Files Link</span>
+            <span class="detail-row__value">
+              <% if (project.projectFilesLink) { %><a href="<%= project.projectFilesLink %>" target="_blank" rel="noopener"><%= project.projectFilesLink.length > 40 ? project.projectFilesLink.slice(0,40) + "..." : project.projectFilesLink %></a><% } else { %><span class="muted">Not provided</span><% } %>
             </span>
           </div>
         </div>

@@ -57,14 +57,14 @@
 
 <div class="card admin-panel" style="padding:12px 16px">
   <% ["my", "ongoing", "completed"].forEach(function(tabKey) { %>
-  <div class="field-chips-row" data-chips-for="<%= tabKey %>" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;<%= currentTab === tabKey ? '' : 'display:none;' %>">
-    <span style="font-weight:600;font-size:13px;color:var(--muted);margin-right:8px">Field</span>
-    <button type="button" class="field-chip is-active" data-field="all" onclick="filterByField('all')" style="display:inline-block;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--primary-soft);color:var(--primary);cursor:pointer;font-size:13px;font-weight:500">
-      All (<%= fieldChips[tabKey].total %>)
+  <div class="type-chips-row" data-chips-for="<%= tabKey %>" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;<%= currentTab === tabKey ? '' : 'display:none;' %>">
+    <span style="font-weight:600;font-size:13px;color:var(--muted);margin-right:8px">Project Type</span>
+    <button type="button" class="type-chip is-active" data-type="all" onclick="filterByType('all')" style="display:inline-block;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--primary-soft);color:var(--primary);cursor:pointer;font-size:13px;font-weight:500">
+      All (<%= typeChips[tabKey].total %>)
     </button>
-    <% fieldChips[tabKey].fields.forEach(function(field) { %>
-      <button type="button" class="field-chip" data-field="<%= field %>" onclick="filterByField('<%= field %>')" style="display:inline-block;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text);cursor:pointer;font-size:13px;transition:all 0.15s">
-        <%= field %> (<%= fieldChips[tabKey].counts[field] %>)
+    <% typeChips[tabKey].types.forEach(function(type) { %>
+      <button type="button" class="type-chip" data-type="<%= type %>" onclick="filterByType('<%= type %>')" style="display:inline-block;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text);cursor:pointer;font-size:13px;transition:all 0.15s">
+        <%= type %> (<%= typeChips[tabKey].counts[type] %>)
       </button>
     <% }) %>
   </div>
@@ -77,7 +77,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% myProjects.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-field="<%= p.effectiveField || '' %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-type="<%= p.type || 'Short' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -135,7 +135,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% ongoing.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-field="<%= p.effectiveField || '' %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-type="<%= p.type || 'Short' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -178,7 +178,7 @@
   <% } else { %>
     <div class="editor-cards">
       <% completed.forEach(function(p) { %>
-        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-field="<%= p.effectiveField || '' %>">
+        <article class="card project-card" data-status="<%= p.status %>" data-priority="<%= p.priority %>" data-editor="<%= p.assignedEditor?._id || 'unassigned' %>" data-created="<%= new Date(p.createdAt).toISOString() %>" data-due="<%= p.dueDate ? new Date(p.dueDate).toISOString() : '' %>" data-search="<%= (p.projectName + ' ' + (p.clientName || '') + ' ' + (p.assignedEditor?.name || '')).toLowerCase() %>" data-type="<%= p.type || 'Short' %>">
           <div class="project-card__head">
             <h3 class="project-card__name"><a href="/admin/projects/<%= p._id %>"><%= p.projectName %></a></h3>
             <span class="tag tag--<%= p.badgeColor %>"><%= p.statusLabel %></span>
@@ -268,7 +268,7 @@ function showInlineError(el, msg) {
 }
 
 (function () {
-  var selectedField = 'all';
+  var selectedType = 'all';
   var tabs = document.querySelectorAll(".editor-tab");
   var panels = document.querySelectorAll(".editor-tab-content");
 
@@ -281,12 +281,12 @@ function showInlineError(el, msg) {
       tab.setAttribute("aria-selected", "true");
       var panel = document.querySelector('[data-tab-panel="' + target + '"]');
       if (panel) panel.classList.add("is-active");
-      document.querySelectorAll('.field-chips-row').forEach(function (row) {
+      document.querySelectorAll('.type-chips-row').forEach(function (row) {
         row.style.display = row.dataset.chipsFor === target ? 'flex' : 'none';
       });
-      selectedField = 'all';
-      document.querySelectorAll('.field-chip').forEach(function (chip) {
-        if (chip.dataset.field === 'all') {
+      selectedType = 'all';
+      document.querySelectorAll('.type-chip').forEach(function (chip) {
+        if (chip.dataset.type === 'all') {
           chip.classList.add('is-active');
           chip.style.background = 'var(--primary-soft)';
           chip.style.color = 'var(--primary)';
@@ -301,10 +301,10 @@ function showInlineError(el, msg) {
     });
   });
 
-  window.filterByField = function(field) {
-    selectedField = field;
-    document.querySelectorAll('.field-chip').forEach(function(chip) {
-      if (chip.dataset.field === field) {
+  window.filterByType = function(type) {
+    selectedType = type;
+    document.querySelectorAll('.type-chip').forEach(function(chip) {
+      if (chip.dataset.type === type) {
         chip.classList.add('is-active');
         chip.style.background = 'var(--primary-soft)';
         chip.style.color = 'var(--primary)';
@@ -333,7 +333,7 @@ function showInlineError(el, msg) {
       if (search && !card.dataset.search.includes(search)) match = false;
       if (priority !== 'all' && card.dataset.priority !== priority) match = false;
       if (editor !== 'all' && card.dataset.editor !== editor) match = false;
-      if (selectedField !== 'all' && card.dataset.field !== selectedField) match = false;
+      if (selectedType !== 'all' && card.dataset.type !== selectedType) match = false;
       card.style.display = match ? '' : 'none';
       if (match) visible.push(card);
     });

@@ -103,6 +103,7 @@ test.describe("Project Creation", () => {
     await page.evaluate(() => {
       document.querySelector("input[name=projectName]").value = "PW Test Project";
       document.querySelector("input[name=clientName]").value = "PW Client";
+      document.querySelector("input[name=projectFilesLink]").value = "https://drive.google.com/pw-files";
       document.querySelector("form.admin-form").submit();
     });
     await page.waitForLoadState("networkidle");
@@ -118,6 +119,7 @@ test.describe("Project Creation", () => {
       document.querySelector("input[name=projectName]").value = "Owner PW Project";
       document.querySelector("input[name=clientName]").value = "Owner PW Client";
       document.querySelector("input[name=clientAmount]").value = "25000";
+      document.querySelector("input[name=projectFilesLink]").value = "https://drive.google.com/owner-pw-files";
       document.querySelector("form.admin-form").submit();
     });
     await page.waitForLoadState("networkidle");
@@ -163,11 +165,196 @@ test.describe("Projects List", () => {
   });
 });
 
+test.describe("Project Type", () => {
+  test("New project form has Short/Long selector with Short preselected", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects/new");
+    await page.waitForLoadState("networkidle");
+    const shortRadio = page.locator('input[name="type"][value="Short"]');
+    const longRadio = page.locator('input[name="type"][value="Long"]');
+    await expect(shortRadio).toBeVisible();
+    await expect(longRadio).toBeVisible();
+    await expect(shortRadio).toBeChecked();
+    await expect(longRadio).not.toBeChecked();
+  });
+
+  test("Create project with Long type and persist to detail page", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects/new");
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => {
+      document.querySelector("input[name=type][value=Long]").checked = true;
+      document.querySelector("input[name=projectName]").value = "PW Long Type Project";
+      document.querySelector("input[name=clientName]").value = "PW Long Type Client";
+      document.querySelector("input[name=projectFilesLink]").value = "https://drive.google.com/long-type-files";
+      document.querySelector("form.admin-form").submit();
+    });
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator(".flash--success")).toContainText("created");
+    expect(page.url()).toContain("/admin/projects/");
+    const typeMetric = page.locator(".admin-metric").filter({ has: page.locator("p", { hasText: "Type" }) });
+    await expect(typeMetric).toContainText("Long");
+  });
+
+  test("Projects list shows Type column between Client and Editor", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects");
+    await page.waitForLoadState("networkidle");
+    const headers = await page.locator("table thead th").allInnerTexts();
+    const clientIdx = headers.indexOf("Client");
+    const editorIdx = headers.indexOf("Editor");
+    expect(headers).toContain("Type");
+    expect(clientIdx).toBeGreaterThan(-1);
+    expect(editorIdx).toBeGreaterThan(-1);
+    expect(clientIdx + 1).toBe(headers.indexOf("Type"));
+    expect(headers.indexOf("Type") + 1).toBe(editorIdx);
+    const row = page.locator("tbody tr", { hasText: "Direct Assign Project" });
+    await expect(row.locator(".tag", { hasText: "Long" })).toBeVisible();
+  });
+
+  test("Filter projects by Long type", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects?type=Long");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("tbody")).toContainText("Direct Assign Project");
+    await expect(page.locator("tbody")).toContainText("Paid Project");
+    await expect(page.locator("tbody")).not.toContainText("Standard Project");
+  });
+
+  test("Filter projects by Short type", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects?type=Short");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("tbody")).toContainText("Standard Project");
+    await expect(page.locator("tbody")).not.toContainText("Direct Assign Project");
+  });
+
+  test("Legacy project without type displays as Short", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects");
+    await page.waitForLoadState("networkidle");
+    const row = page.locator("tbody tr", { hasText: "Ongoing Project" });
+    await expect(row.locator(".tag", { hasText: "Short" })).toBeVisible();
+  });
+
+  test("Editor can view project type (read-only)", async ({ page }) => {
+    await login(page, USERS.editor);
+    await page.goto("/editor/projects");
+    await page.waitForLoadState("networkidle");
+    const card = page.locator(".project-card", { hasText: "Direct Assign Project" }).first();
+    await expect(card).toContainText("Long");
+  });
+});
+
+test.describe("Project Drive Links", () => {
+  test("Create form shows both link fields; projectFilesLink required on create", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects/new");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("#assetsFolderLink")).toBeVisible();
+    await expect(page.locator("#projectFilesLink")).toBeVisible();
+    await expect(page.locator("#assetsFolderLink")).not.toHaveAttribute("required");
+    await expect(page.locator("#projectFilesLink")).toHaveAttribute("required", "");
+  });
+
+  test("Project Files Link is required at creation", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects/new");
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => {
+      document.querySelector("input[name=projectName]").value = "PW Missing Files Link";
+      document.querySelector("input[name=clientName]").value = "PW Missing Files Client";
+      document.querySelector("form.admin-form").submit();
+    });
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator(".flash--error")).toContainText("Project Files Link is required.");
+  });
+
+  test("Create project with both links and persist to detail page", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects/new");
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => {
+      document.querySelector("input[name=projectName]").value = "PW Links Project";
+      document.querySelector("input[name=clientName]").value = "PW Links Client";
+      document.querySelector("input[name=assetsFolderLink]").value = "https://drive.google.com/pw-assets";
+      document.querySelector("input[name=projectFilesLink]").value = "https://drive.google.com/pw-project-files";
+      document.querySelector("form.admin-form").submit();
+    });
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator(".flash--success")).toContainText("created");
+    expect(page.url()).toContain("/admin/projects/");
+    const row = page.locator(".admin-detail-grid");
+    await expect(row).toContainText("Assets Folder Link");
+    await expect(row).toContainText("https://drive.google.com/pw-assets");
+    await expect(row).toContainText("Project Files Link");
+    await expect(row).toContainText("https://drive.google.com/pw-project-files");
+    await expect(row).not.toContainText("Not provided");
+  });
+
+  test("Edit form shows and updates both links", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/projects");
+    await page.waitForLoadState("networkidle");
+    await page.locator("tbody tr", { hasText: "Standard Project" }).locator("a.admin-link").click();
+    await page.waitForLoadState("networkidle");
+    await page.locator('a[href$="/edit"]').click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("#assetsFolderLink")).toHaveValue("https://drive.google.com/standard");
+    await expect(page.locator("#projectFilesLink")).toHaveValue("https://drive.google.com/standard-files");
+    await page.fill("#assetsFolderLink", "https://drive.google.com/standard-assets-v2");
+    await page.fill("#projectFilesLink", "https://drive.google.com/standard-files-v2");
+    await page.click("form.admin-form button[type=submit]");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator(".flash--success")).toContainText("updated");
+    const row = page.locator(".admin-detail-grid");
+    await expect(row).toContainText("https://drive.google.com/standard-assets-v2");
+    await expect(row).toContainText("https://drive.google.com/standard-files-v2");
+  });
+
+  test("Editor can view both links (read-only)", async ({ page }) => {
+    await login(page, USERS.editor);
+    await page.goto("/editor/projects");
+    await page.waitForLoadState("networkidle");
+    await page.locator(".project-card", { hasText: "Direct Assign Project" }).first().locator("a").first().click();
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("body")).toContainText("Assets Folder Link");
+    await expect(page.locator("body")).toContainText("https://drive.google.com/direct");
+    await expect(page.locator("body")).toContainText("Project Files Link");
+    await expect(page.locator("body")).toContainText("https://drive.google.com/direct-files");
+  });
+});
+
 test.describe("Admin Views", () => {
   test("Workspace", async ({ page }) => {
     await login(page, USERS.admin);
     await page.goto("/admin/workspace");
     await expect(page.locator(".admin-page-head")).toContainText("Workspace");
+  });
+
+  test("Workspace chips filter by Project Type", async ({ page }) => {
+    await login(page, USERS.admin);
+    await page.goto("/admin/workspace");
+    await page.waitForLoadState("networkidle");
+    const row = page.locator('.type-chips-row[data-chips-for="my"]');
+    await expect(row).toContainText("Project Type");
+
+    const chips = row.locator(".type-chip");
+    await expect(chips).toHaveCount(3);
+    await expect(chips.nth(0)).toContainText("All");
+    await expect(chips.nth(1)).toContainText("Short");
+    await expect(chips.nth(2)).toContainText("Long");
+    await expect(row).not.toContainText("Shorts");
+    await expect(row).not.toContainText("Timeline");
+
+    const allChipText = await chips.nth(0).innerText();
+    const allCount = parseInt(allChipText.match(/\d+/)[0], 10);
+    const totalCards = await page.locator('[data-tab-panel="my"] .project-card').count();
+    expect(allCount).toBe(totalCards);
+
+    await chips.nth(2).click();
+    await expect(page.locator('[data-tab-panel="my"] .project-card[data-type="Short"]').first()).toBeHidden();
+    await expect(page.locator('[data-tab-panel="my"] .project-card[data-type="Long"]').first()).toBeVisible();
   });
 
   test("Dashboard", async ({ page }) => {

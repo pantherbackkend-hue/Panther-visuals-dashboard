@@ -46,7 +46,8 @@ export async function seedTestData() {
     client: { name: "Test Client Inc" },
     clientRef: client._id,
     projectName: "Test Standard Project",
-    driveLink: "https://drive.google.com/test",
+    assetsFolderLink: "https://drive.google.com/test",
+    projectFilesLink: "https://drive.google.com/test-files",
     priority: "medium",
     status: "pending_assignment",
     payment: { amount: 5000, clientAmount: 5000, editorAmount: 0 },
@@ -64,7 +65,8 @@ export async function seedTestData() {
   const ownerProjectViaAdmin = await Project.create({
     client: { name: "Owner Client Corp" },
     projectName: "Owner Project via Admin",
-    driveLink: "https://drive.google.com/owner",
+    assetsFolderLink: "https://drive.google.com/owner",
+    projectFilesLink: "https://drive.google.com/owner-files",
     priority: "high",
     status: "pending_assignment",
     ownerAssignment: "admin",
@@ -84,8 +86,10 @@ export async function seedTestData() {
   const directAssignProject = await Project.create({
     client: { name: "Direct Client Ltd" },
     projectName: "Direct Assign Project",
-    driveLink: "https://drive.google.com/direct",
+    assetsFolderLink: "https://drive.google.com/direct",
+    projectFilesLink: "https://drive.google.com/direct-files",
     priority: "urgent",
+    type: "Long",
     status: "assigned",
     assignedEditor: editor._id,
     ownerAssignment: "direct",
@@ -114,7 +118,8 @@ export async function seedTestData() {
   const ongoingProject = await Project.create({
     client: { name: "Ongoing Client" },
     projectName: "Ongoing Project",
-    driveLink: "https://drive.google.com/ongoing",
+    assetsFolderLink: "https://drive.google.com/ongoing",
+    projectFilesLink: "https://drive.google.com/ongoing-files",
     priority: "medium",
     status: "ongoing",
     assignedEditor: editor._id,
@@ -151,7 +156,8 @@ export async function seedTestData() {
   const submittedProject = await Project.create({
     client: { name: "Submitted Client" },
     projectName: "Submitted Project",
-    driveLink: "https://drive.google.com/submitted",
+    assetsFolderLink: "https://drive.google.com/submitted",
+    projectFilesLink: "https://drive.google.com/submitted-files",
     priority: "high",
     status: "submitted",
     assignedEditor: editor._id,
@@ -200,7 +206,8 @@ export async function seedTestData() {
   const completedProject = await Project.create({
     client: { name: "Completed Client" },
     projectName: "Completed Project",
-    driveLink: "https://drive.google.com/completed",
+    assetsFolderLink: "https://drive.google.com/completed",
+    projectFilesLink: "https://drive.google.com/completed-files",
     priority: "low",
     status: "completed",
     assignedEditor: editor._id,
@@ -257,8 +264,10 @@ export async function seedTestData() {
   const paidProject = await Project.create({
     client: { name: "Paid Client" },
     projectName: "Paid Project",
-    driveLink: "https://drive.google.com/paid",
+    assetsFolderLink: "https://drive.google.com/paid",
+    projectFilesLink: "https://drive.google.com/paid-files",
     priority: "medium",
+    type: "Long",
     status: "completed",
     assignedEditor: editor._id,
     completedAt: new Date(Date.now() - 172800000),
@@ -293,6 +302,10 @@ export async function seedTestData() {
     type: "project_assigned",
     actionUrl: `/editor/projects/${standardProject._id}`,
   });
+
+  // Simulate a legacy project that predates the `type` field.
+  // It must gracefully default to "Short" when loaded/displayed.
+  await Project.updateOne({ _id: ongoingProject._id }, { $unset: { type: 1 } });
 
   return {
     owner, admin, editor, client,

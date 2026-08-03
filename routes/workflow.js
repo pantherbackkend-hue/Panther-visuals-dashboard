@@ -6,7 +6,7 @@ import { Notification } from "../models/Notification.js";
 import { User } from "../models/User.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin, requireEditor } from "../middleware/auth.js";
-import { normalizeField } from "../utils/admin.js";
+import { normalizeField, normalizeProjectType } from "../utils/admin.js";
 import {
   isValidStatus,
   canTransition,
@@ -96,9 +96,11 @@ workflowRouter.post(
         clientReferenceAssets,
         clientNotes,
         projectName,
+        type,
         assignedEditor,
         field,
-        driveLink,
+        assetsFolderLink,
+        projectFilesLink,
         priority,
         dueDate,
         notes,
@@ -118,6 +120,10 @@ workflowRouter.post(
       }
       if (!projectName || !projectName.trim()) {
         req.flash("error", "Project name is required.");
+        return res.redirect("/admin/projects/new");
+      }
+      if (!projectFilesLink || !String(projectFilesLink).trim()) {
+        req.flash("error", "Project Files Link is required.");
         return res.redirect("/admin/projects/new");
       }
 
@@ -178,8 +184,8 @@ workflowRouter.post(
             notes: String(clientNotes || "").trim(),
             createdBy: req.user._id,
           });
-          if (driveLink && String(driveLink).trim()) {
-            client.driveLinks.push({ label: "Project", url: String(driveLink).trim() });
+          if (assetsFolderLink && String(assetsFolderLink).trim()) {
+            client.driveLinks.push({ label: "Project", url: String(assetsFolderLink).trim() });
           }
         }
       }
@@ -188,9 +194,11 @@ workflowRouter.post(
         client: { name: client.name },
         clientRef: client._id,
         projectName: projectName.trim(),
+        type: normalizeProjectType(type),
         assignedEditor: isOwnerAssignDirect && assignedEditor ? assignedEditor : (assignedEditor || null),
         field: projectField,
-        driveLink: String(driveLink || "").trim(),
+        assetsFolderLink: String(assetsFolderLink || "").trim(),
+        projectFilesLink: String(projectFilesLink || "").trim(),
         priority: priority || "medium",
         dueDate: dueDate || null,
         receivedDate: receivedDate || undefined,
@@ -275,6 +283,7 @@ workflowRouter.get(
   requireAdmin,
   async (req, res) => {
     const filter = req.query.filter || "all";
+    const typeFilter = String(req.query.type || "").trim();
     const search = String(req.query.q || "").trim().toLowerCase();
 
     const match = {};
@@ -282,6 +291,10 @@ workflowRouter.get(
     else if (filter === "active") match.status = { $in: ["assigned", "ongoing"] };
     else if (filter === "review") match.status = "submitted";
     else if (filter === "completed") match.status = "completed";
+
+    if (typeFilter === "Short" || typeFilter === "Long") {
+      match.type = typeFilter;
+    }
 
     const projects = await Project.find(match)
       .populate("assignedEditor", "name email")
@@ -308,6 +321,7 @@ workflowRouter.get(
     const formatted = filtered.map((p) => ({
       ...p,
       clientName: p.client?.name || p.clientName || "",
+      typeLabel: p.type || "Short",
       paymentAmount: p.payment?.amount || 0,
       statusLabel: formatStatus(p.status),
       badgeColor: getBadgeColor(p.status),
@@ -320,6 +334,7 @@ workflowRouter.get(
       projects: formatted,
       counts,
       filter,
+      typeFilter,
       search,
       formatStatus,
       formatMoney: (v) => `₹${Number(v || 0).toFixed(2)}`,
@@ -799,8 +814,10 @@ workflowRouter.post(
       const {
         clientName,
         projectName,
+        type,
         field,
-        driveLink,
+        assetsFolderLink,
+        projectFilesLink,
         priority,
         dueDate,
         notes,
@@ -828,11 +845,16 @@ workflowRouter.post(
           name: String(clientName || project.client?.name || "").trim(),
         };
         project.projectName = String(projectName || project.projectName || "").trim();
+        project.type = normalizeProjectType(type || project.type);
         project.field = normalizeField(field);
-        project.driveLink = String(driveLink || project.driveLink || "").trim();
+        project.assetsFolderLink = String(assetsFolderLink || project.assetsFolderLink || "").trim();
+        project.projectFilesLink = String(projectFilesLink || project.projectFilesLink || "").trim();
         project.priority = priority || project.priority || "medium";
         project.dueDate = dueDate || project.dueDate || null;
         project.notes = String(notes || project.notes || "").trim();
+      } else {
+        // Backward compatibility: legacy projects without a type default to "Short"
+        project.type = project.type || "Short";
       }
 
       if (project.payment?.status !== "paid") {

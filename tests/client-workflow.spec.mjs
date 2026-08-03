@@ -82,6 +82,7 @@ test.describe("Existing Client Flow", () => {
     await page.click("#clientComboInput");
     await page.locator("#clientListbox li", { hasText: "Test Client Inc" }).click();
     await page.fill("input[name=projectName]", "PW Existing Client Project");
+    await page.fill("input[name=projectFilesLink]", "https://drive.google.com/pw-existing-files");
     await page.click("form.admin-form button[type=submit]");
     await page.waitForLoadState("networkidle");
     await expect(page.locator(".flash--success")).toContainText("created");
@@ -102,6 +103,7 @@ test.describe("New Client Flow", () => {
     await page.fill("textarea[name=clientReferenceAssets]", "PW Brand kit drive link");
     await page.fill("textarea[name=clientNotes]", "PW inline client notes");
     await page.fill("input[name=projectName]", "PW Inline Client Project");
+    await page.fill("input[name=projectFilesLink]", "https://drive.google.com/pw-inline-files");
     await page.click("form.admin-form button[type=submit]");
     await page.waitForLoadState("networkidle");
     await expect(page.locator(".flash--success")).toContainText("created");

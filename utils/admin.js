@@ -21,6 +21,18 @@ export function normalizeQuery(value) {
   return String(value || "").trim();
 }
 
+const PROJECT_TYPES = ["Short", "Long"];
+
+/**
+ * Normalizes a project type value to "Short" or "Long".
+ * Invalid/missing values gracefully default to "Short".
+ * @param {string} value - The value to normalize
+ * @returns {string} - "Short" or "Long"
+ */
+export function normalizeProjectType(value) {
+  return PROJECT_TYPES.includes(String(value || "").trim()) ? String(value).trim() : "Short";
+}
+
 /**
  * Normalizes a specialization or field value to a consistent format.
  * - Trims whitespace

@@ -59,8 +59,8 @@
       </div>
       <div id="assetSelectGroup" style="display:none;margin-bottom:16px">
         <div class="form-group">
-          <label for="assetSelect">Reference Asset <span class="muted">(pre-fills drive link)</span></label>
-          <select id="assetSelect" onchange="document.getElementById('driveLink').value=this.value">
+          <label for="assetSelect">Reference Asset <span class="muted">(pre-fills assets folder link)</span></label>
+          <select id="assetSelect" onchange="document.getElementById('assetsFolderLink').value=this.value">
             <option value="">— Select an asset —</option>
           </select>
         </div>
@@ -91,6 +91,19 @@
     <div class="form-group">
       <label for="projectName">Project Name *</label>
       <input id="projectName" name="projectName" type="text" required value="<%= project?.projectName || "" %>" />
+    </div>
+
+    <div class="form-group">
+      <label>Project Type *</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;padding:8px 0">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="type" value="Short" required <%= (!project?.type || project?.type === "Short") ? "checked" : "" %> /> Short
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="type" value="Long" <%= project?.type === "Long" ? "checked" : "" %> /> Long
+        </label>
+      </div>
+      <p class="form-help">Short projects have quick turnarounds; Long projects have extended timelines.</p>
     </div>
 
     <% if (currentUser.role === "owner" && mode === "create") { %>
@@ -184,8 +197,15 @@
     </div>
 
     <div class="form-group">
-      <label for="driveLink">Drive Link</label>
-      <input id="driveLink" name="driveLink" type="url" placeholder="https://drive.google.com/..." value="<%= project?.driveLink || "" %>" />
+      <label for="assetsFolderLink">Assets Folder Link</label>
+      <input id="assetsFolderLink" name="assetsFolderLink" type="url" placeholder="https://drive.google.com/..." value="<%= project?.assetsFolderLink || "" %>" />
+      <p class="form-help">Client's reusable asset repository (brand kit, references). Pre-filled from the selected client's default asset.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="projectFilesLink">Project Files Link <%= mode === "create" ? "*" : "" %></label>
+      <input id="projectFilesLink" name="projectFilesLink" type="url" placeholder="https://drive.google.com/..." value="<%= project?.projectFilesLink || "" %>" <%= mode === "create" ? "required" : "" %> />
+      <p class="form-help">Project-specific folder with the source files for this project.</p>
     </div>
 
     <div class="form-group">
@@ -277,7 +297,7 @@ function selectClient(client) {
   var chosenAsset = defaultAsset || singleAsset || null;
 
   var assetGroup = document.getElementById('assetSelectGroup');
-  var dlInput = document.getElementById('driveLink');
+  var dlInput = document.getElementById('assetsFolderLink');
 
   if (assets.length > 1 && !chosenAsset) {
     var as = document.getElementById('assetSelect');

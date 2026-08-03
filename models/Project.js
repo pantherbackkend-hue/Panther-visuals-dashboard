@@ -62,13 +62,20 @@ const projectSchema = new mongoose.Schema(
     client: { type: clientSchema, default: () => ({ name: "" }) },
     clientRef: { type: mongoose.Schema.Types.ObjectId, ref: "Client", default: null },
     projectName: { type: String, required: true, trim: true },
+    type: {
+      type: String,
+      enum: ["Short", "Long"],
+      default: "Short",
+      required: true,
+    },
     assignedEditor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     field: {
       type: String,
       default: "",
       trim: true,
     },
-    driveLink: { type: String, default: "" },
+    assetsFolderLink: { type: String, default: "" },
+    projectFilesLink: { type: String, default: "" },
     priority: {
       type: String,
       enum: ["low", "medium", "high", "urgent"],
@@ -103,6 +110,7 @@ const projectSchema = new mongoose.Schema(
 projectSchema.index({ status: 1 });
 projectSchema.index({ assignedEditor: 1, status: 1 });
 projectSchema.index({ priority: 1, createdAt: -1 });
+projectSchema.index({ type: 1, status: 1 });
 projectSchema.index({ field: 1, status: 1 });
 projectSchema.index({ field: 1, assignedEditor: 1 });
 
