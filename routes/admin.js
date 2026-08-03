@@ -6,7 +6,7 @@ import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
 import { User } from "../models/User.js";
 import { Notification } from "../models/Notification.js";
-import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability } from "../utils/workflow.js";
+import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount } from "../utils/workflow.js";
 import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
@@ -345,7 +345,7 @@ adminRouter.post("/workspace/assign", async (req, res) => {
 
     if (price && !isNaN(Number(price))) {
       if (project.ownerAssignment) {
-        project.payment.editorAmount = Number(price);
+        setEditorAmount(project, Number(price));
       } else {
         project.payment.amount = Number(price);
         project.payment.clientAmount = Number(price);

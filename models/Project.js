@@ -69,6 +69,7 @@ const projectSchema = new mongoose.Schema(
       required: true,
     },
     assignedEditor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    editorAmount: { type: Number, default: 0, min: 0 },
     field: {
       type: String,
       default: "",

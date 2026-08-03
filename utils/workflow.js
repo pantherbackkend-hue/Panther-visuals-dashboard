@@ -78,6 +78,20 @@ export function formatStatus(status) {
   return labels[status] || status;
 }
 
+export function getEditorAmount(project) {
+  return Number(project?.editorAmount || project?.payment?.editorAmount || 0);
+}
+
+export function setEditorAmount(project, amount) {
+  const value = Number(amount);
+  const safe = isNaN(value) || value < 0 ? 0 : value;
+  project.editorAmount = safe;
+  if (project.payment) {
+    project.payment.editorAmount = safe;
+  }
+  return safe;
+}
+
 export function getDashboardCounts(projects) {
   const counts = {
     new: 0,

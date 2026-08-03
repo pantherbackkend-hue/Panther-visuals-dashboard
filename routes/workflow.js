@@ -16,6 +16,8 @@ import {
   getTimelineAction,
   getDashboardCounts,
   updateEditorAvailability,
+  getEditorAmount,
+  setEditorAmount,
 } from "../utils/workflow.js";
 import {
   createNotification,
@@ -161,12 +163,22 @@ workflowRouter.post(
         ? normalizeField(field)
         : (editorSpecialization ? normalizeField(editorSpecialization) : "");
 
-      const ca = Number(clientAmount || paymentAmount) || 0;
-      const ea = req.user.role === "owner" ? 0 : (Number(editorAmount) || 0);
-      const paymentData = { amount: ca, clientAmount: ca, editorAmount: ea };
-
       const isOwnerAssignAdmin = ownerAssignment === "admin";
       const isOwnerAssignDirect = ownerAssignment === "direct";
+
+      if (req.user.role === "owner" && isOwnerAssignDirect && assignedEditor) {
+        const eaInput = String(editorAmount ?? "").trim();
+        if (eaInput === "" || isNaN(Number(editorAmount)) || Number(editorAmount) < 0) {
+          req.flash("error", "Editor Amount is required when assigning directly to an editor.");
+          return res.redirect("/admin/projects/new");
+        }
+      }
+
+      const ca = Number(clientAmount || paymentAmount) || 0;
+      const ea = req.user.role === "owner"
+        ? (isOwnerAssignDirect ? (Number(editorAmount) || 0) : 0)
+        : (Number(editorAmount) || 0);
+      const paymentData = { amount: ca, clientAmount: ca, editorAmount: ea };
 
       let client = null;
       if (clientMode === "existing" && clientId && mongoose.isValidObjectId(clientId)) {
@@ -204,6 +216,7 @@ workflowRouter.post(
         receivedDate: receivedDate || undefined,
         notes: String(notes || "").trim(),
         payment: paymentData,
+        editorAmount: ea,
         status: isOwnerAssignDirect && assignedEditor ? "assigned" : "pending_assignment",
         ownerAssignment: req.user.role === "owner" ? (ownerAssignment || null) : null,
         ownerAdmin: isOwnerAssignAdmin && ownerAdmin ? ownerAdmin : null,
@@ -381,7 +394,7 @@ workflowRouter.get(
     const allowedTransitions = getAllowedTransitions(project.status);
 
     const clientAmount = project.payment?.clientAmount || project.payment?.amount || 0;
-    const editorAmount = project.payment?.editorAmount || 0;
+    const editorAmount = getEditorAmount(project);
     const profit = clientAmount - editorAmount;
 
     res.render("admin/projects/show", {
@@ -826,8 +839,7 @@ workflowRouter.post(
         editorAmount,
       } = req.body;
 
-      const canAdminEditOwnerProject = req.user.role === "admin" && project.ownerAssignment && project.status === "pending_assignment";
-      const canEditDetails = req.user.role === "owner" || !project.ownerAssignment || canAdminEditOwnerProject;
+      const canEditDetails = req.user.role === "owner" || req.user.role === "admin" || !project.ownerAssignment;
 
       if (canEditDetails) {
         if (!clientName || !clientName.trim()) {
@@ -863,13 +875,13 @@ workflowRouter.post(
           project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
           project.payment.amount = project.payment.clientAmount;
           const ea = Number(editorAmount);
-          if (!isNaN(ea)) project.payment.editorAmount = ea;
-        } else if (project.ownerAssignment) {
+          if (!isNaN(ea)) setEditorAmount(project, ea);
+        } else if (req.user.role === "admin") {
           const pa = Number(paymentAmount);
           project.payment.clientAmount = isNaN(pa) ? (project.payment.clientAmount || 0) : pa;
           project.payment.amount = project.payment.clientAmount;
           const ea = Number(editorAmount);
-          project.payment.editorAmount = isNaN(ea) ? (project.payment.editorAmount || 0) : ea;
+          setEditorAmount(project, isNaN(ea) ? getEditorAmount(project) : ea);
         } else {
           const pa = Number(paymentAmount);
           project.payment.amount = isNaN(pa) ? 0 : pa;
@@ -970,10 +982,16 @@ workflowRouter.get(
       const formatted = projects.map((p) => ({
         ...p,
         clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
-        paymentAmount: p.payment?.amount || 0,
+        editorAmount: getEditorAmount(p),
         statusLabel: formatStatus(p.status),
         badgeColor: getBadgeColor(p.status),
       }));
+      formatted.forEach((p) => {
+        if (p.payment) {
+          delete p.payment.clientAmount;
+          delete p.payment.amount;
+        }
+      });
 
       const assignedProjects = formatted.filter((p) => p.status === "assigned");
       const ongoingProjects = formatted.filter((p) => p.status === "ongoing" || p.status === "submitted");
@@ -1022,6 +1040,12 @@ workflowRouter.get(
         req.flash("error", "Project not found.");
         return res.redirect("/editor/projects");
       }
+
+      if (project.payment) {
+        delete project.payment.clientAmount;
+        delete project.payment.amount;
+      }
+      project.editorAmount = getEditorAmount(project);
 
       const allowedTransitions = getAllowedTransitions(project.status);
 
@@ -1354,9 +1378,8 @@ workflowRouter.get(
         .lean();
 
       const rows = projects.map((p) => {
-        const editorAmount = p.payment?.editorAmount || 0;
-        const projectAmount = p.payment?.amount || 0;
-        const amount = editorAmount || projectAmount;
+        const editorAmount = getEditorAmount(p);
+        const amount = editorAmount;
         const isPaid = p.payment?.status === "paid";
         return {
           _id: p._id,

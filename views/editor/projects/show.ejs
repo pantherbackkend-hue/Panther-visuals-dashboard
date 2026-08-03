@@ -66,8 +66,8 @@
             <span class="detail-row__value"><span class="tag tag--<%= (project.type || "Short") === "Short" ? "info" : "pending" %>"><%= project.type || "Short" %></span></span>
           </div>
           <div class="detail-row">
-            <span class="detail-row__label">Payable Amount</span>
-            <span class="detail-row__value"><%= formatMoney(project.payment?.editorAmount || 0) %></span>
+            <span class="detail-row__label">Your Payment</span>
+            <span class="detail-row__value"><%= formatMoney(project.editorAmount || project.payment?.editorAmount || 0) %></span>
           </div>
           <div class="detail-row">
             <span class="detail-row__label">Payment Status</span>
