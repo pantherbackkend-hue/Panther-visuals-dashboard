@@ -837,6 +837,7 @@ workflowRouter.post(
         paymentAmount,
         clientAmount,
         editorAmount,
+        assignedEditor,
       } = req.body;
 
       const canEditDetails = req.user.role === "owner" || req.user.role === "admin" || !project.ownerAssignment;
@@ -887,6 +888,27 @@ workflowRouter.post(
           project.payment.amount = isNaN(pa) ? 0 : pa;
           project.payment.clientAmount = project.payment.amount;
         }
+      }
+
+      const previousEditorId = String(project.assignedEditor || "");
+      const newEditorId = String(assignedEditor || "");
+      if (newEditorId && newEditorId !== previousEditorId) {
+        if (!mongoose.isValidObjectId(newEditorId)) {
+          req.flash("error", "Invalid editor selection.");
+          return res.redirect(`/admin/projects/${id}/edit`);
+        }
+        const editor = await User.findOne({ _id: newEditorId, role: "editor", isActive: true });
+        if (!editor) {
+          req.flash("error", "Editor not found or inactive.");
+          return res.redirect(`/admin/projects/${id}/edit`);
+        }
+        project.assignedEditor = newEditorId;
+        // ponytail: edit bypasses /assign's on_leave/busy capacity gate — reassigning an existing project is not first assignment
+        if (previousEditorId) {
+          await updateEditorAvailability(previousEditorId, User, Project);
+        }
+        await updateEditorAvailability(newEditorId, User, Project);
+        await notifyProjectAssigned(project, editor);
       }
 
       project.activityTimeline.push({
