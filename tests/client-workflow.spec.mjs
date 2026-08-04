@@ -144,12 +144,12 @@ test.describe("Validation", () => {
 });
 
 test.describe("Client Management", () => {
-  test("Table shows reference assets and notes, no email or channel columns", async ({ page }) => {
+  test("Table shows notes, no reference assets, email or channel columns", async ({ page }) => {
     await login(page, USERS.admin);
     await page.goto("/admin/clients");
     await page.waitForLoadState("networkidle");
     const headers = await page.locator("table thead th").allInnerTexts();
-    expect(headers).toContain("Reference Assets");
+    expect(headers).not.toContain("Reference Assets");
     expect(headers).toContain("Notes");
     expect(headers).toContain("Projects");
     expect(headers).toContain("Created By");

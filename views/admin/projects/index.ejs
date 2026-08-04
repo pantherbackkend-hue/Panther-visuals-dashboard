@@ -86,7 +86,7 @@
               <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
               <td><%= project.clientName %></td>
               <td><span class="tag tag--<%= (project.typeLabel || "Short") === "Short" ? "info" : "pending" %>"><%= project.typeLabel || "Short" %></span></td>
-              <td><%= project.assignedEditor?.name || '<span class="muted">Unassigned</span>' %></td>
+              <td><% if (project.assignedEditor?.name) { %><%= project.assignedEditor.name %><% } else { %><span class="muted">Editor Not Assigned</span><% } %></td>
               <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></td>
               <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
               <td><%= formatMoney(project.paymentAmount) %></td>

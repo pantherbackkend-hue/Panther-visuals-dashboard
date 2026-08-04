@@ -12,6 +12,7 @@
     "seed": "node seed.js"
   },
   "dependencies": {
+    "@dietrichgebert/ponytail": "^4.8.4",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
     "connect-flash": "^0.1.1",

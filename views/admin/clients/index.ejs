@@ -32,7 +32,6 @@
         <thead>
           <tr>
             <th scope="col">Client Name</th>
-            <th scope="col">Reference Assets</th>
             <th scope="col">Notes</th>
             <th scope="col">Projects</th>
             <th scope="col">Created By</th>
@@ -44,7 +43,6 @@
           <% clients.forEach(function(c) { %>
             <tr>
               <td><strong><a class="admin-link" href="/admin/clients/<%= c._id %>"><%= c.name %></a></strong></td>
-              <td><%= c.referenceAssets || '<span class="muted">—</span>' %></td>
               <td><%- c.notes ? renderNotes(c.notes) : '<span class="muted">—</span>' %></td>
               <td><%= c.projectCount %></td>
               <td><%= c.createdBy?.name || '<span class="muted">—</span>' %></td>
