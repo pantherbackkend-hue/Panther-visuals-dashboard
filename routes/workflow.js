@@ -474,6 +474,18 @@ workflowRouter.post(
         await updateEditorAvailability(project.assignedEditor, User, Project);
       }
 
+      if (fromStatus === "completed" && toStatus === "ongoing" && project.assignedEditor) {
+        await createNotification({
+          recipient: project.assignedEditor,
+          recipientRole: "editor",
+          project: project._id,
+          title: `Project reopened: "${project.projectName}"`,
+          message: `${req.user.name} reopened this project. Please continue working on it.`,
+          type: "reopened",
+          actionUrl: `/editor/projects/${project._id}`,
+        });
+      }
+
       await broadcastDashboardUpdate(project);
 
       const allProjects = await Project.find().lean();

@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema(
         "completed",
         "payment_done",
         "status_change",
+        "reopened",
         "assignment_blocked",
       ],
       required: true,

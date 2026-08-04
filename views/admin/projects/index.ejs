@@ -88,7 +88,15 @@
               <td><span class="tag tag--<%= (project.typeLabel || "Short") === "Short" ? "info" : "pending" %>"><%= project.typeLabel || "Short" %></span></td>
               <td><% if (project.assignedEditor?.name) { %><%= project.assignedEditor.name %><% } else { %><span class="muted">Editor Not Assigned</span><% } %></td>
               <td><span class="priority-dot priority-dot--<%= project.priority %>"></span><span class="capitalize"><%= project.priority %></span></td>
-              <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span></td>
+              <td><span class="tag tag--<%= project.badgeColor %>"><%= project.statusLabel %></span>
+                <% if (project.status === "completed") { %>
+                  <form method="post" action="/admin/projects/<%= project._id %>/transition" class="inline" style="display:inline-block;margin-left:6px">
+                    <input type="hidden" name="toStatus" value="ongoing" />
+                    <input type="hidden" name="notes" value="" />
+                    <button class="quick-action-btn" type="submit" title="Reopen project">Reopen Project</button>
+                  </form>
+                <% } %>
+              </td>
               <td><%= formatMoney(project.paymentAmount) %></td>
               <td class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
                 <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>

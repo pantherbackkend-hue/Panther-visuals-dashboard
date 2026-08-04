@@ -86,3 +86,21 @@ Every implementation must satisfy:
 - reusable implementation (no copy-paste forks of existing helpers)
 
 Business logic stays centralized in `utils/` and models — route handlers stay thin.
+
+## Known failure: schema enums silently break "button does nothing"
+
+**Symptom:** A UI action (transition/notification/status) clicks but the page reports failure, appears to do nothing, or persists then errors — with no obvious route bug.
+
+**Root cause (hit twice, `Reopened` timeline + `reopened` notification):** Mongoose `enum` validated arrays are in **two** models and reject new string values:
+
+- `models/Project.js` — `activityTimeline[].action` enum (e.g. `"Reopened"`, `"Submission Updated"`). A new `getTimelineAction(fromStatus, toStatus)` return value that isn't in the enum makes `project.save()` throw `ValidationError` **after** the status field is already mutated → flash error + follow-through lost.
+- `models/Notification.js` — `type` enum (e.g. `"reopened"`, `"submitted_updated"`). `createNotification` throws and can abort the whole handler even when the core save succeeded.
+
+**Diagnosis checklist (order):**
+1. Reproduce the click and watch the browser Network tab for a `500` on the transition/notification POST.
+2. Read the server log for `ValidationError ... not a valid enum value for path`. It names the model and field directly.
+3. Grep the model file for the `enum:` array — add the missing value.
+4. Cross-check every new string you wrote during the feature against **both** `Project` and `Notification` enums before shipping.
+5. Verify end-to-end with a Playwright spec that clicks the real button and asserts the persisted state + both relevant portals (admin/owner + editor).
+
+Example fix: reach for the enum arrays in `models/Project.js` and `models/Notification.js` any time a feature adds a new status, transition, or notification `type`.

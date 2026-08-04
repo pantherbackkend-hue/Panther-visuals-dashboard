@@ -43,6 +43,7 @@ const timelineEntrySchema = new mongoose.Schema(
         "Submission Uploaded",
         "Feedback Added",
         "Completed",
+        "Reopened",
         "Payment Done",
         "Updated",
       ],

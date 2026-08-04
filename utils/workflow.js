@@ -11,7 +11,7 @@ const TRANSITIONS = {
   assigned: ["ongoing", "pending_assignment"],
   ongoing: ["submitted"],
   submitted: ["ongoing", "completed"],
-  completed: [],
+  completed: ["ongoing"],
 };
 
 const BADGE_COLORS = {
@@ -36,6 +36,7 @@ const TIMELINE_ACTIONS = {
   ongoing: "Accepted",
   submitted: "Submission Uploaded",
   ongoing__from_submitted: "Feedback Added",
+  ongoing__from_completed: "Reopened",
   completed: "Completed",
 };
 
