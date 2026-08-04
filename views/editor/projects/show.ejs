@@ -167,7 +167,12 @@
                   <td><span class="date-cell"><%= new Date(s.submittedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span></td>
                   <td><a href="<%= s.driveLink %>" target="_blank" rel="noopener" class="drive-link-cell"><%= s.driveLink.length > 35 ? s.driveLink.slice(0,35) + "..." : s.driveLink %></a></td>
                   <td><span class="desc-cell"><%= s.description || "—" %></span></td>
-                  <td><span class="status-tag">Submitted</span></td>
+                  <td>
+                    <span class="status-tag">Submitted</span>
+                    <% if (idx === 0 && project.status === "submitted") { %>
+                      <a href="#submit-form" class="status-tag status-tag--edit">Edit</a>
+                    <% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
@@ -210,20 +215,22 @@
   <div class="editor-layout__sidebar">
 
     <!-- ── Upload Panel ── -->
-    <% if (project.status === "ongoing") { %>
+    <% var latestSubmission = project.submissions && project.submissions.length ? project.submissions[project.submissions.length - 1] : null; %>
+    <% var isEditing = project.status === "submitted" && latestSubmission; %>
+    <% if (project.status === "ongoing" || isEditing) { %>
     <div class="upload-panel" style="margin-top:0">
-      <h2 class="upload-panel__title">Submit New Version</h2>
-      <p class="upload-panel__subtitle">Version <strong><%= (project.submissions?.length || 0) + 1 %></strong></p>
+      <h2 class="upload-panel__title"><%= isEditing ? "Edit Submission" : "Submit New Version" %></h2>
+      <p class="upload-panel__subtitle">Version <strong><%= isEditing ? latestSubmission.version : (project.submissions?.length || 0) + 1 %></strong></p>
       <form id="submit-form">
         <div class="form-group">
           <label for="driveLink">Drive Link *</label>
-          <input type="url" id="driveLink" name="driveLink" placeholder="https://drive.google.com/..." required />
+          <input type="url" id="driveLink" name="driveLink" placeholder="https://drive.google.com/..." value="<%= isEditing ? latestSubmission.driveLink : "" %>" required />
         </div>
         <div class="form-group">
           <label for="description">Description</label>
-          <textarea id="description" name="description" rows="2" placeholder="What's in this submission?"></textarea>
+          <textarea id="description" name="description" rows="2" placeholder="What's in this submission?"><%= isEditing ? latestSubmission.description : "" %></textarea>
         </div>
-        <button class="btn btn--accent btn--accent-full" type="submit">Upload Version <%= (project.submissions?.length || 0) + 1 %></button>
+        <button class="btn btn--accent btn--accent-full" type="submit"><%= isEditing ? "Update Submission" : "Upload Version " + ((project.submissions?.length || 0) + 1) %></button>
       </form>
     </div>
     <% } %>
@@ -312,6 +319,7 @@
   (function () {
     var form = document.getElementById("submit-form");
     if (!form) return;
+    var submitLabel = form.querySelector("button[type=submit]").textContent;
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -339,13 +347,13 @@
           } else {
             showFormError(form, data.error || "Failed to submit.");
             btn.disabled = false;
-            btn.textContent = "Upload Version <%= (project.submissions?.length || 0) + 1 %>";
+            btn.textContent = submitLabel;
           }
         })
         .catch(function () {
           showFormError(form, "Network error.");
           btn.disabled = false;
-          btn.textContent = "Upload Version <%= (project.submissions?.length || 0) + 1 %>";
+          btn.textContent = submitLabel;
         });
     });
 

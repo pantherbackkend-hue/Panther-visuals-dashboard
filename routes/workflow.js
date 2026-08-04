@@ -1228,13 +1228,35 @@ workflowRouter.post(
         return res.status(404).json({ error: "Project not found." });
       }
 
-      if (project.status !== "ongoing") {
+      if (project.status !== "ongoing" && project.status !== "submitted") {
         return res.status(400).json({ error: "Only ongoing projects can be submitted." });
       }
 
       const { driveLink, description } = req.body;
       if (!driveLink || !String(driveLink).trim()) {
         return res.status(400).json({ error: "Drive link is required for submission." });
+      }
+
+      if (project.status === "submitted") {
+        // ponytail: reuse submit endpoint to update the latest submission — same version, no version bump, no status change
+        const latest = project.submissions[project.submissions.length - 1];
+        if (!latest) {
+          return res.status(400).json({ error: "No submission to edit." });
+        }
+        latest.driveLink = String(driveLink).trim();
+        latest.description = String(description || "").trim();
+        latest.submittedAt = new Date();
+        project.activityTimeline.push({
+          action: "Updated",
+          user: req.user._id,
+          userName: req.user.name,
+          previousStatus: "submitted",
+          newStatus: "submitted",
+          notes: `Version ${latest.version} submission updated`,
+        });
+        await project.save();
+        await broadcastDashboardUpdate(project);
+        return res.json({ success: true, project: { _id: project._id, status: project.status, version: latest.version } });
       }
 
       const version = (project.submissions?.length || 0) + 1;

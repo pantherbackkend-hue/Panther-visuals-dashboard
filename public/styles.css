@@ -1734,6 +1734,17 @@ fieldset.fieldset legend {
   color: #065F46;
 }
 
+.submission-table .status-tag--edit {
+  margin-left: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.submission-table .status-tag--edit:hover {
+  text-decoration: underline;
+}
+
 .submission-table .drive-link-cell {
   color: var(--accent);
   font-weight: 500;
