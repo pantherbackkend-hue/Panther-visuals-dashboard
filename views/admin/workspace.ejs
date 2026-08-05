@@ -190,7 +190,7 @@
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Updated:</strong> <%= new Date(p.updatedAt).toLocaleDateString("en-IN") %></span>
-            <span><strong>Amount:</strong> <%= formatMoney(p.payment?.editorAmount || 0) %></span>
+            <span><strong>Amount:</strong> <%= formatMoney(p.editorAmount) %></span>
           </div>
           <div class="project-card__actions">
             <a class="quick-action-btn" href="/admin/projects/<%= p._id %>">Open Project</a>

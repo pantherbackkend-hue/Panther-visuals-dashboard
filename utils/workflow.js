@@ -85,6 +85,46 @@ export function getEditorAmount(project) {
   return Number(project?.editorAmount || project?.payment?.editorAmount || 0);
 }
 
+export function getClientAmount(project) {
+  return Number(project?.payment?.clientAmount || project?.payment?.amount || 0);
+}
+
+export function getProfit(project) {
+  return getClientAmount(project) - getEditorAmount(project);
+}
+
+export function computeFinancialSummary(projects) {
+  let totalClientAmount = 0;
+  let totalEditorAmount = 0;
+  let pendingPayment = 0;
+  let paymentMade = 0;
+  let totalPaid = 0;
+  let completedCount = 0;
+  for (const p of projects) {
+    if (p.status !== "completed") continue;
+    completedCount++;
+    const clientAmount = getClientAmount(p);
+    const editorAmount = getEditorAmount(p);
+    totalClientAmount += clientAmount;
+    totalEditorAmount += editorAmount;
+    if (p.payment?.status === "paid") {
+      paymentMade += editorAmount;
+      totalPaid++;
+    } else {
+      pendingPayment += editorAmount;
+    }
+  }
+  return {
+    totalClientAmount,
+    totalEditorAmount,
+    totalProfit: totalClientAmount - totalEditorAmount,
+    completedCount,
+    pendingPayment,
+    paymentMade,
+    totalPaid,
+  };
+}
+
 export function setEditorAmount(project, amount) {
   const value = Number(amount);
   const safe = isNaN(value) || value < 0 ? 0 : value;
@@ -149,7 +189,7 @@ export async function markProjectPaid(project, user) {
   project.payment.paidAt = new Date();
   project.payment.paidBy = user._id;
 
-  const paidAmount = project.payment?.editorAmount || project.payment?.amount || 0;
+  const paidAmount = getEditorAmount(project);
   project.activityTimeline.push({
     action: "Payment Done",
     user: user._id,

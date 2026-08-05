@@ -9,6 +9,8 @@ import {
   formatStatus,
   getBadgeColor,
   getDashboardCounts,
+  getEditorAmount,
+  computeFinancialSummary,
 } from "../utils/workflow.js";
 
 export const ownerRouter = express.Router();
@@ -37,8 +39,7 @@ ownerRouter.get("/analytics", async (req, res) => {
     const directAssign = ownerProjects.filter((p) => p.ownerAssignment === "direct").length;
     const adminAssign = ownerProjects.filter((p) => p.ownerAssignment === "admin").length;
 
-    const totalClientAmount = allProjects.reduce((s, p) => s + (p.payment?.clientAmount || p.payment?.amount || 0), 0);
-    const totalPaid = allProjects.filter((p) => p.payment?.status === "paid").length;
+    const summary = computeFinancialSummary(allProjects);
 
     const userBreakdown = {
       owners: allUsers.filter((u) => u.role === "owner").length,
@@ -55,8 +56,10 @@ ownerRouter.get("/analytics", async (req, res) => {
       ownerProjects: ownerProjects.length,
       directAssign,
       adminAssign,
-      totalClientAmount,
-      totalPaid,
+      totalClientAmount: summary.totalClientAmount,
+      totalEditorAmount: summary.totalEditorAmount,
+      totalProfit: summary.totalProfit,
+      totalPaid: summary.totalPaid,
       formatMoney,
       formatStatus,
     });
@@ -91,7 +94,7 @@ ownerRouter.get("/payment-status", async (req, res) => {
     ).length;
 
     const outstandingAmount = [...jrAdminPending, ...editorPending].reduce(
-      (sum, p) => sum + (p.payment?.editorAmount || 0), 0
+      (sum, p) => sum + getEditorAmount(p), 0
     );
 
     function fmt(p) {
@@ -100,7 +103,7 @@ ownerRouter.get("/payment-status", async (req, res) => {
         clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
         receivedDate: p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : new Date(p.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }),
         completedDate: p.completedAt ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
-        paymentAmount: p.payment?.editorAmount || 0,
+        paymentAmount: getEditorAmount(p),
         paymentStatus: p.payment?.status === "paid" ? "Paid" : "Pending",
         paymentBadge: p.payment?.status === "paid" ? "ok" : "pending",
       };

@@ -26,6 +26,8 @@
 
 <section class="admin-metrics">
   <article class="card admin-metric"><p class="muted small">Client Revenue</p><h2 style="color:var(--success)"><%= formatMoney(totalClientAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editor Cost</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Profit</p><h2 style="color:var(--success)"><%= formatMoney(totalProfit) %></h2></article>
   <article class="card admin-metric"><p class="muted small">Payments Made</p><h2><%= totalPaid %></h2></article>
 </section>
 

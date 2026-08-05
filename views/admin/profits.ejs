@@ -5,17 +5,22 @@
   <div>
     <p class="eyebrow">Financial Ledger</p>
     <h1>Earnings Ledger</h1>
-    <p class="muted">Permanent record of every completed and paid project.</p>
+    <p class="muted">Permanent record of every completed project. Earnings are independent of payment status.</p>
   </div>
   <a class="btn btn--outline" href="/admin">Back to Dashboard</a>
 </section>
 
 <section class="admin-metrics">
-  <article class="card admin-metric"><p class="muted small">Total Earnings</p><h2 style="color:var(--success)"><%= formatMoney(totalEarnings) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Projects Completed & Paid</p><h2><%= totalProjects %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Total Client Revenue</p><h2><%= formatMoney(totalClientAmount) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Total Editor Payments</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
-  <article class="card admin-metric"><p class="muted small">Avg Earnings / Project</p><h2><%= formatMoney(avgEarnings) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Client Revenue</p><h2 style="color:var(--success)"><%= formatMoney(totalClientAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Editor Cost</p><h2 style="color:var(--danger)"><%= formatMoney(totalEditorAmount) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Profit</p><h2 style="color:var(--success)"><%= formatMoney(totalEarnings) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Completed Projects</p><h2><%= totalProjects %></h2></article>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Editor Payments Pending</p><h2 style="color:var(--warning)"><%= formatMoney(pendingPayment) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Editor Payments Made</p><h2 style="color:var(--success)"><%= formatMoney(paymentMade) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Avg Profit / Project</p><h2><%= formatMoney(avgEarnings) %></h2></article>
 </section>
 
 <div class="card admin-panel admin-toolbar">
@@ -56,7 +61,7 @@
 <div class="card admin-panel">
   <h2 class="h2 mt-0">Detailed Earnings Ledger</h2>
   <% if (ledger.length === 0) { %>
-    <p class="muted">No completed and paid projects yet. Records appear automatically after a project is completed and payment is marked done.</p>
+    <p class="muted">No completed projects yet. Records appear automatically after a project is completed.</p>
   <% } else { %>
     <div style="overflow-x:auto">
       <table class="table" role="table" id="ledgerTable">
@@ -85,7 +90,7 @@
               <td><%= p.ownerAdmin?.name || "—" %></td>
               <td><%= p.assignedEditor?.name || "—" %></td>
               <td><%= p.completedAtFormatted %></td>
-              <td><%= p.paidAtFormatted %></td>
+              <td><% if (p.paymentStatus === "Paid") { %><%= p.paidAtFormatted %><% } else { %><span class="tag tag--pending">Pending</span><% } %></td>
               <td><%= formatMoney(p.clientAmount) %></td>
               <td><%= formatMoney(p.editorAmount) %></td>
               <td style="color:<%= p.earnings >= 0 ? 'var(--success)' : 'var(--danger)' %>;font-weight:600"><%= formatMoney(p.earnings) %></td>
@@ -105,19 +110,20 @@
     <div class="admin-detail-grid">
       <div><span>Highest Earning Project</span><strong><a class="admin-link" href="/admin/projects/<%= highestEarning._id %>"><%= highestEarning.projectName %></a> (<%= formatMoney(highestEarning.earnings) %>)</strong></div>
       <div><span>Lowest Earning Project</span><strong><a class="admin-link" href="/admin/projects/<%= lowestEarning._id %>"><%= lowestEarning.projectName %></a> (<%= formatMoney(lowestEarning.earnings) %>)</strong></div>
-      <div><span>Average Earnings / Project</span><strong><%= formatMoney(avgEarnings) %></strong></div>
-      <div><span>Total Projects Paid</span><strong><%= totalProjects %></strong></div>
+      <div><span>Average Profit / Project</span><strong><%= formatMoney(avgEarnings) %></strong></div>
+      <div><span>Total Projects Completed</span><strong><%= totalProjects %></strong></div>
       <div><span>Total Client Revenue</span><strong><%= formatMoney(totalClientAmount) %></strong></div>
-      <div><span>Total Editor Payments</span><strong><%= formatMoney(totalEditorAmount) %></strong></div>
-      <div><span>Net Earnings</span><strong style="color:<%= totalEarnings >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(totalEarnings) %></strong></div>
+      <div><span>Total Editor Cost</span><strong><%= formatMoney(totalEditorAmount) %></strong></div>
+      <div><span>Editor Payments Pending</span><strong><%= formatMoney(pendingPayment) %></strong></div>
+      <div><span>Editor Payments Made</span><strong><%= formatMoney(paymentMade) %></strong></div>
+      <div><span>Total Profit</span><strong style="color:<%= totalEarnings >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(totalEarnings) %></strong></div>
     </div>
   </div>
   <div class="card admin-panel" style="margin:0">
     <h2 class="h2 mt-0">Record Integrity</h2>
     <p class="muted text-sm">Records appear automatically when:<br /><br />
-      ✓ Project status is <strong>Completed</strong><br />
-      ✓ Payment status is <strong>Paid</strong><br /><br />
-      No manual entry needed. No editing allowed. Earnings calculated as <strong>Client Amount − Editor Amount</strong>.</p>
+      ✓ Project status is <strong>Completed</strong><br /><br />
+      No manual entry needed. No editing allowed. Profit calculated as <strong>Client Amount − Editor Amount</strong> and never changes with payment status. Payment tracking is separate: <strong>Pending</strong> and <strong>Made</strong> move between the two as payments are marked done.</p>
   </div>
 </div>
 <% } %>

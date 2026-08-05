@@ -6,7 +6,7 @@ import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
 import { User } from "../models/User.js";
 import { Notification } from "../models/Notification.js";
-import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount, markProjectPaid, computeEditorPayments } from "../utils/workflow.js";
+import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount, markProjectPaid, computeEditorPayments, getEditorAmount, getClientAmount, getProfit, computeFinancialSummary } from "../utils/workflow.js";
 import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
@@ -98,32 +98,23 @@ adminRouter.get("/", async (req, res) => {
       .lean(),
   ]);
 
-  const projectCounts = getDashboardCounts(await Project.find().lean());
+  const allProjectsFlat = await Project.find().lean();
+  const projectCounts = getDashboardCounts(allProjectsFlat);
 
   const overdueProjects = await Project.countDocuments({
     dueDate: { $lt: now, $ne: null },
     status: { $nin: ["completed"] },
   });
 
-  const profitStats = req.user.role === "admin"
-    ? await Project.aggregate([
-        {
-          $group: {
-            _id: null,
-            totalClientAmount: { $sum: { $ifNull: ["$payment.clientAmount", { $ifNull: ["$payment.amount", 0] }] } },
-            totalEditorAmount: { $sum: { $ifNull: ["$payment.editorAmount", 0] } },
-            totalPaid: {
-              $sum: { $cond: [{ $eq: ["$payment.status", "paid"] }, 1, 0] },
-            },
-          },
-        },
-      ])
-    : [];
+  const profitData = req.user.role === "admin"
+    ? computeFinancialSummary(allProjectsFlat)
+    : null;
 
   const workflowProjects = allProjects.map((p) => ({
     ...p,
     clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
     paymentAmount: p.payment?.amount || 0,
+    editorAmount: getEditorAmount(p),
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
     ownerAssignmentLabel: p.ownerAssignment === "admin" ? "Via JR Admin" : p.ownerAssignment === "direct" ? "Direct to Editor" : null,
@@ -169,15 +160,6 @@ adminRouter.get("/", async (req, res) => {
     ...entry,
     statusLabel: formatStatus(entry.newStatus || entry.previousStatus || ""),
   }));
-
-  const profitData = profitStats.length > 0
-    ? {
-        totalClientAmount: profitStats[0].totalClientAmount || 0,
-        totalEditorAmount: profitStats[0].totalEditorAmount || 0,
-        totalProfit: (profitStats[0].totalClientAmount || 0) - (profitStats[0].totalEditorAmount || 0),
-        totalPaid: profitStats[0].totalPaid || 0,
-      }
-    : null;
 
   res.render("admin/dashboard", {
     pageTitle: "Admin Dashboard",
@@ -251,6 +233,7 @@ adminRouter.get("/workspace", async (req, res) => {
     ...p,
     clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
     latestVersion: p.submissions?.length > 0 ? p.submissions[p.submissions.length - 1].version : null,
+    editorAmount: getEditorAmount(p),
     statusLabel: formatStatus(p.status),
     badgeColor: getBadgeColor(p.status),
     ownerAssignmentLabel: p.ownerAssignment === "admin" ? "Via JR Admin" : p.ownerAssignment === "direct" ? "Direct to Editor" : null,
@@ -569,33 +552,36 @@ adminRouter.post("/editors/:id/toggle", async (req, res) => {
 
 adminRouter.get("/profits", async (req, res) => {
   try {
-    const paidProjects = await Project.find({ status: "completed", "payment.status": "paid" })
+    const completedProjects = await Project.find({ status: "completed" })
       .populate("assignedEditor", "name email")
       .populate("ownerAdmin", "name email")
       .populate("createdBy", "name")
       .populate("clientRef", "name")
-      .sort({ "payment.paidAt": -1 })
+      .sort({ completedAt: -1 })
       .lean();
 
-    const ledger = paidProjects.map((p) => {
-      const clientAmount = p.payment?.clientAmount || p.payment?.amount || 0;
-      const editorAmount = p.payment?.editorAmount || 0;
-      const earnings = clientAmount - editorAmount;
+    const ledger = completedProjects.map((p) => {
+      const clientAmount = getClientAmount(p);
+      const editorAmount = getEditorAmount(p);
+      const earnings = getProfit(p);
       return {
         ...p,
         clientName: p.clientRef?.name || p.client?.name || p.clientName || "",
         clientAmount,
         editorAmount,
         earnings,
+        paymentStatus: p.payment?.status === "paid" ? "Paid" : "Pending",
         completedAtFormatted: p.completedAt ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
         paidAtFormatted: p.payment?.paidAt ? new Date(p.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
       };
     });
 
-    const totalProjects = ledger.length;
-    const totalClientAmount = ledger.reduce((s, p) => s + p.clientAmount, 0);
-    const totalEditorAmount = ledger.reduce((s, p) => s + p.editorAmount, 0);
-    const totalEarnings = totalClientAmount - totalEditorAmount;
+    const summary = computeFinancialSummary(completedProjects);
+
+    const totalProjects = summary.completedCount;
+    const totalClientAmount = summary.totalClientAmount;
+    const totalEditorAmount = summary.totalEditorAmount;
+    const totalEarnings = summary.totalProfit;
     const avgEarnings = totalProjects > 0 ? totalEarnings / totalProjects : 0;
 
     let highestEarning = null;
@@ -615,6 +601,8 @@ adminRouter.get("/profits", async (req, res) => {
       totalClientAmount,
       totalEditorAmount,
       totalEarnings,
+      pendingPayment: summary.pendingPayment,
+      paymentMade: summary.paymentMade,
       avgEarnings,
       highestEarning,
       lowestEarning,
