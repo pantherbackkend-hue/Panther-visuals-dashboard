@@ -1,3 +1,5 @@
+import { createNotification, broadcastDashboardUpdate } from "./notifications.js";
+
 const STATUSES = [
   "pending_assignment",
   "assigned",
@@ -133,6 +135,83 @@ export async function updateEditorAvailability(editorId, UserModel, ProjectModel
       await editor.save();
     }
   }
+}
+
+export async function markProjectPaid(project, user) {
+  if (project.status !== "completed") {
+    return { ok: false, error: "Only completed projects can receive payment." };
+  }
+  if (project.payment.status === "paid") {
+    return { ok: false, error: "Payment already completed." };
+  }
+
+  project.payment.status = "paid";
+  project.payment.paidAt = new Date();
+  project.payment.paidBy = user._id;
+
+  const paidAmount = project.payment?.editorAmount || project.payment?.amount || 0;
+  project.activityTimeline.push({
+    action: "Payment Done",
+    user: user._id,
+    userName: user.name,
+    previousStatus: project.status,
+    newStatus: project.status,
+    notes: `Payment of ₹${paidAmount} marked as paid`,
+  });
+
+  await project.save();
+  await broadcastDashboardUpdate(project);
+
+  await createNotification({
+    recipientRole: "editor",
+    project: project._id,
+    title: `Payment completed: "${project.projectName}"`,
+    message: `Payment of ₹${paidAmount} has been processed.`,
+    type: "payment_done",
+    actionUrl: `/editor/projects/${project._id}`,
+  });
+
+  return { ok: true };
+}
+
+export function computeEditorPayments(editors, completedProjects) {
+  const rows = editors.map((e) => ({
+    editorId: e._id,
+    name: e.name,
+    upiId: e.upiId || "",
+    availability: e.availability,
+    isActive: e.isActive,
+    completedCount: 0,
+    pendingCount: 0,
+    pendingAmount: 0,
+    pendingProjects: [],
+    lastPaidAt: null,
+  }));
+  const index = new Map(rows.map((r) => [String(r.editorId), r]));
+
+  for (const p of completedProjects) {
+    const row = index.get(String(p.assignedEditor?._id || p.assignedEditor));
+    if (!row) continue;
+    row.completedCount++;
+    if (p.payment?.status === "paid") {
+      if (p.payment.paidAt && (!row.lastPaidAt || p.payment.paidAt > row.lastPaidAt)) {
+        row.lastPaidAt = p.payment.paidAt;
+      }
+      continue;
+    }
+    const amount = getEditorAmount(p);
+    row.pendingCount++;
+    row.pendingAmount += amount;
+    row.pendingProjects.push({
+      _id: p._id,
+      projectName: p.projectName,
+      editorAmount: amount,
+      clientName: p.clientRef?.name || p.client?.name || "",
+      completedAt: p.completedAt || null,
+    });
+  }
+
+  return rows;
 }
 
 

@@ -18,6 +18,7 @@ import {
   updateEditorAvailability,
   getEditorAmount,
   setEditorAmount,
+  markProjectPaid,
 } from "../utils/workflow.js";
 import {
   createNotification,
@@ -739,39 +740,10 @@ workflowRouter.post(
         return res.status(404).json({ error: "Project not found." });
       }
 
-      if (project.status !== "completed") {
-        return res.status(400).json({ error: "Only completed projects can receive payment." });
+      const result = await markProjectPaid(project, req.user);
+      if (!result.ok) {
+        return res.status(400).json({ error: result.error });
       }
-
-      if (project.payment.status === "paid") {
-        return res.status(400).json({ error: "Payment already completed." });
-      }
-
-      project.payment.status = "paid";
-      project.payment.paidAt = new Date();
-      project.payment.paidBy = req.user._id;
-
-      const paidAmount = project.payment?.editorAmount || project.payment?.amount || 0;
-      project.activityTimeline.push({
-        action: "Payment Done",
-        user: req.user._id,
-        userName: req.user.name,
-        previousStatus: project.status,
-        newStatus: project.status,
-        notes: `Payment of ₹${paidAmount} marked as paid`,
-      });
-
-      await project.save();
-      await broadcastDashboardUpdate(project);
-
-      await createNotification({
-        recipientRole: "editor",
-        project: project._id,
-        title: `Payment completed: "${project.projectName}"`,
-        message: `Payment of ₹${paidAmount} has been processed.`,
-        type: "payment_done",
-        actionUrl: `/editor/projects/${project._id}`,
-      });
 
       res.json({ success: true });
     } catch (err) {

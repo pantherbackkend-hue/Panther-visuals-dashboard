@@ -1,0 +1,245 @@
+<%- include("../partials/header", { pageTitle }) %>
+<%- include("./partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Payments</p>
+    <h1>Editor Payments</h1>
+    <p class="muted">Centralized view of every editor's completed work and pending payout.</p>
+  </div>
+</section>
+
+<section class="admin-metrics">
+  <article class="card admin-metric"><p class="muted small">Total Editors</p><h2><%= summary.totalEditors %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Awaiting Payment</p><h2><%= summary.awaitingEditors %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Total Outstanding</p><h2><%= formatMoney(summary.totalOutstanding) %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Projects Awaiting Payment</p><h2><%= summary.projectsAwaiting %></h2></article>
+</section>
+
+<div class="card admin-panel admin-toolbar">
+  <div class="admin-filter-bar">
+    <label style="flex:1;min-width:180px">
+      <span class="sr-only">Search editor</span>
+      <input id="searchInput" type="search" placeholder="Search by editor name..." oninput="applyFilters()" />
+    </label>
+    <label>
+      <span class="sr-only">Filter</span>
+      <select id="statusFilter" onchange="applyFilters()">
+        <option value="all">All Editors</option>
+        <option value="pending">Pending Payments</option>
+        <option value="paid">Fully Paid</option>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Sort</span>
+      <select id="sortFilter" onchange="applyFilters()">
+        <option value="due_desc">Highest Due</option>
+        <option value="due_asc">Lowest Due</option>
+        <option value="completed">Most Completed Projects</option>
+        <option value="name">Alphabetical</option>
+        <option value="recent_paid">Recently Paid</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<% if (editors.length === 0) { %>
+  <div class="card admin-panel"><p class="muted">No editors found.</p></div>
+<% } else { %>
+  <div class="editor-cards" id="editorCards">
+    <% editors.forEach(function(e) { %>
+      <article class="card project-card editor-pay-card" data-name="<%= e.name.toLowerCase() %>" data-due="<%= e.pendingAmount %>" data-completed="<%= e.completedCount %>" data-lastpaid="<%= e.lastPaidAt ? new Date(e.lastPaidAt).getTime() : 0 %>">
+        <div class="project-card__head">
+          <h3 class="project-card__name"><%= e.name %></h3>
+          <% if (e.pendingCount > 0) { %>
+            <span class="tag tag--pending">Awaiting Payment</span>
+          <% } else { %>
+            <span class="tag tag--ok">Fully Paid</span>
+          <% } %>
+        </div>
+        <div class="project-card__meta">
+          <span><strong>Completed Projects:</strong> <%= e.completedCount %></span>
+          <span><strong>Pending Payment Amount:</strong> <%= formatMoney(e.pendingAmount) %></span>
+          <span><strong>UPI ID:</strong> <% if (e.upiId) { %><%= e.upiId %><% } else { %>Not Set<% } %></span>
+          <span><strong>Projects Awaiting Payment:</strong> <%= e.pendingCount %></span>
+          <span><strong>Last Payment:</strong> <%= e.lastPaidAt ? formatDate(e.lastPaidAt) : "—" %></span>
+          <span><strong>Availability:</strong> <span class="capitalize"><%= e.availability %></span></span>
+        </div>
+        <div class="project-card__actions">
+          <button type="button" class="quick-action-btn btn-toggle-projects" data-toggle="<%= e.editorId %>">View Projects</button>
+          <% if (e.pendingCount > 0) { %>
+            <button type="button" class="quick-action-btn btn-pay-all" data-editor-id="<%= e.editorId %>" data-amount="<%= e.pendingAmount %>" data-name="<%= e.name %>" data-upi="<%= e.upiId || 'Not set' %>" data-count="<%= e.pendingCount %>" style="border-color:var(--success);color:var(--success)">Mark All Paid</button>
+          <% } %>
+        </div>
+        <div class="editor-pay-projects" data-projects-for="<%= e.editorId %>" style="display:none;margin-top:12px;border-top:1px solid var(--border-light);padding-top:12px">
+          <% if (e.pendingProjects.length === 0) { %>
+            <p class="muted" style="margin:0">No pending payments for this editor.</p>
+          <% } else { %>
+            <% e.pendingProjects.forEach(function(p) { %>
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border-light)">
+                <div style="flex:1;min-width:160px">
+                  <strong><%= p.projectName %></strong>
+                  <span class="muted small" style="display:block"><%= p.clientName %> &middot; Completed <%= p.completedAt ? formatDate(p.completedAt) : "—" %></span>
+                </div>
+                <span class="tag tag--ok">Completed</span>
+                <strong><%= formatMoney(p.editorAmount) %></strong>
+                <button type="button" class="quick-action-btn btn-pay-one" data-editor-id="<%= e.editorId %>" data-project-id="<%= p._id %>" data-amount="<%= p.editorAmount %>" data-name="<%= e.name %>" data-upi="<%= e.upiId || 'Not set' %>" data-count="1" style="border-color:var(--success);color:var(--success)">Mark Paid</button>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+      </article>
+    <% }) %>
+  </div>
+<% } %>
+
+<div id="pay-dialog" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="pay-dialog-title">
+  <div class="confirm-dialog">
+    <p id="pay-dialog-title" style="font-weight:600"></p>
+    <div id="pay-dialog-body">
+      <p>Pay <strong id="pay-amount"></strong> to <strong id="pay-name"></strong></p>
+      <p>UPI: <strong id="pay-upi"></strong></p>
+      <p>Projects: <strong id="pay-count"></strong></p>
+      <p class="muted" style="font-size:13px">Confirm?</p>
+    </div>
+    <div class="confirm-dialog__actions">
+      <button class="btn btn--outline" id="pay-cancel">Cancel</button>
+      <button class="btn" id="pay-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var payDialog = document.getElementById("pay-dialog");
+  var payTitle = document.getElementById("pay-dialog-title");
+  var payAmount = document.getElementById("pay-amount");
+  var payName = document.getElementById("pay-name");
+  var payUpi = document.getElementById("pay-upi");
+  var payCount = document.getElementById("pay-count");
+  var payOk = document.getElementById("pay-ok");
+  var payCancel = document.getElementById("pay-cancel");
+  var pendingAction = null;
+
+  function showPayDialog(details) {
+    payTitle.textContent = "Pay " + details.amount + " to " + details.name + "?";
+    payAmount.textContent = details.amount;
+    payName.textContent = details.name;
+    payUpi.textContent = details.upi;
+    payCount.textContent = details.count;
+    payDialog.classList.add("is-visible");
+    pendingAction = details;
+  }
+
+  function closeDialog() {
+    payDialog.classList.remove("is-visible");
+    pendingAction = null;
+  }
+
+  payOk.addEventListener("click", function () {
+    if (!pendingAction) return;
+    var action = pendingAction;
+    closeDialog();
+    var btn = action.button;
+    btn.disabled = true;
+    btn.textContent = "Processing...";
+    fetch(action.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.error || "Failed to mark payment.");
+          btn.disabled = false;
+          btn.textContent = action.label;
+        }
+      })
+      .catch(function () {
+        alert("Network error.");
+        btn.disabled = false;
+        btn.textContent = action.label;
+      });
+  });
+
+  payCancel.addEventListener("click", closeDialog);
+  payDialog.addEventListener("click", function (e) {
+    if (e.target === payDialog) closeDialog();
+  });
+
+  function payOne(btn) {
+    showPayDialog({
+      button: btn,
+      label: "Mark Paid",
+      url: "/admin/editor-payments/" + btn.dataset.editorId + "/pay",
+      amount: "₹" + Number(btn.dataset.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 }),
+      name: btn.dataset.name,
+      upi: btn.dataset.upi,
+      count: btn.dataset.count,
+    });
+  }
+
+  function payAll(btn) {
+    showPayDialog({
+      button: btn,
+      label: "Mark All Paid",
+      url: "/admin/editor-payments/" + btn.dataset.editorId + "/pay-all",
+      amount: "₹" + Number(btn.dataset.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 }),
+      name: btn.dataset.name,
+      upi: btn.dataset.upi,
+      count: btn.dataset.count,
+    });
+  }
+
+  document.querySelectorAll(".btn-pay-one").forEach(function (btn) {
+    btn.addEventListener("click", function () { payOne(btn); });
+  });
+  document.querySelectorAll(".btn-pay-all").forEach(function (btn) {
+    btn.addEventListener("click", function () { payAll(btn); });
+  });
+  document.querySelectorAll(".btn-toggle-projects").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var target = document.querySelector('[data-projects-for="' + btn.dataset.toggle + '"]');
+      if (!target) return;
+      var isHidden = target.style.display === "none";
+      target.style.display = isHidden ? "" : "none";
+      btn.textContent = isHidden ? "Hide Projects" : "View Projects";
+    });
+  });
+
+  window.applyFilters = function () {
+    var search = document.getElementById("searchInput").value.toLowerCase().trim();
+    var status = document.getElementById("statusFilter").value;
+    var sort = document.getElementById("sortFilter").value;
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".editor-pay-card"));
+    var visible = [];
+
+    cards.forEach(function (card) {
+      var match = true;
+      if (search && card.dataset.name.indexOf(search) === -1) match = false;
+      if (status === "pending" && card.dataset.due === "0") match = false;
+      if (status === "paid" && card.dataset.due !== "0") match = false;
+      card.style.display = match ? "" : "none";
+      if (match) visible.push(card);
+    });
+
+    if (visible.length > 1) {
+      visible.sort(function (a, b) {
+        if (sort === "due_asc") return Number(a.dataset.due) - Number(b.dataset.due);
+        if (sort === "completed") return Number(b.dataset.completed) - Number(a.dataset.completed);
+        if (sort === "name") return a.dataset.name.localeCompare(b.dataset.name);
+        if (sort === "recent_paid") return Number(b.dataset.lastpaid) - Number(a.dataset.lastpaid);
+        return Number(b.dataset.due) - Number(a.dataset.due);
+      });
+      var container = document.getElementById("editorCards");
+      visible.forEach(function (card) { container.appendChild(card); });
+    }
+  };
+})();
+</script>
+
+<%- include("./partials/layout-end") %>
+<%- include("../partials/footer") %>

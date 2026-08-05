@@ -221,7 +221,7 @@
       <div class="payment-detail"><span>Earnings</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
     <% } %>
     <% } %>
-    <div class="payment-detail"><span>Editor UPI ID</span><strong><%= editorUpi || '<span class="muted">Not set</span>' %></strong></div>
+    <div class="payment-detail"><span>Editor UPI ID</span><strong><% if (editorUpi) { %><%= editorUpi %><% } else { %>Not Set<% } %></strong></div>
     <div class="payment-detail"><span>Completed</span><strong><%= project.completedAt ? new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
     <% if (project.payment?.status === "paid") { %>
       <div class="payment-detail"><span>Paid At</span><strong><%= project.payment.paidAt ? new Date(project.payment.paidAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>

@@ -20,7 +20,7 @@
     <h2 class="h2 mt-0">Client Details</h2>
     <div class="admin-detail-grid">
       <div><span>Name</span><strong><%= client.name %></strong></div>
-      <div><span>Reference Assets</span><strong style="white-space:pre-wrap"><%= client.referenceAssets || '<span class="muted">—</span>' %></strong></div>
+      <div><span>Reference Videos</span><strong style="white-space:pre-wrap"><%= client.referenceAssets || '<span class="muted">—</span>' %></strong></div>
       <div><span>Notes</span><strong style="white-space:pre-wrap"><%- client.notes ? renderNotes(client.notes) : '<span class="muted">—</span>' %></strong></div>
       <div><span>Created</span><strong><%= new Date(client.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></strong></div>
       <div><span>Total Projects</span><strong><a href="#projects"><%= totalProjects %></a></strong></div>
@@ -51,7 +51,7 @@
                 <span class="tag tag--ok" style="font-size:10px">Default</span>
               <% } %>
               <button class="quick-action-btn" onclick="editAsset('<%= asset._id %>', '<%= (asset.label || "").replace(/'/g, "\\'") %>', '<%= (asset.driveLink || "").replace(/'/g, "\\'") %>', '<%= (asset.description || "").replace(/'/g, "\\'") %>')">Edit</button>
-              <form method="post" action="/admin/clients/<%= client._id %>/assets/<%= asset._id %>/delete" class="inline" onsubmit="return confirm('Delete this reference asset?')">
+              <form method="post" action="/admin/clients/<%= client._id %>/assets/<%= asset._id %>/delete" class="inline" onsubmit="return confirm('Delete this reference video?')">
                 <button class="quick-action-btn quick-action-btn--danger" type="submit">Delete</button>
               </form>
             </div>
@@ -59,11 +59,11 @@
         <% }) %>
       </div>
     <% } else { %>
-      <p class="muted">No reference assets yet. Add brand guidelines, style guides, or reference files.</p>
+      <p class="muted">No reference videos yet. Add brand guidelines, style guides, or reference files.</p>
     <% } %>
 
     <details style="margin-top:12px">
-      <summary class="btn btn--outline btn--small" style="cursor:pointer">+ Add Reference Asset</summary>
+      <summary class="btn btn--outline btn--small" style="cursor:pointer">+ Add Reference Video</summary>
       <form method="post" action="/admin/clients/<%= client._id %>/assets" class="admin-form full-width" style="margin-top:12px">
         <div class="form-group">
           <label for="assetLabel">Asset Name</label>
@@ -166,7 +166,7 @@
 
 <div id="edit-asset-dialog" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-asset-title">
   <div class="confirm-dialog" style="max-width:480px">
-    <p id="edit-asset-title" style="font-weight:600;margin-bottom:16px">Edit Reference Asset</p>
+    <p id="edit-asset-title" style="font-weight:600;margin-bottom:16px">Edit Reference Video</p>
     <form method="post" id="edit-asset-form">
       <div class="form-group">
         <label for="editAssetLabel">Asset Name</label>

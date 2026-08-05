@@ -6,7 +6,7 @@ import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
 import { User } from "../models/User.js";
 import { Notification } from "../models/Notification.js";
-import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount } from "../utils/workflow.js";
+import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount, markProjectPaid, computeEditorPayments } from "../utils/workflow.js";
 import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
@@ -629,6 +629,106 @@ adminRouter.get("/profits", async (req, res) => {
   }
 });
 
+// --- Editor Payments (admin only) ---
+
+adminRouter.get("/editor-payments", async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      req.flash("error", "Access denied.");
+      return res.redirect("/admin");
+    }
+
+    const editors = await User.find({ role: "editor" }).sort({ name: 1 }).lean();
+    const editorIds = editors.map((e) => e._id);
+
+    const completedProjects = await Project.find({
+      assignedEditor: { $in: editorIds },
+      status: "completed",
+    })
+      .populate("clientRef", "name")
+      .lean();
+
+    const rows = computeEditorPayments(editors, completedProjects);
+    const totalOutstanding = rows.reduce((s, r) => s + r.pendingAmount, 0);
+    const projectsAwaiting = rows.reduce((s, r) => s + r.pendingCount, 0);
+    const awaitingEditors = rows.filter((r) => r.pendingCount > 0).length;
+
+    res.render("admin/editor-payments", {
+      pageTitle: "Editor Payments",
+      activeSection: "editor-payments",
+      editors: rows,
+      summary: {
+        totalEditors: editors.length,
+        awaitingEditors,
+        totalOutstanding,
+        projectsAwaiting,
+      },
+      formatMoney: (v) => `₹${Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`,
+      formatDate,
+    });
+  } catch (err) {
+    console.error("Editor payments error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin");
+  }
+});
+
+adminRouter.post("/editor-payments/:editorId/pay", async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
+    const { editorId } = req.params;
+    const { projectId } = req.body;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res.status(400).json({ error: "Invalid project." });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found." });
+    }
+    if (String(project.assignedEditor?._id || project.assignedEditor) !== String(editorId)) {
+      return res.status(400).json({ error: "Project is not assigned to this editor." });
+    }
+
+    const result = await markProjectPaid(project, req.user);
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Editor payment error:", err);
+    return res.status(500).json({ error: err.message || "Failed to mark payment." });
+  }
+});
+
+adminRouter.post("/editor-payments/:editorId/pay-all", async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
+    const { editorId } = req.params;
+    const projects = await Project.find({
+      assignedEditor: editorId,
+      status: "completed",
+      "payment.status": "pending",
+    });
+
+    let paid = 0;
+    for (const project of projects) {
+      const result = await markProjectPaid(project, req.user);
+      if (result.ok) paid++;
+    }
+    return res.json({ success: true, paid });
+  } catch (err) {
+    console.error("Pay all error:", err);
+    return res.status(500).json({ error: err.message || "Failed to mark payments." });
+  }
+});
+
 adminRouter.post("/editors/:id/delete", async (req, res) => {
   try {
     const { id } = req.params;
@@ -1105,7 +1205,7 @@ adminRouter.post("/clients/:id/assets", async (req, res) => {
 
     await client.save();
 
-    req.flash("success", "Reference asset added.");
+    req.flash("success", "Reference video added.");
     return res.redirect(`/admin/clients/${id}#assets`);
   } catch (err) {
     console.error("Asset add error:", err);
@@ -1143,7 +1243,7 @@ adminRouter.post("/clients/:id/assets/:assetId/edit", async (req, res) => {
 
     await client.save();
 
-    req.flash("success", "Reference asset updated.");
+    req.flash("success", "Reference video updated.");
     return res.redirect(`/admin/clients/${id}#assets`);
   } catch (err) {
     console.error("Asset edit error:", err);
@@ -1181,7 +1281,7 @@ adminRouter.post("/clients/:id/assets/:assetId/delete", async (req, res) => {
       await client.save();
     }
 
-    req.flash("success", "Reference asset deleted.");
+    req.flash("success", "Reference video deleted.");
     return res.redirect(`/admin/clients/${id}#assets`);
   } catch (err) {
     console.error("Asset delete error:", err);
@@ -1216,7 +1316,7 @@ adminRouter.post("/clients/:id/assets/:assetId/default", async (req, res) => {
     asset.isDefault = true;
     await client.save();
 
-    req.flash("success", "Default reference asset updated.");
+    req.flash("success", "Default reference video updated.");
     return res.redirect(`/admin/clients/${id}#assets`);
   } catch (err) {
     console.error("Asset default error:", err);

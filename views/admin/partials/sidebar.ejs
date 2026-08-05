@@ -8,6 +8,9 @@
   <% if (currentUser && currentUser.role === "admin") { %>
     <a class="admin-sidebar__link <%= activeSection === "profits" ? "is-active" : "" %>" href="/admin/profits">Earnings</a>
   <% } %>
+  <% if (currentUser && currentUser.role === "admin") { %>
+    <a class="admin-sidebar__link <%= activeSection === "editor-payments" ? "is-active" : "" %>" href="/admin/editor-payments">Editor Payments</a>
+  <% } %>
   <% if (currentUser && currentUser.role === "owner") { %>
     <a class="admin-sidebar__link <%= activeSection === "payment-status" ? "is-active" : "" %>" href="/admin/payment-status">Payment Status</a>
   <% } %>

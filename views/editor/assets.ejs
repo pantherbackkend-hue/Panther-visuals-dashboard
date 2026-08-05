@@ -4,12 +4,12 @@
   <div>
     <p class="eyebrow">Reference library</p>
     <h1>My Assets</h1>
-    <p class="muted">Reference assets for clients you have projects for. Managed by admin.</p>
+    <p class="muted">Reference videos for clients you have projects for. Managed by admin.</p>
   </div>
 </section>
 
 <% if (!clientAssets || clientAssets.length === 0) { %>
-  <div class="card admin-panel"><p class="muted">No assets available. Reference assets appear here when clients have assets added by the admin.</p></div>
+  <div class="card admin-panel"><p class="muted">No assets available. Reference videos appear here when clients have assets added by the admin.</p></div>
 <% } else { %>
   <% var hasAnyAssets = false; %>
   <% clientAssets.forEach(function(item) { %>
@@ -47,7 +47,7 @@
     </div>
   <% }); %>
   <% if (!hasAnyAssets) { %>
-    <div class="card admin-panel"><p class="muted">Your assigned clients do not have any reference assets yet.</p></div>
+    <div class="card admin-panel"><p class="muted">Your assigned clients do not have any reference videos yet.</p></div>
   <% } %>
 <% } %>
 
