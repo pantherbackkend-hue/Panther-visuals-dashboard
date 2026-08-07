@@ -44,7 +44,8 @@
           <th scope="col">Received</th>
           <th scope="col">Completed</th>
           <th scope="col">Payment Amount</th>
-          <th scope="col">Payment Status</th>
+          <th scope="col">Admin Payment</th>
+          <th scope="col">Editor Payment</th>
           <th scope="col"></th>
         </tr>
       </thead>
@@ -57,7 +58,8 @@
             <td><%= p.receivedDate %></td>
             <td><%= p.completedDate %></td>
             <td><%= formatMoney(p.paymentAmount) %></td>
-            <td><span class="tag tag--<%= p.paymentBadge %>"><%= p.paymentStatus %></span></td>
+            <td><span class="tag tag--<%= p.adminPaymentBadge %>"><%= p.adminPaymentStatus %></span></td>
+            <td><span class="tag tag--<%= p.editorPaymentBadge %>"><%= p.editorPaymentStatus %></span></td>
             <td><a class="btn btn--outline btn--small" href="/admin/projects/<%= p._id %>">Open Project</a></td>
           </tr>
         <% }) %>

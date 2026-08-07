@@ -109,6 +109,7 @@
                     </option>
                   <% }) %>
                 </select>
+                <input type="number" name="editorAmount" min="1" step="any" required placeholder="₹ Editor Amount" class="text-sm" style="width:130px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card)" />
                 <button type="submit" class="btn btn--small">Assign</button>
               </form>
               <form method="post" action="/admin/projects/<%= p._id %>/delete" style="display:inline">
@@ -120,6 +121,18 @@
                 <input type="hidden" name="toStatus" value="ongoing" />
                 <input type="hidden" name="notes" value="" />
                 <button class="quick-action-btn" type="submit">Continue Workflow</button>
+              </form>
+              <form class="inline-assign-form" style="display:inline-flex;gap:8px">
+                <input type="hidden" name="projectId" value="<%= p._id %>" />
+                <select name="editorId" required class="text-sm" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card)">
+                  <% editors.forEach(function(e) { %>
+                    <option value="<%= e._id %>" <%= e.availability === 'on_leave' ? 'disabled' : '' %> <%= String(e._id) === String(p.assignedEditor?._id) ? 'selected' : '' %> data-availability="<%= e.availability %>" data-active="<%= e.activeCount %>">
+                      <%= e.name %> — <%= e.specialization || "—" %> (<%= e.availability %>, <%= e.activeCount %> active)
+                    </option>
+                  <% }) %>
+                </select>
+                <input type="number" name="editorAmount" min="1" step="any" required value="<%= p.editorAmount || '' %>" class="text-sm" style="width:130px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card)" />
+                <button type="submit" class="btn btn--small">Update</button>
               </form>
             <% } %>
           </div>
@@ -194,11 +207,15 @@
           </div>
           <div class="project-card__actions">
             <a class="quick-action-btn" href="/admin/projects/<%= p._id %>">Open Project</a>
-            <% if (p.payment?.status === "paid") { %>
+            <% if (p.payment?.admin?.status === "paid" && p.payment?.editor?.status === "paid") { %>
               <span class="tag tag--ok">Paid</span>
             <% } else { %>
-              <span class="tag tag--pending">Awaiting Payment</span>
-              <button class="quick-action-btn btn-payment" data-id="<%= p._id %>" style="border-color:var(--success);color:var(--success)">Mark Paid</button>
+              <% if (p.payment?.admin?.status !== "paid" && currentUser.role === "owner") { %>
+                <button class="quick-action-btn btn-payment" data-id="<%= p._id %>" data-who="admin" style="border-color:var(--success);color:var(--success)">Pay Admin</button>
+              <% } %>
+              <% if (p.payment?.editor?.status !== "paid") { %>
+                <button class="quick-action-btn btn-payment" data-id="<%= p._id %>" data-who="editor" style="border-color:var(--success);color:var(--success)">Pay Editor</button>
+              <% } %>
             <% } %>
           </div>
         </article>
@@ -364,10 +381,17 @@ function showInlineError(el, msg) {
     form.addEventListener('submit', async function(e) {
       e.preventDefault();
       var btn = this.querySelector('button[type="submit"]');
+      var btnLabel = btn.textContent;
       var select = this.querySelector('select[name="editorId"]');
+      var amountInput = this.querySelector('input[name="editorAmount"]');
+      var amount = String(amountInput.value || '').trim();
       var selected = select.options[select.selectedIndex];
 
       if (!select.value) { showInlineError(btn, 'Please select an editor.'); return; }
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        showInlineError(btn, 'Please enter a valid editor amount greater than 0.');
+        return;
+      }
       if (selected.dataset.availability === 'on_leave') { showInlineError(btn, 'Cannot assign: Editor is on leave.'); return; }
       if (selected.dataset.availability === 'busy' && parseInt(selected.dataset.active) >= 3) {
         var confirmed = await showConfirm('Editor is fully occupied. Assign anyway?');
@@ -381,13 +405,13 @@ function showInlineError(el, msg) {
         var res = await fetch('/admin/workspace/assign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId: this.querySelector('input[name="projectId"]').value, editorId: select.value }),
+          body: JSON.stringify({ projectId: this.querySelector('input[name="projectId"]').value, editorId: select.value, editorAmount: Number(amount) }),
         });
         var result = await res.json();
         if (result.success) { window.location.reload(); }
         else { showInlineError(btn, result.error || 'Assignment failed.'); }
       } catch (err) { showInlineError(btn, 'Network error.'); }
-      finally { btn.disabled = false; btn.textContent = 'Assign'; }
+      finally { btn.disabled = false; btn.textContent = btnLabel; }
     });
   });
 
@@ -413,11 +437,12 @@ function showInlineError(el, msg) {
   document.querySelectorAll('.btn-payment').forEach(function(btn) {
     btn.addEventListener('click', async function() {
       var id = btn.dataset.id;
+      var who = btn.dataset.who;
       if (!id) return;
       btn.disabled = true;
       btn.textContent = '...';
       try {
-        var res = await fetch('/admin/projects/' + id + '/payment-done', {
+        var res = await fetch('/admin/projects/' + id + '/payment-done/' + who, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });

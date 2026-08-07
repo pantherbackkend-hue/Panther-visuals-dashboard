@@ -72,15 +72,15 @@
           <div class="detail-row">
             <span class="detail-row__label">Payment Status</span>
             <span class="detail-row__value">
-              <span class="tag tag--<%= project.payment?.status === 'paid' ? 'ok' : 'pending' %>">
-                <%= project.payment?.status === 'paid' ? 'Paid' : 'Pending' %>
+              <span class="tag tag--<%= project.payment?.editor?.status === 'paid' ? 'ok' : 'pending' %>">
+                <%= project.payment?.editor?.status === 'paid' ? 'Paid' : 'Pending' %>
               </span>
             </span>
           </div>
-          <% if (project.payment?.status === 'paid' && project.payment?.paidAt) { %>
+          <% if (project.payment?.editor?.status === 'paid' && project.payment?.editor?.paidAt) { %>
           <div class="detail-row">
             <span class="detail-row__label">Paid At</span>
-            <span class="detail-row__value"><%= new Date(project.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
+            <span class="detail-row__value"><%= new Date(project.payment.editor.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
           </div>
           <% } %>
           <div class="detail-row">

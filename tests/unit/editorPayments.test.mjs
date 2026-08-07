@@ -13,7 +13,7 @@ function project(id, editorId, amount, status, paidAt) {
     projectName: `P${id}`,
     assignedEditor: editorId,
     editorAmount: amount,
-    payment: { status, paidAt: paidAt || null },
+    payment: { editor: { status, paidAt: paidAt || null } },
   };
 }
 
@@ -46,9 +46,20 @@ test("projects without editorAmount count as zero due, not client amount", () =>
     projectName: "Legacy",
     assignedEditor: "e1",
     editorAmount: undefined,
-    payment: { status: "pending", clientAmount: 99999 },
+    payment: { clientAmount: 99999 },
   };
   const rows = computeEditorPayments(editors, [legacy]);
   assert.equal(rows[0].pendingAmount, 0);
   assert.equal(rows[0].pendingCount, 1);
+});
+
+test("admin payout status does not affect editor payment module", () => {
+  const rows = computeEditorPayments(editors, [
+    project("p1", "e1", 3000, "pending"),
+    { ...project("p2", "e1", 5000, "pending"), payment: { admin: { status: "paid" }, editor: { status: "pending" } } },
+  ]);
+  const row = rows[0];
+  assert.equal(row.pendingCount, 2);
+  assert.equal(row.pendingAmount, 8000);
+  assert.equal(row.lastPaidAt, null);
 });

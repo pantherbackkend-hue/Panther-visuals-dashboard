@@ -180,9 +180,14 @@
         <div><span>Earnings</span><strong style="color:<%= profit >= 0 ? 'var(--success)' : 'var(--danger)' %>"><%= formatMoney(profit) %></strong></div>
       <% } %>
     <% } %>
-    <div><span>Payment Status</span><strong>
-      <% if (project.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span>
-      <% } else if (project.payment?.status === "pending" && project.status === "completed") { %><span class="tag tag--pending">Awaiting Payment</span>
+    <div><span>Admin Payment</span><strong>
+      <% if (project.payment?.admin?.status === "paid") { %><span class="tag tag--ok">Paid</span>
+      <% } else if (project.status === "completed") { %><span class="tag tag--pending">Pending</span>
+      <% } else { %><span class="muted">N/A</span><% } %>
+    </strong></div>
+    <div><span>Editor Payment</span><strong>
+      <% if (project.payment?.editor?.status === "paid") { %><span class="tag tag--ok">Paid</span>
+      <% } else if (project.status === "completed") { %><span class="tag tag--pending">Pending</span>
       <% } else { %><span class="muted">N/A</span><% } %>
     </strong></div>
     <% if (project.notes) { %>
@@ -199,7 +204,7 @@
 <% var waMsg = encodeURIComponent("Hi " + editorName + "%0A%0APayment has been completed.%0A%0AProject: " + project.projectName + "%0AClient: " + clientName + "%0AAmount: ₹" + waPayAmount + "%0A%0AThank you."); %>
 <% var waUrl = "https://wa.me/?text=" + waMsg; %>
 <div class="card admin-panel payment-section">
-    <h2 class="h2 mt-0">Payment <span class="tag tag--<%= project.payment?.status === 'paid' ? 'ok' : 'pending' %>" style="margin-left:8px"><%= project.payment?.status === 'paid' ? 'Paid' : 'Pending' %></span></h2>
+    <h2 class="h2 mt-0">Payment</h2>
   <div class="payment-details">
     <div class="payment-detail"><span>Project</span><strong><%= project.projectName %></strong></div>
     <div class="payment-detail"><span>Client</span><strong><%= clientName %></strong></div>
@@ -223,19 +228,39 @@
     <% } %>
     <div class="payment-detail"><span>Editor UPI ID</span><strong><% if (editorUpi) { %><%= editorUpi %><% } else { %>Not Set<% } %></strong></div>
     <div class="payment-detail"><span>Completed</span><strong><%= project.completedAt ? new Date(project.completedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
-    <% if (project.payment?.status === "paid") { %>
-      <div class="payment-detail"><span>Paid At</span><strong><%= project.payment.paidAt ? new Date(project.payment.paidAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
-      <div class="payment-detail"><span>Paid By</span><strong><%= project.payment.paidBy?.name || "Admin" %></strong></div>
+  </div>
+
+  <div class="payment-section__row">
+    <h3 class="h3 mt-0">Admin Payment</h3>
+    <div class="payment-details">
+      <div class="payment-detail"><span>Status</span><strong><% if (project.payment?.admin?.status === "paid") { %><span class="tag tag--ok">Paid</span><% } else { %><span class="tag tag--pending">Pending</span><% } %></strong></div>
+      <div class="payment-detail"><span>Paid On</span><strong><%= project.payment?.admin?.paidAt ? new Date(project.payment.admin.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
+      <div class="payment-detail"><span>Paid By</span><strong><%= project.payment?.admin?.paidBy?.name || "—" %></strong></div>
+    </div>
+    <% if (project.payment?.admin?.status !== "paid" && currentUser.role === "owner") { %>
+      <button class="btn btn--ok btn-payment-done" data-who="admin">Mark Paid to Admin</button>
+    <% } else if (project.payment?.admin?.status !== "paid" && currentUser.role === "admin") { %>
+      <p class="muted" style="margin:0"><strong>Waiting for Owner confirmation</strong></p>
     <% } %>
   </div>
-  <% if (project.payment?.status !== "paid") { %>
-    <div class="payment-actions">
-      <button class="btn btn--ok" id="btn-payment-done">Mark Payment Done</button>
-      <% if (editorUpi) { %>
-        <a class="btn btn--outline" href="<%= waUrl %>" target="_blank" rel="noopener">Open WhatsApp</a>
-      <% } %>
+
+  <div class="payment-section__row">
+    <h3 class="h3 mt-0">Editor Payment</h3>
+    <div class="payment-details">
+      <div class="payment-detail"><span>Status</span><strong><% if (project.payment?.editor?.status === "paid") { %><span class="tag tag--ok">Paid</span><% } else { %><span class="tag tag--pending">Pending</span><% } %></strong></div>
+      <div class="payment-detail"><span>Paid On</span><strong><%= project.payment?.editor?.paidAt ? new Date(project.payment.editor.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—" %></strong></div>
+      <div class="payment-detail"><span>Paid By</span><strong><%= project.payment?.editor?.paidBy?.name || "—" %></strong></div>
     </div>
-  <% } %>
+    <% if (project.payment?.editor?.status !== "paid" && (currentUser.role === "owner" || currentUser.role === "admin")) { %>
+      <button class="btn btn--ok btn-payment-done" data-who="editor">Mark Paid to Editor</button>
+    <% } %>
+  </div>
+
+  <div class="payment-actions">
+    <% if (editorUpi) { %>
+      <a class="btn btn--outline" href="<%= waUrl %>" target="_blank" rel="noopener">Open WhatsApp</a>
+    <% } %>
+  </div>
 </div>
 <% } %>
 
@@ -474,15 +499,16 @@
     });
   }
 
-  var paymentBtn = document.getElementById("btn-payment-done");
-  if (paymentBtn) {
+  document.querySelectorAll(".btn-payment-done").forEach(function (paymentBtn) {
     paymentBtn.addEventListener("click", function () {
-      showConfirm("Mark payment as done? This cannot be undone.").then(function (confirmed) {
+      var who = paymentBtn.dataset.who;
+      var label = who === "admin" ? "Mark payment to Admin as done?" : "Mark payment to Editor as done?";
+      showConfirm(label + " This cannot be undone.").then(function (confirmed) {
         if (!confirmed) return;
         paymentBtn.disabled = true;
         paymentBtn.textContent = "Processing...";
 
-        fetch("/admin/projects/<%= project._id %>/payment-done", {
+        fetch("/admin/projects/<%= project._id %>/payment-done/" + who, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         })
@@ -493,17 +519,17 @@
             } else {
               showFormError(paymentBtn.parentNode, data.error || "Failed to mark payment.");
               paymentBtn.disabled = false;
-              paymentBtn.textContent = "Mark Payment Done";
+              paymentBtn.textContent = "Mark Paid to " + (who === "admin" ? "Admin" : "Editor");
             }
           })
           .catch(function () {
             showFormError(paymentBtn.parentNode, "Network error.");
             paymentBtn.disabled = false;
-            paymentBtn.textContent = "Mark Payment Done";
+            paymentBtn.textContent = "Mark Paid to " + (who === "admin" ? "Admin" : "Editor");
           });
       });
     });
-  }
+  });
 })();
 </script>
 

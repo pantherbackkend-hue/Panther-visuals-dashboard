@@ -18,7 +18,8 @@ import {
   updateEditorAvailability,
   getEditorAmount,
   setEditorAmount,
-  markProjectPaid,
+  markPayoutPaid,
+  isPayoutPaid,
 } from "../utils/workflow.js";
 import {
   createNotification,
@@ -724,13 +725,19 @@ workflowRouter.post(
 // --- Admin: Mark payment done (completed projects only) ---
 
 workflowRouter.post(
-  "/admin/projects/:id/payment-done",
+  "/admin/projects/:id/payment-done/:who",
   requireDb,
   requireAuth,
   requireAdmin,
   async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id, who } = req.params;
+      if (who !== "admin" && who !== "editor") {
+        return res.status(400).json({ error: "Invalid payment target." });
+      }
+      if (who === "admin" && req.user.role !== "owner") {
+        return res.status(403).json({ error: "Only the Owner can mark payment to Admin." });
+      }
       if (!mongoose.isValidObjectId(id)) {
         return res.status(400).json({ error: "Invalid project id." });
       }
@@ -740,7 +747,7 @@ workflowRouter.post(
         return res.status(404).json({ error: "Project not found." });
       }
 
-      const result = await markProjectPaid(project, req.user);
+      const result = await markPayoutPaid(project, req.user, who);
       if (!result.ok) {
         return res.status(400).json({ error: result.error });
       }
@@ -854,7 +861,7 @@ workflowRouter.post(
         project.type = project.type || "Short";
       }
 
-      if (project.payment?.status !== "paid") {
+      if (!isPayoutPaid(project, "editor")) {
         if (req.user.role === "owner") {
           const ca = Number(clientAmount);
           project.payment.clientAmount = isNaN(ca) ? (project.payment.clientAmount || 0) : ca;
@@ -1408,7 +1415,7 @@ workflowRouter.get(
       const rows = projects.map((p) => {
         const editorAmount = getEditorAmount(p);
         const amount = editorAmount;
-        const isPaid = p.payment?.status === "paid";
+        const isPaid = isPayoutPaid(p, "editor");
         return {
           _id: p._id,
           projectName: p.projectName,
@@ -1418,9 +1425,9 @@ workflowRouter.get(
             ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
             : "—",
           amount,
-          paymentStatus: p.payment?.status || "pending",
-          paidAtFormatted: p.payment?.paidAt
-            ? new Date(p.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
+          paymentStatus: isPaid ? "paid" : "pending",
+          paidAtFormatted: p.payment?.editor?.paidAt
+            ? new Date(p.payment.editor.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
             : "—",
         };
       });

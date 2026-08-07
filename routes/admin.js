@@ -6,7 +6,7 @@ import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
 import { User } from "../models/User.js";
 import { Notification } from "../models/Notification.js";
-import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount, markProjectPaid, computeEditorPayments, getEditorAmount, getClientAmount, getProfit, computeFinancialSummary } from "../utils/workflow.js";
+import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount, markPayoutPaid, isPayoutPaid, computeEditorPayments, getEditorAmount, getClientAmount, getProfit, computeFinancialSummary } from "../utils/workflow.js";
 import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
@@ -58,8 +58,8 @@ adminRouter.get("/", async (req, res) => {
     Project.countDocuments({ status: "ongoing" }),
     Project.countDocuments({ status: "submitted" }),
     Project.countDocuments({ status: "completed" }),
-    Project.countDocuments({ status: "completed", "payment.status": "pending" }),
-    Project.countDocuments({ status: "completed", "payment.status": "paid" }),
+    Project.countDocuments({ status: "completed", "payment.editor.status": "pending" }),
+    Project.countDocuments({ status: "completed", "payment.editor.status": "paid" }),
     User.countDocuments({ role: "editor", availability: "available", isActive: true }),
     User.countDocuments({ role: "editor", availability: "busy", isActive: true }),
     User.countDocuments({ role: "editor", availability: "on_leave", isActive: true }),
@@ -141,7 +141,7 @@ adminRouter.get("/", async (req, res) => {
       const pendingPayment = await Project.countDocuments({
         assignedEditor: e._id,
         status: "completed",
-        "payment.status": "pending",
+        "payment.editor.status": "pending",
       });
       return {
         name: e.name,
@@ -277,7 +277,7 @@ adminRouter.get("/workspace", async (req, res) => {
 
 adminRouter.post("/workspace/assign", async (req, res) => {
   try {
-    const { projectId, editorId, assetsFolderLink, price, notes } = req.body;
+    const { projectId, editorId, assetsFolderLink, editorAmount, notes } = req.body;
 
     if (!projectId || !mongoose.isValidObjectId(projectId)) {
       return res.status(400).json({ success: false, error: "Invalid project." });
@@ -286,12 +286,17 @@ adminRouter.post("/workspace/assign", async (req, res) => {
       return res.status(400).json({ success: false, error: "Invalid editor." });
     }
 
+    const amount = Number(editorAmount);
+    if (!String(editorAmount ?? "").trim() || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, error: "Enter a valid editor amount greater than 0." });
+    }
+
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ success: false, error: "Project not found." });
     }
 
-    if (project.status !== "pending_assignment") {
+    if (project.status !== "pending_assignment" && project.status !== "assigned") {
       return res.status(400).json({ success: false, error: "Project is already assigned." });
     }
 
@@ -315,6 +320,7 @@ adminRouter.post("/workspace/assign", async (req, res) => {
     }
 
     const fromStatus = project.status;
+    const previousEditorId = project.assignedEditor ? String(project.assignedEditor) : "";
     project.assignedEditor = editor._id;
     // Default the field from the editor's specialization ONLY if the project has no field yet
     if (!project.field || String(project.field).trim() === "") {
@@ -326,14 +332,7 @@ adminRouter.post("/workspace/assign", async (req, res) => {
       try { new URL(assetsFolderLink); project.assetsFolderLink = assetsFolderLink.trim(); } catch { /* ignore invalid URL */ }
     }
 
-    if (price && !isNaN(Number(price))) {
-      if (project.ownerAssignment) {
-        setEditorAmount(project, Number(price));
-      } else {
-        project.payment.amount = Number(price);
-        project.payment.clientAmount = Number(price);
-      }
-    }
+    setEditorAmount(project, amount);
 
     project.activityTimeline.push({
       action: "Assigned",
@@ -345,6 +344,9 @@ adminRouter.post("/workspace/assign", async (req, res) => {
     });
 
     await project.save();
+    if (previousEditorId && previousEditorId !== String(editor._id)) {
+      await updateEditorAvailability(previousEditorId, User, Project);
+    }
     await updateEditorAvailability(editor._id, User, Project);
     await notifyProjectAssigned(project, editor);
     await broadcastDashboardUpdate(project);
@@ -570,9 +572,9 @@ adminRouter.get("/profits", async (req, res) => {
         clientAmount,
         editorAmount,
         earnings,
-        paymentStatus: p.payment?.status === "paid" ? "Paid" : "Pending",
+        paymentStatus: isPayoutPaid(p, "editor") ? "Paid" : "Pending",
         completedAtFormatted: p.completedAt ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
-        paidAtFormatted: p.payment?.paidAt ? new Date(p.payment.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
+        paidAtFormatted: p.payment?.editor?.paidAt ? new Date(p.payment.editor.paidAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
       };
     });
 
@@ -681,7 +683,7 @@ adminRouter.post("/editor-payments/:editorId/pay", async (req, res) => {
       return res.status(400).json({ error: "Project is not assigned to this editor." });
     }
 
-    const result = await markProjectPaid(project, req.user);
+    const result = await markPayoutPaid(project, req.user, "editor");
     if (!result.ok) {
       return res.status(400).json({ error: result.error });
     }
@@ -702,12 +704,12 @@ adminRouter.post("/editor-payments/:editorId/pay-all", async (req, res) => {
     const projects = await Project.find({
       assignedEditor: editorId,
       status: "completed",
-      "payment.status": "pending",
+      "payment.editor.status": "pending",
     });
 
     let paid = 0;
     for (const project of projects) {
-      const result = await markProjectPaid(project, req.user);
+      const result = await markPayoutPaid(project, req.user, "editor");
       if (result.ok) paid++;
     }
     return res.json({ success: true, paid });
@@ -886,7 +888,7 @@ adminRouter.get("/clients/:id", async (req, res) => {
       badgeColor: getBadgeColor(p.status),
       assignedEditorName: p.assignedEditor?.name || "Unassigned",
       createdAt: formatDate(p.createdAt),
-      paymentStatus: p.payment?.status || "pending",
+      paymentStatus: isPayoutPaid(p, "editor") ? "paid" : "pending",
     }));
 
     const recentProjects = projectRows.slice(0, 5);

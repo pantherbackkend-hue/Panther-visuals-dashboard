@@ -93,6 +93,10 @@ export function getProfit(project) {
   return getClientAmount(project) - getEditorAmount(project);
 }
 
+export function isPayoutPaid(project, who) {
+  return project?.payment?.[who]?.status === "paid";
+}
+
 export function computeFinancialSummary(projects) {
   let totalClientAmount = 0;
   let totalEditorAmount = 0;
@@ -107,7 +111,7 @@ export function computeFinancialSummary(projects) {
     const editorAmount = getEditorAmount(p);
     totalClientAmount += clientAmount;
     totalEditorAmount += editorAmount;
-    if (p.payment?.status === "paid") {
+    if (isPayoutPaid(p, "editor")) {
       paymentMade += editorAmount;
       totalPaid++;
     } else {
@@ -177,39 +181,45 @@ export async function updateEditorAvailability(editorId, UserModel, ProjectModel
   }
 }
 
-export async function markProjectPaid(project, user) {
+export async function markPayoutPaid(project, user, who) {
+  if (who !== "admin" && who !== "editor") {
+    return { ok: false, error: "Invalid payment target." };
+  }
   if (project.status !== "completed") {
     return { ok: false, error: "Only completed projects can receive payment." };
   }
-  if (project.payment.status === "paid") {
-    return { ok: false, error: "Payment already completed." };
+  if (isPayoutPaid(project, who)) {
+    return { ok: false, error: `Payment to ${who === "admin" ? "Admin" : "Editor"} already completed.` };
   }
 
-  project.payment.status = "paid";
-  project.payment.paidAt = new Date();
-  project.payment.paidBy = user._id;
+  project.payment[who].status = "paid";
+  project.payment[who].paidAt = new Date();
+  project.payment[who].paidBy = user._id;
 
   const paidAmount = getEditorAmount(project);
+  const label = who === "admin" ? "Admin" : "Editor";
   project.activityTimeline.push({
-    action: "Payment Done",
+    action: `Payment made to ${label}`,
     user: user._id,
     userName: user.name,
     previousStatus: project.status,
     newStatus: project.status,
-    notes: `Payment of ₹${paidAmount} marked as paid`,
+    notes: `Payment of ₹${paidAmount} marked as paid to ${label}`,
   });
 
   await project.save();
   await broadcastDashboardUpdate(project);
 
-  await createNotification({
-    recipientRole: "editor",
-    project: project._id,
-    title: `Payment completed: "${project.projectName}"`,
-    message: `Payment of ₹${paidAmount} has been processed.`,
-    type: "payment_done",
-    actionUrl: `/editor/projects/${project._id}`,
-  });
+  if (who === "editor") {
+    await createNotification({
+      recipientRole: "editor",
+      project: project._id,
+      title: `Payment completed: "${project.projectName}"`,
+      message: `Payment of ₹${paidAmount} has been processed.`,
+      type: "payment_done",
+      actionUrl: `/editor/projects/${project._id}`,
+    });
+  }
 
   return { ok: true };
 }
@@ -233,9 +243,9 @@ export function computeEditorPayments(editors, completedProjects) {
     const row = index.get(String(p.assignedEditor?._id || p.assignedEditor));
     if (!row) continue;
     row.completedCount++;
-    if (p.payment?.status === "paid") {
-      if (p.payment.paidAt && (!row.lastPaidAt || p.payment.paidAt > row.lastPaidAt)) {
-        row.lastPaidAt = p.payment.paidAt;
+    if (isPayoutPaid(p, "editor")) {
+      if (p.payment.editor.paidAt && (!row.lastPaidAt || p.payment.editor.paidAt > row.lastPaidAt)) {
+        row.lastPaidAt = p.payment.editor.paidAt;
       }
       continue;
     }

@@ -22,14 +22,19 @@ const feedbackSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 }, { _id: true });
 
+const payoutSchema = new mongoose.Schema({
+  status: { type: String, enum: ["pending", "paid"], default: "pending" },
+  paidAt: { type: Date, default: null },
+  paidBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+}, { _id: false });
+
 const paymentSchema = new mongoose.Schema({
   amount: { type: Number, default: 0, min: 0 },
   clientAmount: { type: Number, default: 0, min: 0 },
   editorAmount: { type: Number, default: 0, min: 0 },
-  status: { type: String, enum: ["pending", "paid"], default: "pending" },
-  paidAt: { type: Date, default: null },
-  paidBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   upiId: { type: String, default: "" },
+  admin: { type: payoutSchema, default: () => ({}) },
+  editor: { type: payoutSchema, default: () => ({}) },
 }, { _id: false });
 
 const timelineEntrySchema = new mongoose.Schema(
@@ -45,6 +50,8 @@ const timelineEntrySchema = new mongoose.Schema(
         "Completed",
         "Reopened",
         "Payment Done",
+        "Payment made to Admin",
+        "Payment made to Editor",
         "Updated",
       ],
       required: true,

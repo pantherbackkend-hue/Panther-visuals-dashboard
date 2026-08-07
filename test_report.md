@@ -105,7 +105,7 @@ $ node --check models/*.js        ✓
 
 | File | Changes | Purpose |
 |------|---------|---------|
-| `routes/admin.js` | +40 / -40 | Added try/catch to `/` dashboard route |
+| `routes/admin.js` | +40 /  -40 | Added try/catch to `/` dashboard route |
 | `routes/workflow.js` | +280 / -176 | try/catch on 4 routes, auth check on notifications, new `/projects` route for clients |
 | `views/admin/clients/index.ejs` | +14 / -1 | `data-name` + event listener pattern for delete buttons |
 | `views/admin/clients/show.ejs` | +11 / -1 | `data-name` + event listener pattern for delete button |

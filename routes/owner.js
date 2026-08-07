@@ -11,6 +11,7 @@ import {
   getDashboardCounts,
   getEditorAmount,
   computeFinancialSummary,
+  isPayoutPaid,
 } from "../utils/workflow.js";
 
 export const ownerRouter = express.Router();
@@ -82,15 +83,16 @@ ownerRouter.get("/payment-status", async (req, res) => {
     const jrAdminPayments = projects.filter((p) => p.ownerAssignment === "admin");
     const editorPayments = projects.filter((p) => p.ownerAssignment === "direct");
 
-    const jrAdminPending = jrAdminPayments.filter((p) => !p.payment || p.payment.status === "pending");
-    const jrAdminPaid = jrAdminPayments.filter((p) => p.payment?.status === "paid");
-    const editorPending = editorPayments.filter((p) => !p.payment || p.payment.status === "pending");
-    const editorPaid = editorPayments.filter((p) => p.payment?.status === "paid");
+    const jrAdminPending = jrAdminPayments.filter((p) => !isPayoutPaid(p, "admin"));
+    const jrAdminPaid = jrAdminPayments.filter((p) => isPayoutPaid(p, "admin"));
+    const editorPending = editorPayments.filter((p) => !isPayoutPaid(p, "editor"));
+    const editorPaid = editorPayments.filter((p) => isPayoutPaid(p, "editor"));
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const paidThisMonth = projects.filter(
-      (p) => p.payment?.status === "paid" && p.payment?.paidAt && new Date(p.payment.paidAt) >= startOfMonth
+      (p) => (isPayoutPaid(p, "admin") && p.payment?.admin?.paidAt && new Date(p.payment.admin.paidAt) >= startOfMonth) ||
+             (isPayoutPaid(p, "editor") && p.payment?.editor?.paidAt && new Date(p.payment.editor.paidAt) >= startOfMonth)
     ).length;
 
     const outstandingAmount = [...jrAdminPending, ...editorPending].reduce(
@@ -104,8 +106,10 @@ ownerRouter.get("/payment-status", async (req, res) => {
         receivedDate: p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : new Date(p.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }),
         completedDate: p.completedAt ? new Date(p.completedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : "—",
         paymentAmount: getEditorAmount(p),
-        paymentStatus: p.payment?.status === "paid" ? "Paid" : "Pending",
-        paymentBadge: p.payment?.status === "paid" ? "ok" : "pending",
+        adminPaymentStatus: isPayoutPaid(p, "admin") ? "Paid" : "Pending",
+        adminPaymentBadge: isPayoutPaid(p, "admin") ? "ok" : "pending",
+        editorPaymentStatus: isPayoutPaid(p, "editor") ? "Paid" : "Pending",
+        editorPaymentBadge: isPayoutPaid(p, "editor") ? "ok" : "pending",
       };
     }
 

@@ -93,7 +93,7 @@
             <span><strong>Your Payment:</strong> <%= formatMoney(p.editorAmount) %></span>
           </div>
           <div class="project-card__actions">
-            <% if (p.payment?.status === "paid") { %><span class="tag tag--ok">Paid</span><% } else { %><span class="tag tag--pending">Awaiting Payment</span><% } %>
+            <% if (p.payment?.editor?.status === "paid") { %><span class="tag tag--ok">Paid</span><% } else { %><span class="tag tag--pending">Awaiting Payment</span><% } %>
             <a class="quick-action-btn" href="/editor/projects/<%= p._id %>">View</a>
           </div>
         </article>

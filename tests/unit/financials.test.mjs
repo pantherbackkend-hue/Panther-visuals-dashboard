@@ -8,13 +8,13 @@ function project(overrides) {
     projectName: "P1",
     status: "completed",
     editorAmount: undefined,
-    payment: { status: "pending" },
+    payment: { editor: { status: "pending" } },
     ...overrides,
   };
 }
 
 const SCENARIO = project({
-  payment: { status: "pending", clientAmount: 100000, editorAmount: 65000 },
+  payment: { editor: { status: "pending" }, clientAmount: 100000, editorAmount: 65000 },
 });
 
 test("getClientAmount prefers clientAmount, falls back to legacy payment.amount", () => {
@@ -37,8 +37,8 @@ test("getProfit is Client Amount - Editor Amount", () => {
 test("summary counts completed projects only, regardless of payment status", () => {
   const summary = computeFinancialSummary([
     SCENARIO,
-    project({ status: "assigned", payment: { clientAmount: 500, editorAmount: 100 } }),
-    project({ payment: { status: "paid", clientAmount: 20000, editorAmount: 8000 } }),
+    project({ status: "assigned", payment: { editor: { status: "pending" }, clientAmount: 500, editorAmount: 100 } }),
+    project({ payment: { editor: { status: "paid" }, clientAmount: 20000, editorAmount: 8000 } }),
   ]);
   assert.equal(summary.completedCount, 2);
   assert.equal(summary.totalClientAmount, 120000);
@@ -54,7 +54,7 @@ test("pending -> paid transition: earnings invariant, only payment summaries mov
   assert.equal(before.totalPaid, 0);
 
   const after = computeFinancialSummary([
-    project({ payment: { status: "paid", paidAt: new Date(), clientAmount: 100000, editorAmount: 65000 } }),
+    project({ payment: { editor: { status: "paid", paidAt: new Date() }, clientAmount: 100000, editorAmount: 65000 } }),
   ]);
   assert.equal(after.totalClientAmount, before.totalClientAmount);
   assert.equal(after.totalEditorAmount, before.totalEditorAmount);
@@ -65,7 +65,7 @@ test("pending -> paid transition: earnings invariant, only payment summaries mov
   assert.equal(after.totalPaid, 1);
 });
 
-test("legacy projects: missing payment.status counts as pending", () => {
+test("legacy projects: missing editor payout counts as pending", () => {
   const summary = computeFinancialSummary([
     project({ payment: { clientAmount: 10000, editorAmount: 4000 } }),
   ]);
