@@ -85,6 +85,8 @@
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><strong>Editor:</strong> <% if (p.assignedEditor?.name) { %><%= p.assignedEditor.name %><% } else { %><span style="color:var(--warning)">Unassigned</span><% } %></span>
+            <span><strong>Client Amount:</strong> <%= formatMoney(p.payment?.clientAmount) %></span>
+            <span><strong>Editor Amount:</strong> <% if (p.editorAmount > 0) { %><%= formatMoney(p.editorAmount) %><% } else { %><span class="muted">—</span><% } %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
@@ -156,6 +158,8 @@
           <div class="project-card__meta">
             <span><strong>Client:</strong> <%= p.clientName %></span>
             <span><strong>Editor:</strong> <%= p.assignedEditor?.name || "Unassigned" %></span>
+            <span><strong>Client Amount:</strong> <%= formatMoney(p.payment?.clientAmount) %></span>
+            <span><strong>Editor Amount:</strong> <% if (p.editorAmount > 0) { %><%= formatMoney(p.editorAmount) %><% } else { %><span class="muted">—</span><% } %></span>
             <span><span class="priority-dot priority-dot--<%= p.priority %>"></span> <span class="capitalize"><%= p.priority %></span></span>
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
@@ -203,7 +207,8 @@
             <span><strong>Received:</strong> <%= p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-IN") : new Date(p.createdAt).toLocaleDateString("en-IN") %></span>
             <span><strong>Due:</strong> <%= p.dueDate ? new Date(p.dueDate).toLocaleDateString("en-IN") : "—" %></span>
             <span><strong>Updated:</strong> <%= new Date(p.updatedAt).toLocaleDateString("en-IN") %></span>
-            <span><strong>Amount:</strong> <%= formatMoney(p.editorAmount) %></span>
+            <span><strong>Client Amount:</strong> <%= formatMoney(p.payment?.clientAmount) %></span>
+            <span><strong>Editor Amount:</strong> <% if (p.editorAmount > 0) { %><%= formatMoney(p.editorAmount) %><% } else { %><span class="muted">—</span><% } %></span>
           </div>
           <div class="project-card__actions">
             <a class="quick-action-btn" href="/admin/projects/<%= p._id %>">Open Project</a>
