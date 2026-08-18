@@ -4,6 +4,7 @@ import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
 import { Notification } from "../models/Notification.js";
 import { User } from "../models/User.js";
+import { Tutorial } from "../models/Tutorial.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin, requireEditor } from "../middleware/auth.js";
 import { normalizeField, normalizeProjectType } from "../utils/admin.js";
@@ -1704,5 +1705,29 @@ workflowRouter.get(
         availability: e.availability,
       })),
     });
+  },
+);
+
+// --- Editor: Tutorials (simple resource links) ---
+
+workflowRouter.get(
+  "/editor/tutorials",
+  requireDb,
+  requireAuth,
+  requireEditor,
+  async (req, res) => {
+    try {
+      const tutorials = await Tutorial.find().sort({ displayOrder: 1, createdAt: 1 }).lean();
+
+      res.render("editor/tutorials/index", {
+        pageTitle: "Tutorials",
+        activeSection: "tutorials",
+        tutorials,
+      });
+    } catch (err) {
+      console.error("Editor tutorials error:", err);
+      req.flash("error", "Something went wrong.");
+      return res.redirect("/editor/projects");
+    }
   },
 );

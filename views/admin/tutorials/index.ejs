@@ -1,0 +1,60 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Editor onboarding</p>
+    <h1>Tutorials</h1>
+    <p class="muted">Links to guides, docs, and resources that help editors learn the dashboard.</p>
+  </div>
+  <div class="admin-actions">
+    <a class="btn" href="/admin/tutorials/new">+ New Tutorial</a>
+  </div>
+</section>
+
+<div class="card admin-panel">
+  <% if (tutorials.length === 0) { %>
+    <p class="muted">No tutorials yet. <a href="/admin/tutorials/new">Create your first tutorial</a>.</p>
+  <% } else { %>
+    <div style="overflow-x:auto">
+      <table class="table" role="table">
+        <thead>
+          <tr>
+            <th scope="col">Title</th>
+            <th scope="col">Last Updated</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% tutorials.forEach(function(t) { %>
+            <tr>
+              <td><strong><%= t.title %></strong></td>
+              <td><%= new Date(t.updatedAt).toLocaleDateString("en-IN") %></td>
+              <td>
+                <div class="admin-actions">
+                  <a class="btn btn--small btn--outline" href="/admin/tutorials/<%= t._id %>/edit">Edit</a>
+                  <form method="post" action="/admin/tutorials/<%= t._id %>/delete" class="inline delete-tutorial-form">
+                    <button class="btn btn--small btn--danger delete-tutorial-btn" type="button" data-name="<%= t.title %>">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<script>
+document.querySelectorAll('.delete-tutorial-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var name = this.getAttribute('data-name');
+    if (confirm('Delete tutorial "' + name + '"? This cannot be undone.')) {
+      this.closest('form').submit();
+    }
+  });
+});
+</script>
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>

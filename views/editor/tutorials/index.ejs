@@ -1,0 +1,27 @@
+<%- include("../../partials/header", { pageTitle }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Learn the dashboard</p>
+    <h1>Tutorials</h1>
+    <p class="muted">Guides, docs, and resources to get you up to speed.</p>
+  </div>
+</section>
+
+<% if (tutorials.length === 0) { %>
+  <div class="card admin-panel"><p class="muted">No tutorials available yet. Please contact an administrator.</p></div>
+<% } else { %>
+  <div class="editor-cards">
+    <% tutorials.forEach(function(t) { %>
+      <div class="card card--link" style="display:flex;flex-direction:column">
+        <h3 style="margin:0 0 6px"><%= t.title %></h3>
+        <p class="muted" style="font-size:13px;margin:0 0 14px"><%- t.description ? renderNotes(t.description) : "" %></p>
+        <div style="margin-top:auto">
+          <a class="btn btn--small" href="<%= t.videoUrl %>" target="_blank" rel="noopener noreferrer">Open Tutorial</a>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include("../../partials/footer") %>

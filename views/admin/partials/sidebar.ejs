@@ -5,6 +5,7 @@
   <a class="admin-sidebar__link <%= activeSection === "assets" ? "is-active" : "" %>" href="/admin/clients">Assets</a>
   <a class="admin-sidebar__link <%= activeSection === "projects" ? "is-active" : "" %>" href="/admin/projects">Projects</a>
   <a class="admin-sidebar__link <%= activeSection === "clients" ? "is-active" : "" %>" href="/admin/clients">Clients</a>
+  <a class="admin-sidebar__link <%= activeSection === "tutorials" ? "is-active" : "" %>" href="/admin/tutorials">Tutorials</a>
   <% if (currentUser && currentUser.role === "admin") { %>
     <a class="admin-sidebar__link <%= activeSection === "profits" ? "is-active" : "" %>" href="/admin/profits">Earnings</a>
   <% } %>

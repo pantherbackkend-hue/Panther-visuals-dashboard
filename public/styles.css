@@ -138,6 +138,12 @@ input[type="file"] { padding: 9px 12px; cursor: pointer; }
   text-decoration: none;
 }
 
+.nav__link.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .nav-toggle {
   display: none;
   align-items: center;
@@ -561,7 +567,7 @@ fieldset.fieldset legend {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin: 0 0 20px;
+  margin: 20px;
 }
 
 .admin-page-head h1 {

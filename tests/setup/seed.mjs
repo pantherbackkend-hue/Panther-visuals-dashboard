@@ -4,6 +4,7 @@ import { User } from "../../models/User.js";
 import { Client } from "../../models/Client.js";
 import { Project } from "../../models/Project.js";
 import { Notification } from "../../models/Notification.js";
+import { Tutorial } from "../../models/Tutorial.js";
 
 export async function seedTestData() {
   const passwordHash = await bcrypt.hash("password123", 10);
@@ -34,6 +35,15 @@ export async function seedTestData() {
     availability: "available",
     isActive: true,
     upiId: "editor@upi",
+  });
+
+  const clientUser = await User.create({
+    name: "Test Client User",
+    email: "client@test.com",
+    passwordHash,
+    role: "client",
+    availability: "available",
+    isActive: true,
   });
 
   const client = await Client.create({
@@ -307,9 +317,33 @@ export async function seedTestData() {
   // It must gracefully default to "Short" when loaded/displayed.
   await Project.updateOne({ _id: ongoingProject._id }, { $unset: { type: 1 } });
 
+  const firstTutorial = await Tutorial.create({
+    title: "Getting Started with the Dashboard",
+    category: "General",
+    description: "How to use the dashboard.",
+    thumbnailUrl: "",
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    displayOrder: 0,
+    published: true,
+    requiredForOnboarding: true,
+    createdBy: admin._id,
+  });
+
+  const secondTutorial = await Tutorial.create({
+    title: "Advanced Color Grading",
+    category: "General",
+    description: "How to grade footage.",
+    videoUrl: "https://vimeo.com/123456789",
+    displayOrder: 1,
+    published: true,
+    requiredForOnboarding: false,
+    createdBy: admin._id,
+  });
+
   return {
     owner, admin, editor, client,
     standardProject, ownerProjectViaAdmin, directAssignProject,
     ongoingProject, submittedProject, completedProject, paidProject,
+    firstTutorial, secondTutorial,
   };
 }

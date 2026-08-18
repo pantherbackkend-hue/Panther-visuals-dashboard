@@ -18,6 +18,20 @@
         });
       })();
     </script>
+    <script>
+      (function () {
+        var nav = document.getElementById("main-nav");
+        if (!nav) return;
+        var target = location.pathname.replace(/\/+$/, "") + location.search;
+        nav.querySelectorAll("a[href]").forEach(function (a) {
+          var href = (a.getAttribute("href") || "").replace(/\/+$/, "");
+          if (href === target) {
+            a.classList.add("is-active");
+            a.setAttribute("aria-current", "page");
+          }
+        });
+      })();
+    </script>
     <style>
       .pw-field { position: relative; }
       .pw-field input { padding-right: 44px; }

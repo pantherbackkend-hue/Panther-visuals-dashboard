@@ -6,11 +6,12 @@ import { Project } from "../models/Project.js";
 import { Client } from "../models/Client.js";
 import { User } from "../models/User.js";
 import { Notification } from "../models/Notification.js";
+import { Tutorial } from "../models/Tutorial.js";
 import { getDashboardCounts, formatStatus, getBadgeColor, updateEditorAvailability, setEditorAmount, markPayoutPaid, isPayoutPaid, computeEditorPayments, getEditorAmount, getClientAmount, getProfit, computeFinancialSummary } from "../utils/workflow.js";
 import { notifyProjectAssigned, broadcastDashboardUpdate, broadcastProjectCounts } from "../utils/notifications.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
-import { normalizeQuery, normalizeField, startOfIstDay } from "../utils/admin.js";
+import { normalizeQuery, normalizeField, startOfIstDay, normalizeTutorialInput } from "../utils/admin.js";
 
 export const adminRouter = express.Router();
 
@@ -1350,3 +1351,129 @@ adminRouter.post("/clients/:id/drive-links/:linkId/default", async (req, res) =>
   }
 });
 
+
+// --- Tutorials ---
+
+async function getNextTutorialDisplayOrder() {
+  const last = await Tutorial.findOne().sort({ displayOrder: -1 }).select("displayOrder").lean();
+  return last ? last.displayOrder + 1 : 0;
+}
+
+adminRouter.get("/tutorials", async (req, res) => {
+  try {
+    const tutorials = await Tutorial.find()
+      .sort({ displayOrder: 1, createdAt: 1 })
+      .lean();
+
+    res.render("admin/tutorials/index", {
+      pageTitle: "Manage Tutorials",
+      activeSection: "tutorials",
+      tutorials,
+    });
+  } catch (err) {
+    console.error("Tutorials list error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin");
+  }
+});
+
+adminRouter.get("/tutorials/new", async (req, res) => {
+  try {
+    res.render("admin/tutorials/form", {
+      pageTitle: "Create Tutorial",
+      activeSection: "tutorials",
+      mode: "create",
+      tutorial: null,
+    });
+  } catch (err) {
+    console.error("Tutorial new form error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/tutorials");
+  }
+});
+
+adminRouter.post("/tutorials", async (req, res) => {
+  try {
+    const result = normalizeTutorialInput(req.body);
+    if (result.error) {
+      req.flash("error", result.error);
+      return res.redirect("/admin/tutorials/new");
+    }
+
+    const displayOrder = await getNextTutorialDisplayOrder();
+    await Tutorial.create({ ...result.fields, displayOrder, createdBy: req.user._id });
+
+    req.flash("success", "Tutorial created.");
+    return res.redirect("/admin/tutorials");
+  } catch (err) {
+    console.error("Tutorial create error:", err);
+    req.flash("error", err.message || "Could not create tutorial.");
+    return res.redirect("/admin/tutorials/new");
+  }
+});
+
+adminRouter.get("/tutorials/:id/edit", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Tutorial not found."); return res.redirect("/admin/tutorials"); }
+
+    const tutorial = await Tutorial.findById(id).lean();
+    if (!tutorial) { req.flash("error", "Tutorial not found."); return res.redirect("/admin/tutorials"); }
+
+    res.render("admin/tutorials/form", {
+      pageTitle: `Edit ${tutorial.title}`,
+      activeSection: "tutorials",
+      mode: "edit",
+      tutorial,
+    });
+  } catch (err) {
+    console.error("Tutorial edit form error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/tutorials");
+  }
+});
+
+adminRouter.post("/tutorials/:id/edit", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Tutorial not found."); return res.redirect("/admin/tutorials"); }
+
+    const tutorial = await Tutorial.findById(id);
+    if (!tutorial) { req.flash("error", "Tutorial not found."); return res.redirect("/admin/tutorials"); }
+
+    const result = normalizeTutorialInput(req.body);
+    if (result.error) {
+      req.flash("error", result.error);
+      return res.redirect(`/admin/tutorials/${id}/edit`);
+    }
+
+    Object.assign(tutorial, result.fields);
+    await tutorial.save();
+
+    req.flash("success", "Tutorial updated.");
+    return res.redirect("/admin/tutorials");
+  } catch (err) {
+    console.error("Tutorial update error:", err);
+    req.flash("error", err.message || "Could not update tutorial.");
+    return res.redirect(`/admin/tutorials/${req.params.id}/edit`);
+  }
+});
+
+adminRouter.post("/tutorials/:id/delete", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) { req.flash("error", "Tutorial not found."); return res.redirect("/admin/tutorials"); }
+
+    const tutorial = await Tutorial.findById(id);
+    if (!tutorial) { req.flash("error", "Tutorial not found."); return res.redirect("/admin/tutorials"); }
+
+    await Tutorial.deleteOne({ _id: tutorial._id });
+
+    req.flash("success", "Tutorial deleted.");
+    return res.redirect("/admin/tutorials");
+  } catch (err) {
+    console.error("Tutorial delete error:", err);
+    req.flash("error", "Something went wrong.");
+    return res.redirect("/admin/tutorials");
+  }
+});

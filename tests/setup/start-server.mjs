@@ -17,14 +17,17 @@ const passwordHash = await bcrypt.hash("password123", 10);
 const { default: UserModel } = await import("../../models/User.js");
 const { default: ClientModel } = await import("../../models/Client.js");
 const { default: ProjectModel } = await import("../../models/Project.js");
+const { default: TutorialModel } = await import("../../models/Tutorial.js");
 
 const User = mongoose.models.User || UserModel;
 const Client = mongoose.models.Client || ClientModel;
 const Project = mongoose.models.Project || ProjectModel;
+const Tutorial = mongoose.models.Tutorial || TutorialModel;
 
 const owner = await User.create({ name: "Test Owner", email: "owner@test.com", passwordHash, role: "owner", availability: "available", isActive: true });
 const admin = await User.create({ name: "Test Admin", email: "admin@test.com", passwordHash, role: "admin", availability: "available", isActive: true });
 const editor = await User.create({ name: "Test Editor", email: "editor@test.com", passwordHash, role: "editor", availability: "available", isActive: true, upiId: "editor@upi" });
+await User.create({ name: "Test Client User", email: "client@test.com", passwordHash, role: "client", availability: "available", isActive: true });
 await User.create({ name: "Busy Editor", email: "busy@test.com", passwordHash, role: "editor", availability: "busy", isActive: true });
 await User.create({ name: "Leave Editor", email: "leave@test.com", passwordHash, role: "editor", availability: "on_leave", isActive: true });
 await User.create({ name: "Inactive Editor", email: "inactive@test.com", passwordHash, role: "editor", availability: "available", isActive: false });
@@ -53,6 +56,9 @@ await Project.create({ client: { name: "Paid Client" }, projectName: "Paid Proje
 // Simulate a legacy project that predates the `type` field.
 // It must gracefully default to "Short" when loaded/displayed.
 await Project.updateOne({ projectName: "Ongoing Project" }, { $unset: { type: 1 } });
+
+await Tutorial.create({ title: "Getting Started with the Dashboard", category: "General", description: "How to use the dashboard.", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", displayOrder: 0, published: true, requiredForOnboarding: true, createdBy: admin._id });
+await Tutorial.create({ title: "Advanced Color Grading", category: "General", description: "How to grade footage.", videoUrl: "https://vimeo.com/123456789", displayOrder: 1, published: true, requiredForOnboarding: false, createdBy: admin._id });
 
 await mongoose.disconnect();
 

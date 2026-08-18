@@ -1,3 +1,5 @@
+import { validateUrl } from "./links.js";
+
 const IST_OFFSET_MINUTES = 330;
 
 function toIstDateParts(date = new Date()) {
@@ -70,6 +72,31 @@ export function normalizeField(value) {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ");
+}
+
+/**
+ * Normalizes and validates tutorial form input (create and edit share this).
+ * Returns { error } on invalid input, else { fields } with trimmed values
+ * and checkbox defaults already resolved.
+ */
+export function normalizeTutorialInput(body) {
+  const title = normalizeQuery(body?.title);
+  const description = String(body?.description || "").trim();
+  const linkError = validateUrl(body?.videoUrl);
+
+  if (!title) return { error: "Title is required." };
+  if (linkError) return { error: linkError };
+
+  return {
+    fields: {
+      title,
+      description,
+      videoUrl: String(body?.videoUrl || "").trim(),
+      category: "General",
+      published: true,
+      requiredForOnboarding: false,
+    },
+  };
 }
 
 

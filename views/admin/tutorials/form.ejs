@@ -1,0 +1,38 @@
+<%- include("../../partials/header", { pageTitle }) %>
+<%- include("../partials/layout-start", { activeSection }) %>
+
+<section class="admin-page-head">
+  <div>
+    <p class="eyebrow">Editor onboarding</p>
+    <h1><%= mode === "create" ? "New Tutorial" : "Edit Tutorial" %></h1>
+  </div>
+  <a class="btn btn--outline" href="/admin/tutorials">Back to Tutorials</a>
+</section>
+
+<div class="card admin-panel" style="max-width:680px">
+  <form method="post" action="<%= mode === "create" ? "/admin/tutorials" : "/admin/tutorials/" + tutorial._id + "/edit" %>" class="admin-form">
+    <div class="form-group">
+      <label for="title">Title *</label>
+      <input id="title" name="title" type="text" required value="<%= tutorial?.title || "" %>" placeholder="e.g. Getting Started with the Dashboard" />
+    </div>
+
+    <div class="form-group">
+      <label for="description">Brief Description</label>
+      <textarea id="description" name="description" rows="4" placeholder="What does this resource cover?"><%= tutorial?.description || "" %></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="videoUrl">Tutorial Link *</label>
+      <input id="videoUrl" name="videoUrl" type="url" required value="<%= tutorial?.videoUrl || "" %>" placeholder="https://drive.google.com/..., https://youtube.com/..., https://..." />
+      <p class="form-help">Any link works: videos, docs, Drive folders, Notion pages, etc.</p>
+    </div>
+
+    <div class="form-actions">
+      <a class="btn btn--outline" href="/admin/tutorials">Cancel</a>
+      <button class="btn" type="submit"><%= mode === "create" ? "Create Tutorial" : "Save Changes" %></button>
+    </div>
+  </form>
+</div>
+
+<%- include("../partials/layout-end") %>
+<%- include("../../partials/footer") %>
