@@ -46,7 +46,7 @@
   <% } else { %>
     <article class="card admin-metric"><p class="muted small">Amount</p><h2><%= formatMoney(project.payment?.amount || 0) %></h2></article>
   <% } %>
-  <article class="card admin-metric"><p class="muted small">Due</p><h2 class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
+  <article class="card admin-metric"><p class="muted small">Due</p><h2 style="<%= overdue ? 'color:var(--danger)' : '' %>"><%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %></h2></article>
   <article class="card admin-metric"><p class="muted small">Received</p><h2><%= project.receivedDate ? new Date(project.receivedDate).toLocaleDateString("en-IN") : new Date(project.createdAt).toLocaleDateString("en-IN") %></h2></article>
   <article class="card admin-metric"><p class="muted small">Versions</p><h2><%= project.submissions?.length || 0 %></h2></article>
 </section>

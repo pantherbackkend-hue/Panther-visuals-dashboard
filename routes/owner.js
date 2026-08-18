@@ -1,13 +1,10 @@
 import express from "express";
-import mongoose from "mongoose";
 import { Project } from "../models/Project.js";
 import { User } from "../models/User.js";
-import { Notification } from "../models/Notification.js";
 import { requireDb } from "../middleware/requireDb.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import {
   formatStatus,
-  getBadgeColor,
   getDashboardCounts,
   getEditorAmount,
   computeFinancialSummary,

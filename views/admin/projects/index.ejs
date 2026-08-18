@@ -82,7 +82,7 @@
         <tbody>
           <% projects.forEach((project) => { %>
             <% var overdue = project.dueDate && new Date(project.dueDate) < new Date() && project.status !== "completed"; %>
-            <tr class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
+            <tr style="<%= overdue ? 'background:var(--danger-soft)' : '' %>">
               <td><a class="admin-link" href="/admin/projects/<%= project._id %>"><%= project.projectName %></a></td>
               <td><%= project.clientName %></td>
               <td><span class="tag tag--<%= (project.typeLabel || "Short") === "Short" ? "info" : "pending" %>"><%= project.typeLabel || "Short" %></span></td>
@@ -98,7 +98,7 @@
                 <% } %>
               </td>
               <td><%= formatMoney(project.paymentAmount) %></td>
-              <td class="<%= overdue ? '' : '' %>" style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
+              <td style="<%= overdue ? 'color:var(--danger);font-weight:600' : '' %>">
                 <%= project.dueDate ? new Date(project.dueDate).toLocaleDateString("en-IN") : "—" %>
               </td>
               <td><%= project.receivedDate ? new Date(project.receivedDate).toLocaleDateString("en-IN") : new Date(project.createdAt).toLocaleDateString("en-IN") %></td>
