@@ -143,10 +143,12 @@
     var btn = action.button;
     btn.disabled = true;
     btn.textContent = "Processing...";
+    var body = {};
+    if (action.projectId) body.projectId = action.projectId;
     fetch(action.url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -179,6 +181,7 @@
       name: btn.dataset.name,
       upi: btn.dataset.upi,
       count: btn.dataset.count,
+      projectId: btn.dataset.projectId,
     });
   }
 
