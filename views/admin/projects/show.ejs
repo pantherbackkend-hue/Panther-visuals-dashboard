@@ -103,7 +103,7 @@
 
 <% if (project.submissions && project.submissions.length > 0) { %>
   <% var latestSub = project.submissions[project.submissions.length - 1]; %>
-  <% var latestPrimary = latestSub.driveLinkPrimary || latestSub.driveLink; %>
+  <% var latestPrimary = latestSub.primaryLink; %>
   <div class="card admin-panel latest-submission">
     <div class="latest-submission__badge">Latest Submission</div>
     <div class="latest-submission__head">
@@ -278,7 +278,7 @@
         <% project.submissions.slice().reverse().forEach(function(sub) { %>
           <tr>
             <td>V<%= sub.version %></td>
-            <td><% var primary = sub.driveLinkPrimary || sub.driveLink; %><% if (primary) { %><a href="<%= primary %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
+            <td><% var primary = sub.primaryLink; %><% if (primary) { %><a href="<%= primary %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
             <td><% if (sub.driveLinkSecondary) { %><a href="<%= sub.driveLinkSecondary %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
             <td><%= sub.description || "—" %></td>
             <td><%= sub.submittedBy?.name || "Editor" %></td>

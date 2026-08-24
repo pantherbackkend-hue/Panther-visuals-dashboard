@@ -7,13 +7,18 @@ const clientSchema = new mongoose.Schema({
 
 const submissionSchema = new mongoose.Schema({
   version: { type: Number, required: true },
-  driveLinkPrimary: { type: String, required: true, trim: true },
+  driveLinkPrimary: { type: String, default: "", trim: true },
   driveLinkSecondary: { type: String, default: "", trim: true },
   driveLink: { type: String, default: "", trim: true },
   description: { type: String, default: "" },
   submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   submittedAt: { type: Date, default: Date.now },
 }, { _id: true });
+
+// Virtual for backward compatibility - returns primary link or legacy driveLink
+submissionSchema.virtual("primaryLink").get(function() {
+  return this.driveLinkPrimary || this.driveLink;
+});
 
 const feedbackSchema = new mongoose.Schema({
   versionRef: { type: Number, default: null },
