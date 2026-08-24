@@ -173,7 +173,8 @@ export async function seedTestData() {
     assignedEditor: editor._id,
     submissions: [{
       version: 1,
-      driveLink: "https://drive.google.com/submission_v1",
+      driveLinkPrimary: "https://drive.google.com/submission_v1",
+      driveLinkSecondary: "",
       description: "First submission",
       submittedBy: editor._id,
       submittedAt: new Date(),
@@ -224,7 +225,8 @@ export async function seedTestData() {
     completedAt: new Date(),
     submissions: [{
       version: 1,
-      driveLink: "https://drive.google.com/completed_v1",
+      driveLinkPrimary: "https://drive.google.com/completed_v1",
+      driveLinkSecondary: "",
       description: "Final submission",
       submittedBy: editor._id,
       submittedAt: new Date(Date.now() - 86400000),
@@ -283,7 +285,8 @@ export async function seedTestData() {
     completedAt: new Date(Date.now() - 172800000),
     submissions: [{
       version: 1,
-      driveLink: "https://drive.google.com/paid_v1",
+      driveLinkPrimary: "https://drive.google.com/paid_v1",
+      driveLinkSecondary: "",
       submittedBy: editor._id,
       submittedAt: new Date(Date.now() - 259200000),
     }],

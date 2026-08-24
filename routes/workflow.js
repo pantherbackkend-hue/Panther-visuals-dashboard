@@ -1224,9 +1224,11 @@ workflowRouter.post(
         return res.status(400).json({ error: "Only ongoing projects can be submitted." });
       }
 
-      const { driveLink, description } = req.body;
-      if (!driveLink || !String(driveLink).trim()) {
-        return res.status(400).json({ error: "Drive link is required for submission." });
+      const { driveLinkPrimary, driveLinkSecondary, description } = req.body;
+      const primary = String(driveLinkPrimary || "").trim();
+      const secondary = String(driveLinkSecondary || "").trim();
+      if (!primary) {
+        return res.status(400).json({ error: "Primary drive link is required for submission." });
       }
 
       if (project.status === "submitted") {
@@ -1235,7 +1237,9 @@ workflowRouter.post(
         if (!latest) {
           return res.status(400).json({ error: "No submission to edit." });
         }
-        latest.driveLink = String(driveLink).trim();
+        latest.driveLinkPrimary = primary;
+        latest.driveLinkSecondary = secondary;
+        latest.driveLink = primary;
         latest.description = String(description || "").trim();
         latest.submittedAt = new Date();
         project.activityTimeline.push({
@@ -1255,7 +1259,9 @@ workflowRouter.post(
 
       project.submissions.push({
         version,
-        driveLink: String(driveLink).trim(),
+        driveLinkPrimary: primary,
+        driveLinkSecondary: secondary,
+        driveLink: primary,
         description: String(description || "").trim(),
         submittedBy: req.user._id,
         submittedAt: new Date(),

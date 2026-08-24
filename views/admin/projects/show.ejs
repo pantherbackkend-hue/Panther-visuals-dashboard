@@ -103,6 +103,7 @@
 
 <% if (project.submissions && project.submissions.length > 0) { %>
   <% var latestSub = project.submissions[project.submissions.length - 1]; %>
+  <% var latestPrimary = latestSub.driveLinkPrimary || latestSub.driveLink; %>
   <div class="card admin-panel latest-submission">
     <div class="latest-submission__badge">Latest Submission</div>
     <div class="latest-submission__head">
@@ -113,7 +114,8 @@
       <span class="muted small">Submitted: <%= new Date(latestSub.submittedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) %></span>
     </div>
     <div class="latest-submission__body">
-      <p><strong>Drive Link:</strong> <a href="<%= latestSub.driveLink %>" target="_blank" rel="noopener"><%= latestSub.driveLink %></a></p>
+      <p><strong>Primary Drive Link:</strong> <% if (latestPrimary) { %><a href="<%= latestPrimary %>" target="_blank" rel="noopener"><%= latestPrimary %></a><% } else { %><span class="muted">—</span><% } %></p>
+      <% if (latestSub.driveLinkSecondary) { %><p><strong>Secondary Drive Link:</strong> <a href="<%= latestSub.driveLinkSecondary %>" target="_blank" rel="noopener"><%= latestSub.driveLinkSecondary %></a></p><% } %>
       <% if (latestSub.description) { %><p><strong>Description:</strong> <%= latestSub.description %></p><% } %>
       <% if (latestSub.submittedBy) { %><p class="muted"><strong>Submitted By:</strong> Editor</p><% } %>
     </div>
@@ -270,13 +272,14 @@
   <div style="overflow-x:auto">
       <table class="table" role="table">
       <thead>
-        <tr><th scope="col">Version</th><th scope="col">Drive Link</th><th scope="col">Description</th><th scope="col">Submitted By</th><th scope="col">Date</th></tr>
+        <tr><th scope="col">Version</th><th scope="col">Primary Drive Link</th><th scope="col">Secondary Drive Link</th><th scope="col">Description</th><th scope="col">Submitted By</th><th scope="col">Date</th></tr>
       </thead>
       <tbody>
         <% project.submissions.slice().reverse().forEach(function(sub) { %>
           <tr>
             <td>V<%= sub.version %></td>
-            <td><% if (sub.driveLink) { %><a href="<%= sub.driveLink %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
+            <td><% var primary = sub.driveLinkPrimary || sub.driveLink; %><% if (primary) { %><a href="<%= primary %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
+            <td><% if (sub.driveLinkSecondary) { %><a href="<%= sub.driveLinkSecondary %>" target="_blank" rel="noopener">Link</a><% } else { %><span class="muted">—</span><% } %></td>
             <td><%= sub.description || "—" %></td>
             <td><%= sub.submittedBy?.name || "Editor" %></td>
             <td><%= new Date(sub.submittedAt).toLocaleDateString("en-IN") %></td>

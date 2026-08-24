@@ -151,7 +151,8 @@
               <tr>
                 <th>Version</th>
                 <th>Date</th>
-                <th>Drive Link</th>
+                <th>Primary Drive Link</th>
+                <th>Secondary Drive Link</th>
                 <th>Description</th>
                 <th>Status</th>
               </tr>
@@ -165,7 +166,13 @@
                     </div>
                   </td>
                   <td><span class="date-cell"><%= new Date(s.submittedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) %></span></td>
-                  <td><a href="<%= s.driveLink %>" target="_blank" rel="noopener" class="drive-link-cell"><%= s.driveLink.length > 35 ? s.driveLink.slice(0,35) + "..." : s.driveLink %></a></td>
+                  <td>
+                    <% var primary = s.driveLinkPrimary || s.driveLink; %>
+                    <% if (primary) { %><a href="<%= primary %>" target="_blank" rel="noopener" class="drive-link-cell"><%= primary.length > 35 ? primary.slice(0,35) + "..." : primary %></a><% } else { %><span class="muted">—</span><% } %>
+                  </td>
+                  <td>
+                    <% if (s.driveLinkSecondary) { %><a href="<%= s.driveLinkSecondary %>" target="_blank" rel="noopener" class="drive-link-cell"><%= s.driveLinkSecondary.length > 35 ? s.driveLinkSecondary.slice(0,35) + "..." : s.driveLinkSecondary %></a><% } else { %><span class="muted">—</span><% } %>
+                  </td>
                   <td><span class="desc-cell"><%= s.description || "—" %></span></td>
                   <td>
                     <span class="status-tag">Submitted</span>
@@ -223,8 +230,12 @@
       <p class="upload-panel__subtitle">Version <strong><%= isEditing ? latestSubmission.version : (project.submissions?.length || 0) + 1 %></strong></p>
       <form id="submit-form">
         <div class="form-group">
-          <label for="driveLink">Drive Link *</label>
-          <input type="url" id="driveLink" name="driveLink" placeholder="https://drive.google.com/..." value="<%= isEditing ? latestSubmission.driveLink : "" %>" required />
+          <label for="driveLinkPrimary">Primary Drive Link *</label>
+          <input type="url" id="driveLinkPrimary" name="driveLinkPrimary" placeholder="https://drive.google.com/..." value="<%= isEditing ? (latestSubmission.driveLinkPrimary || latestSubmission.driveLink) : "" %>" required />
+        </div>
+        <div class="form-group">
+          <label for="driveLinkSecondary">Secondary Drive Link (Optional)</label>
+          <input type="url" id="driveLinkSecondary" name="driveLinkSecondary" placeholder="https://drive.google.com/..." value="<%= isEditing ? (latestSubmission.driveLinkSecondary || "") : "" %>" />
         </div>
         <div class="form-group">
           <label for="description">Description</label>
@@ -324,11 +335,12 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var btn = form.querySelector("button[type=submit]");
-      var driveLink = form.querySelector("[name=driveLink]").value.trim();
+      var driveLinkPrimary = form.querySelector("[name=driveLinkPrimary]").value.trim();
+      var driveLinkSecondary = form.querySelector("[name=driveLinkSecondary]").value.trim();
       var description = form.querySelector("[name=description]").value.trim();
 
-      if (!driveLink) {
-        showFormError(form, "Drive link is required.");
+      if (!driveLinkPrimary) {
+        showFormError(form, "Primary drive link is required.");
         return;
       }
 
@@ -338,7 +350,7 @@
       fetch("/editor/projects/<%= project._id %>/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driveLink: driveLink, description: description }),
+        body: JSON.stringify({ driveLinkPrimary: driveLinkPrimary, driveLinkSecondary: driveLinkSecondary, description: description }),
       })
         .then(function (r) { return r.json(); })
         .then(function (data) {

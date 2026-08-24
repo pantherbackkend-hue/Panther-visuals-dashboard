@@ -39,7 +39,7 @@ test.describe("Reopen Completed Project", () => {
     expect(res.status).toBe(200);
 
     // Editor submits version 1 (ongoing → submitted)
-    res = await apiJson(page, `/editor/projects/${id}/submit`, { body: JSON.stringify({ driveLink: "https://drive.google.com/reopen-v1", description: "v1" }) });
+    res = await apiJson(page, `/editor/projects/${id}/submit`, { body: JSON.stringify({ driveLinkPrimary: "https://drive.google.com/reopen-v1", description: "v1" }) });
     expect(res.status).toBe(200);
 
     // Admin completes (submitted → completed)

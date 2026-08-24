@@ -7,7 +7,9 @@ const clientSchema = new mongoose.Schema({
 
 const submissionSchema = new mongoose.Schema({
   version: { type: Number, required: true },
-  driveLink: { type: String, default: "" },
+  driveLinkPrimary: { type: String, required: true, trim: true },
+  driveLinkSecondary: { type: String, default: "", trim: true },
+  driveLink: { type: String, default: "", trim: true },
   description: { type: String, default: "" },
   submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   submittedAt: { type: Date, default: Date.now },
