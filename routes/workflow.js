@@ -375,8 +375,7 @@ workflowRouter.get(
     const project = await Project.findById(id)
       .populate("assignedEditor", "name email availability upiId")
       .populate("createdBy", "name")
-      .populate("clientRef", "name")
-      .lean();
+      .populate("clientRef", "name");
 
     if (!project) {
       req.flash("error", "Project not found.");
@@ -1047,8 +1046,7 @@ workflowRouter.get(
       const project = await Project.findById(id)
         .populate("assignedEditor", "name email")
         .populate("feedback.createdBy", "name")
-        .populate("clientRef", "name")
-        .lean();
+        .populate("clientRef", "name");
 
       if (!project || String(project.assignedEditor?._id || project.assignedEditor) !== String(req.user._id)) {
         req.flash("error", "Project not found.");
